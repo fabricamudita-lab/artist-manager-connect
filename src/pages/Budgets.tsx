@@ -1269,13 +1269,12 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                     </TooltipTrigger>
                                     <TooltipContent>Cancelar</TooltipContent>
                                   </Tooltip>
-                                  <PermissionWrapper requiredPermission="manage">
-                                    <Tooltip>
+                                  <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => setDeleteStep1Id(budget.id)}
+                                          onClick={() => fetchDeleteImpact(budget)}
                                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -1283,7 +1282,6 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                       </TooltipTrigger>
                                       <TooltipContent>Eliminar</TooltipContent>
                                     </Tooltip>
-                                  </PermissionWrapper>
                                 </>
                               ) : (
                                 <>
@@ -1311,36 +1309,19 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                     </TooltipTrigger>
                                     <TooltipContent>Ver detalle</TooltipContent>
                                   </Tooltip>
-                                  <PermissionWrapper requiredPermission="manage">
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-destructive hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta acción no se puede deshacer. El presupuesto "{budget.name}" será eliminado permanentemente.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => handleDeleteBudget(budget.id)}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                          >
-                                            Eliminar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </PermissionWrapper>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => fetchDeleteImpact(budget)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Eliminar</TooltipContent>
+                                  </Tooltip>
                                 </>
                               )}
                             </div>
@@ -1430,40 +1411,75 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
 
         <GlobalSearchDialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch} />
 
-        {/* Double-confirmation delete: Step 1 */}
-        <ConfirmationDialog
-          open={!!deleteStep1Id}
-          onOpenChange={(open) => { if (!open) setDeleteStep1Id(null); }}
-          title="¿Eliminar presupuesto?"
-          description="Se eliminará este presupuesto y todos sus datos asociados (ítems, versiones, adjuntos)."
-          confirmText="Sí, eliminar"
-          cancelText="Cancelar"
-          variant="warning"
-          icon="delete"
-          onConfirm={() => {
-            setDeleteStep2Id(deleteStep1Id);
-            setDeleteStep1Id(null);
-          }}
-        />
-
-        {/* Double-confirmation delete: Step 2 */}
-        <ConfirmationDialog
-          open={!!deleteStep2Id}
-          onOpenChange={(open) => { if (!open) setDeleteStep2Id(null); }}
-          title="¿Estás completamente seguro?"
-          description="Esta acción es irreversible. El presupuesto y toda su información se borrarán permanentemente."
-          confirmText="Eliminar definitivamente"
-          cancelText="Volver"
-          variant="destructive"
-          icon="warning"
-          onConfirm={() => {
-            if (deleteStep2Id) {
-              handleDeleteBudget(deleteStep2Id);
-              setEditingRowId(null);
-            }
-            setDeleteStep2Id(null);
-          }}
-        />
+        {/* Impact-based delete dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteImpact(null); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar "{deleteTarget?.name}"?</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  {loadingImpact ? (
+                    <p>Analizando dependencias...</p>
+                  ) : deleteImpact && (deleteImpact.itemCount > 0 || deleteImpact.retentionCount > 0 || deleteImpact.hasBooking || deleteImpact.hasProject || deleteImpact.hasRelease) ? (
+                    <>
+                      <p>Este presupuesto tiene las siguientes vinculaciones:</p>
+                      <ul className="space-y-1.5 text-sm">
+                        {deleteImpact.itemCount > 0 && (
+                          <li className="flex items-start gap-2">
+                            <span className="text-amber-500">⚠️</span>
+                            <span>{deleteImpact.itemCount} partida{deleteImpact.itemCount !== 1 ? 's' : ''} presupuestaria{deleteImpact.itemCount !== 1 ? 's' : ''} (se eliminarán)</span>
+                          </li>
+                        )}
+                        {deleteImpact.retentionCount > 0 && (
+                          <li className="flex items-start gap-2">
+                            <span className="text-amber-500">⚠️</span>
+                            <span>{deleteImpact.retentionCount} retenci{deleteImpact.retentionCount !== 1 ? 'ones' : 'ón'} IRPF (se eliminarán)</span>
+                          </li>
+                        )}
+                        {deleteImpact.hasBooking && (
+                          <li className="flex items-start gap-2">
+                            <span>🔗</span>
+                            <span>Vinculado al booking "{deleteImpact.bookingName || 'Sin nombre'}" (perderá su presupuesto)</span>
+                          </li>
+                        )}
+                        {deleteImpact.hasProject && (
+                          <li className="flex items-start gap-2">
+                            <span>🔗</span>
+                            <span>Vinculado al proyecto "{deleteImpact.projectName || 'Sin nombre'}" (se desvinculará)</span>
+                          </li>
+                        )}
+                        {deleteImpact.hasRelease && (
+                          <li className="flex items-start gap-2">
+                            <span>🔗</span>
+                            <span>Vinculado a un lanzamiento (se desvinculará)</span>
+                          </li>
+                        )}
+                      </ul>
+                      {deleteImpact.lockedRetentionCount > 0 && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                          <p className="font-semibold text-destructive">🔴 {deleteImpact.lockedRetentionCount} retenci{deleteImpact.lockedRetentionCount !== 1 ? 'ones pertenecen' : 'ón pertenece'} a un trimestre fiscal PRESENTADO.</p>
+                          <p className="text-destructive/80 mt-1">Eliminar este presupuesto alterará las cifras del Modelo 111.</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p>Este presupuesto no tiene dependencias. Se eliminará de forma segura.</p>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteTarget && handleDeleteBudget(deleteTarget.id)}
+                className="bg-destructive hover:bg-destructive/90"
+                disabled={loadingImpact}
+              >
+                {deleteImpact?.lockedRetentionCount ? 'Eliminar igualmente' : 'Eliminar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
