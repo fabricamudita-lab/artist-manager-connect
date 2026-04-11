@@ -259,21 +259,76 @@ export default function ReleasePresupuestos() {
     if (!id) return;
     setLoadingBudgets(true);
     try {
-      const { data, error } = await (supabase
+      // 1. Direct release_id budgets
+      const { data: directBudgets, error: e1 } = await (supabase
         .from('budgets')
         .select('id, name, fee, budget_status, created_at, metadata') as any)
         .eq('release_id', id)
         .order('created_at', { ascending: false });
+      if (e1) throw e1;
 
-      if (error) throw error;
-      setLinkedBudgets(data || []);
+      // 2. Budgets via junction table
+      const { data: links, error: e2 } = await supabase
+        .from('budget_release_links')
+        .select('budget_id')
+        .eq('release_id', id);
+      if (e2) throw e2;
+
+      const linkBudgetIds = (links || []).map((l: any) => l.budget_id);
+      const directIds = new Set((directBudgets || []).map((b: any) => b.id));
+      const extraIds = linkBudgetIds.filter((bid: string) => !directIds.has(bid));
+
+      let extraBudgets: any[] = [];
+      if (extraIds.length > 0) {
+        const { data: extras } = await (supabase
+          .from('budgets')
+          .select('id, name, fee, budget_status, created_at, metadata') as any)
+          .in('id', extraIds);
+        extraBudgets = (extras || []).map((b: any) => ({ ...b, isLinkedOnly: true }));
+      }
+
+      const allBudgets = [...(directBudgets || []), ...extraBudgets];
+
+      // 3. Fetch shared releases for each budget
+      if (allBudgets.length > 0) {
+        const allBudgetIds = allBudgets.map((b: any) => b.id);
+        const { data: allLinks } = await supabase
+          .from('budget_release_links')
+          .select('budget_id, release_id')
+          .in('budget_id', allBudgetIds);
+
+        // Get unique release IDs (excluding current)
+        const otherReleaseIds = [...new Set((allLinks || [])
+          .filter((l: any) => l.release_id !== id)
+          .map((l: any) => l.release_id))];
+
+        let releaseNames: Record<string, string> = {};
+        if (otherReleaseIds.length > 0) {
+          const { data: releases } = await supabase
+            .from('releases')
+            .select('id, title')
+            .in('id', otherReleaseIds);
+          releaseNames = Object.fromEntries((releases || []).map((r: any) => [r.id, r.title]));
+        }
+
+        // Attach shared releases to each budget
+        for (const budget of allBudgets) {
+          const budgetLinks = (allLinks || []).filter((l: any) => l.budget_id === budget.id && l.release_id !== id);
+          budget.sharedReleases = budgetLinks.map((l: any) => ({
+            id: l.release_id,
+            title: releaseNames[l.release_id] || 'Sin título',
+          }));
+        }
+      }
+
+      setLinkedBudgets(allBudgets);
 
       // Fetch totals for each budget from budget_items
-      if (data && data.length > 0) {
+      if (allBudgets.length > 0) {
         const { data: items, error: itemsError } = await supabase
           .from('budget_items')
           .select('budget_id, quantity, unit_price')
-          .in('budget_id', data.map((b: any) => b.id));
+          .in('budget_id', allBudgets.map((b: any) => b.id));
 
         if (!itemsError && items) {
           const totals: Record<string, { estimated: number; actual: number }> = {};
