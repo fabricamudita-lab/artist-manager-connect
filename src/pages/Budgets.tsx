@@ -853,10 +853,9 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
     setCardFilter(prev => prev === type ? null : type);
   };
 
-  const filteredBudgets = (() => {
-    const closedStatuses = ['cerrado', 'archivado', 'rechazado', 'cancelado'];
-    let result = budgets.filter((budget) => {
-      const q = searchTerm.toLowerCase().trim();
+  const budgetsForCards = (() => {
+    const q = searchTerm.toLowerCase().trim();
+    return budgets.filter((budget) => {
       const matchesSearch =
         !q ||
         budget.name.toLowerCase().includes(q) ||
@@ -869,6 +868,13 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
       const matchesType = filterType === 'all' || budget.type === filterType;
       const matchesArtist = filterArtist === 'all' || budget.artist_id === filterArtist;
 
+      return matchesSearch && matchesType && matchesArtist;
+    });
+  })();
+
+  const filteredBudgets = (() => {
+    const closedStatuses = ['cerrado', 'archivado', 'rechazado', 'cancelado'];
+    let result = budgetsForCards.filter((budget) => {
       let matchesCard = true;
       if (cardFilter === 'activos') {
         matchesCard = !closedStatuses.includes(getEstadoReal(budget));
@@ -877,8 +883,7 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
       } else if (cardFilter === 'excedidos') {
         matchesCard = !closedStatuses.includes(getEstadoReal(budget)) && (budget.computed_disponible ?? 0) < 0;
       }
-
-      return matchesSearch && matchesType && matchesArtist && matchesCard;
+      return matchesCard;
     });
 
     if (cardFilter === 'disponible') {
@@ -950,7 +955,7 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         )}
 
         {/* KPI Cards */}
-        <BudgetSummaryCards budgets={filteredBudgets} onCardClick={handleCardClick} activeCard={cardFilter} />
+        <BudgetSummaryCards budgets={budgetsForCards} onCardClick={handleCardClick} activeCard={cardFilter} />
 
         {/* Filters */}
         <div className="card-moodita hover-lift">
