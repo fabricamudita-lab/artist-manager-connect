@@ -31,7 +31,14 @@ export default function FinanzasHub() {
   useAutoRealizado();
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedArtist, setSelectedArtist] = useState('all');
+  const [selectedArtist, setSelectedArtist] = useState(() => {
+    return sessionStorage.getItem('finanzas-artist-filter') || 'all';
+  });
+
+  const handleArtistChange = (value: string) => {
+    setSelectedArtist(value);
+    sessionStorage.setItem('finanzas-artist-filter', value);
+  };
 
   const activeTab = getTabFromPath(location.pathname);
 
