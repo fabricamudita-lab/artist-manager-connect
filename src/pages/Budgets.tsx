@@ -49,9 +49,21 @@ interface Budget {
   artist_id?: string;
   release_id?: string;
   project_id?: string;
+  booking_offer_id?: string;
   artists?: { name: string; stage_name?: string } | null;
   releases?: { title: string } | null;
   projects?: { name: string } | null;
+}
+
+interface BudgetImpact {
+  itemCount: number;
+  retentionCount: number;
+  lockedRetentionCount: number;
+  hasBooking: boolean;
+  hasProject: boolean;
+  hasRelease: boolean;
+  bookingName?: string;
+  projectName?: string;
 }
 
 interface EditValues {
