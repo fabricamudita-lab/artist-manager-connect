@@ -41,6 +41,9 @@ interface LinkedBudget {
   metadata?: Record<string, any> | null;
   isLinkedOnly?: boolean; // true if linked via budget_release_links (not direct release_id)
   sharedReleases?: { id: string; title: string }[];
+  release_id?: string; // primary release_id from budgets table
+  expectedTrackCount?: number; // sum of tracks across all linked releases (for shared budgets)
+  isSharedBudget?: boolean; // true if linked to multiple releases
 }
 
 // Deadline offsets from release date (must match CreateReleaseBudgetDialog)
@@ -262,7 +265,7 @@ export default function ReleasePresupuestos() {
       // 1. Direct release_id budgets
       const { data: directBudgets, error: e1 } = await (supabase
         .from('budgets')
-        .select('id, name, fee, budget_status, created_at, metadata') as any)
+        .select('id, name, fee, budget_status, created_at, metadata, release_id') as any)
         .eq('release_id', id)
         .order('created_at', { ascending: false });
       if (e1) throw e1;
@@ -282,7 +285,7 @@ export default function ReleasePresupuestos() {
       if (extraIds.length > 0) {
         const { data: extras } = await (supabase
           .from('budgets')
-          .select('id, name, fee, budget_status, created_at, metadata') as any)
+          .select('id, name, fee, budget_status, created_at, metadata, release_id') as any)
           .in('id', extraIds);
         extraBudgets = (extras || []).map((b: any) => ({ ...b, isLinkedOnly: true }));
       }
@@ -318,6 +321,42 @@ export default function ReleasePresupuestos() {
             id: l.release_id,
             title: releaseNames[l.release_id] || 'Sin título',
           }));
+
+          // Determine all release IDs associated with this budget (primary + links)
+          const allBudgetReleaseIds = new Set<string>();
+          if (budget.release_id) allBudgetReleaseIds.add(budget.release_id);
+          (allLinks || []).filter((l: any) => l.budget_id === budget.id).forEach((l: any) => allBudgetReleaseIds.add(l.release_id));
+          
+          budget.isSharedBudget = allBudgetReleaseIds.size > 1;
+        }
+
+        // Fetch track counts for all linked releases to compute expectedTrackCount
+        const allLinkedReleaseIds = new Set<string>();
+        for (const budget of allBudgets) {
+          if (budget.release_id) allLinkedReleaseIds.add(budget.release_id);
+          (allLinks || []).filter((l: any) => l.budget_id === budget.id).forEach((l: any) => allLinkedReleaseIds.add(l.release_id));
+        }
+
+        if (allLinkedReleaseIds.size > 0) {
+          const { data: trackRows } = await supabase
+            .from('tracks')
+            .select('release_id')
+            .in('release_id', [...allLinkedReleaseIds]);
+
+          const trackCountByRelease: Record<string, number> = {};
+          (trackRows || []).forEach((t: any) => {
+            trackCountByRelease[t.release_id] = (trackCountByRelease[t.release_id] || 0) + 1;
+          });
+
+          for (const budget of allBudgets) {
+            const budgetReleaseIds = new Set<string>();
+            if (budget.release_id) budgetReleaseIds.add(budget.release_id);
+            (allLinks || []).filter((l: any) => l.budget_id === budget.id).forEach((l: any) => budgetReleaseIds.add(l.release_id));
+
+            let total = 0;
+            budgetReleaseIds.forEach(rid => { total += trackCountByRelease[rid] || 0; });
+            budget.expectedTrackCount = total;
+          }
         }
       }
 
@@ -486,19 +525,29 @@ export default function ReleasePresupuestos() {
 
   // ─── Resolve: sync n_tracks in budget ────────────────────────────
   const resolveTrackCount = async (budgetIds: string[]) => {
-    for (const budgetId of budgetIds) {
-      const budget = linkedBudgets.find(b => b.id === budgetId);
-      if (!budget) continue;
-      const meta = { ...(budget.metadata || {}) } as Record<string, any>;
-      if (!meta.variables) meta.variables = {};
-      meta.variables.n_tracks = tracks?.length || 0;
-      await (supabase.from('budgets').update({ metadata: meta } as any).eq('id', budgetId));
+    try {
+      for (const budgetId of budgetIds) {
+        const budget = linkedBudgets.find(b => b.id === budgetId);
+        if (!budget) continue;
+        const meta = { ...(budget.metadata || {}) } as Record<string, any>;
+        if (!meta.variables) meta.variables = {};
+        // Use expectedTrackCount (sum across all linked releases) for shared budgets
+        meta.variables.n_tracks = budget.expectedTrackCount ?? (tracks?.length || 0);
+        const { error } = await (supabase.from('budgets').update({ metadata: meta } as any).eq('id', budgetId));
+        if (error) {
+          console.error('Error updating budget metadata:', error);
+          throw error;
+        }
+      }
+      toast.success(budgetIds.length > 1
+        ? `${budgetIds.length} presupuestos actualizados`
+        : 'Presupuesto actualizado con el número de canciones correcto'
+      );
+      fetchLinkedBudgets();
+    } catch (err) {
+      console.error('Error resolving track count:', err);
+      toast.error('Error al actualizar el presupuesto');
     }
-    toast.success(budgetIds.length > 1
-      ? `${budgetIds.length} presupuestos actualizados con el número de canciones actual`
-      : 'Presupuesto actualizado con el número de canciones actual'
-    );
-    fetchLinkedBudgets();
   };
 
   // ─── Inconsistency warnings ──────────────────────────────────────
@@ -514,14 +563,21 @@ export default function ReleasePresupuestos() {
       const meta = budget.metadata as Record<string, any> | null;
       if (!meta?.variables) continue;
 
-      // 1. Track count mismatch — one warning per budget, keyed by budgetId
-      const budgetTrackCount = meta.variables?.n_tracks;
-      if (budgetTrackCount && currentTrackCount > 0 && budgetTrackCount !== currentTrackCount) {
+      // 1. Track count mismatch — compare against expectedTrackCount for shared budgets
+      const budgetTrackCount = Number(meta.variables?.n_tracks || 0);
+      const expectedCount = budget.expectedTrackCount ?? currentTrackCount;
+      if (budgetTrackCount > 0 && expectedCount > 0 && budgetTrackCount !== expectedCount) {
+        const isShared = budget.isSharedBudget;
+        const sharedNames = budget.sharedReleases?.map(r => r.title).join(', ');
         w.push({
           key: `track_count-${budget.id}`,
           type: 'track_count',
-          title: `El presupuesto tiene ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero el release tiene ${currentTrackCount}`,
-          detail: `"${budget.name}" · Actualiza el número de canciones para que los cálculos sean correctos.`,
+          title: isShared
+            ? `El presupuesto tiene ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero los releases vinculados suman ${expectedCount}`
+            : `El presupuesto tiene ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero el release tiene ${expectedCount}`,
+          detail: isShared
+            ? `"${budget.name}" · Presupuesto compartido con ${sharedNames || 'otros releases'} · Actualiza para sincronizar el total.`
+            : `"${budget.name}" · Actualiza el número de canciones para que los cálculos sean correctos.`,
           budgetId: budget.id,
         });
       }
@@ -638,10 +694,12 @@ export default function ReleasePresupuestos() {
     // Update detail for grouped warnings with multiple budgets
     for (const w of grouped.values()) {
       if (w.budgetIds && w.budgetIds.length > 1 && w.type === 'track_count') {
-        const meta0 = linkedBudgets.find(b => b.id === w.budgetIds![0])?.metadata as Record<string, any> | null;
-        const budgetTrackCount = meta0?.variables?.n_tracks;
+        const budget0 = linkedBudgets.find(b => b.id === w.budgetIds![0]);
+        const meta0 = budget0?.metadata as Record<string, any> | null;
+        const budgetTrackCount = Number(meta0?.variables?.n_tracks || 0);
+        const expectedCount = budget0?.expectedTrackCount ?? (tracks?.length || 0);
         w.detail = `${w.budgetIds.length} presupuestos afectados · Actualiza el número de canciones para que los cálculos sean correctos.`;
-        w.title = `Los presupuestos tienen ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero el release tiene ${tracks?.length || 0}`;
+        w.title = `Los presupuestos tienen ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero los releases suman ${expectedCount}`;
       }
     }
 
