@@ -1,40 +1,45 @@
 
+Diagnóstico: el aviso entra en bucle por dos motivos combinados en `src/pages/release-sections/ReleasePresupuestos.tsx`.
 
-## Paleta de colores ampliada y sin repeticiones para el donut
+1. `metadata.variables.n_tracks` es un único valor guardado en el presupuesto, pero ese presupuesto ahora está compartido entre varios releases. La comprobación actual lo compara solo contra `tracks?.length` del release abierto, así que en un presupuesto espejo la comparación es conceptualmente incorrecta.
+2. `resolveTrackCount()` muestra toast de éxito aunque la actualización falle, porque no comprueba `error` en el `update()` de Supabase.
 
-### Problema
-La paleta actual tiene 10 colores pero varios son visualmente similares (rojo #dc2626 y rosa #e11d48). Al haber pocas categorías con valor > 0, el `filter` elimina categorías vacías y los índices se reordenan, pero los colores asignados pueden seguir siendo perceptualmente iguales.
+En este caso concreto, el presupuesto compartido `"Presupuesto - ChromatisM + Nox + Hobba"` tiene `n_tracks = 3`, mientras que el release actual tiene 1 track y además el presupuesto está vinculado a otros releases. Por eso el aviso no tiene una “salida estable” con la lógica actual.
 
-### Solución
-Reemplazar la paleta de 10 colores por una de 16 colores perceptualmente distintos, ordenados para maximizar contraste entre colores adyacentes. Esto garantiza que nunca se repitan colores en el mismo gráfico (hasta 16 categorías) y que categorías consecutivas siempre tengan colores claramente distinguibles.
+Plan de implementación:
 
-### Cambio en `src/components/BudgetDetailsDialog.tsx`
+1. Ajustar el modelo en pantalla para presupuestos compartidos
+- En `fetchLinkedBudgets`, además de `metadata`, traer también `release_id`.
+- Construir para cada presupuesto la lista completa de releases asociados: release principal (`budgets.release_id`) + extras de `budget_release_links`.
+- Calcular también el nº de tracks por release vinculado.
 
-**Líneas 1000-1011**: Reemplazar la paleta actual por:
+2. Crear una única regla de “track count esperado”
+- Añadir helper tipo `getExpectedTrackCount(budget)`.
+- Si el presupuesto es normal: esperado = tracks del release actual.
+- Si el presupuesto es compartido: esperado = suma de tracks de todos los releases vinculados al mismo presupuesto.
+- Normalizar a número con `Number(...)` para evitar falsos positivos por tipos.
 
-```typescript
-const colors = [
-  '#2563eb', // blue
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#8b5cf6', // violet
-  '#ef4444', // red
-  '#06b6d4', // cyan
-  '#ec4899', // pink
-  '#84cc16', // lime
-  '#f97316', // orange
-  '#6366f1', // indigo
-  '#14b8a6', // teal
-  '#a855f7', // purple
-  '#eab308', // yellow
-  '#0ea5e9', // sky
-  '#d946ef', // fuchsia
-  '#64748b', // slate
-];
-```
+3. Corregir el warning para que no compare mal
+- Cambiar la generación de warnings `track_count` para usar `getExpectedTrackCount(budget)`.
+- Cambiar el texto cuando sea compartido, por ejemplo:
+  - `El presupuesto tiene 3 canciones, pero los releases vinculados suman 4`
+  - detalle con los releases implicados si hace falta.
+- Así el aviso dejará de reaparecer por comparar un presupuesto compartido contra un solo release.
 
-Los colores están intercalados (cálido-frío-cálido-frío) para que categorías consecutivas siempre contrasten visualmente. Con 16 opciones, es prácticamente imposible que se repitan en un presupuesto real.
+4. Corregir el botón “Actualizar presupuesto”
+- En `resolveTrackCount`, actualizar `metadata.variables.n_tracks` al valor esperado real (individual o combinado según el caso).
+- Comprobar explícitamente `const { error } = await ...update(...)`; si hay error, lanzar excepción y no mostrar éxito falso.
+- Solo mostrar el toast de éxito cuando la escritura haya terminado bien.
+- Refrescar `fetchLinkedBudgets()` al terminar.
 
-### Archivo modificado
-- `src/components/BudgetDetailsDialog.tsx` (solo la paleta de colores, ~12 líneas)
+5. Mejorar feedback para presupuestos espejo
+- Si el presupuesto está compartido, cambiar el copy del botón/acción para que quede claro que actualizará el total compartido, no solo el release abierto.
+- Esto evita confusión con el comportamiento espejo.
 
+Archivos a tocar:
+- `src/pages/release-sections/ReleasePresupuestos.tsx`
+
+Detalles técnicos:
+- No hace falta migración.
+- La clave es dejar de tratar `n_tracks` como “tracks del release actual” cuando el presupuesto pertenece a varios releases.
+- Además, hay que eliminar el falso positivo de éxito revisando `error` en Supabase antes del toast.
