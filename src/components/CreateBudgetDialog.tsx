@@ -510,7 +510,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
               </div>
 
               <div>
-                <Label htmlFor="fee">Fee (€)</Label>
+                <Label htmlFor="fee">{selectedType === 'concierto' ? 'Fee (€)' : 'Capital / Presupuesto (€)'}</Label>
                 <Input
                   id="fee"
                   type="number"

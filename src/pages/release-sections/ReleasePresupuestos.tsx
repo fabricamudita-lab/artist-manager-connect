@@ -819,7 +819,7 @@ export default function ReleasePresupuestos() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Fee Total</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Presupuesto Total</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">€{totalActual.toLocaleString()}</p>
@@ -851,7 +851,7 @@ export default function ReleasePresupuestos() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Total Partidas</TableHead>
-                      <TableHead className="text-right">Fee</TableHead>
+                      <TableHead className="text-right">Presupuesto</TableHead>
                       <TableHead className="w-[100px]">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1123,7 +1123,7 @@ export default function ReleasePresupuestos() {
                     >
                       <p className="text-sm font-medium">{b.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {b.fee ? `€${b.fee.toLocaleString()}` : 'Sin fee'}
+                        {b.fee ? `€${b.fee.toLocaleString()}` : 'Sin presupuesto'}
                         {b.release_name && ` · ${b.release_name}`}
                       </p>
                     </button>
