@@ -1,35 +1,34 @@
 
 
-## Cambiar etiqueta "Fee" → "Presupuesto Total" en contexto discográfico
+## Mostrar presupuestos de lanzamientos en la vista del Proyecto
 
 ### Problema
-En la vista de presupuestos de un lanzamiento (discográfica), las etiquetas dicen "Fee" y "Fee Total", que es terminología de booking/conciertos. Para producción musical debería decir "Presupuesto Total" o "Capital".
+Los presupuestos creados desde un lanzamiento (release) tienen `budgets.project_id = NULL`. Se vinculan al proyecto indirectamente a traves de `releases.project_id`. El componente `ProjectLinkedBudgets` solo busca `budgets.project_id = projectId`, por lo que nunca muestra estos presupuestos.
 
-### Alcance del cambio
-**Solo etiquetas de UI** — el campo en base de datos sigue siendo `fee`. No hay riesgo de romper cálculos, queries ni lógica existente.
+### Solucion
+Ampliar la query en `ProjectLinkedBudgets` para incluir tambien los presupuestos cuyos releases pertenecen al proyecto.
 
-### Análisis de riesgos
-- **Sin riesgo en DB**: no se toca la columna `fee`, solo texto visible.
-- **Sin riesgo en booking**: los cambios son condicionales por tipo de presupuesto o por contexto (release vs booking).
-- **Consistencia**: `BudgetDetailsDialog` ya usa etiquetas adaptativas (Caché/Capital Aportado/Capital según `type`). Estamos alineando el resto de la app.
+### Cambio tecnico
 
-### Cambios por archivo
+**Archivo: `src/components/project-detail/ProjectLinkedBudgets.tsx`**
 
-**1. `src/pages/release-sections/ReleasePresupuestos.tsx`**
-- Línea 822: KPI card "Fee Total" → "Presupuesto Total"
-- Línea 854: Cabecera de tabla "Fee" → "Presupuesto"
-- Línea 896: Celda que muestra el valor — sin cambio (solo muestra `€X`)
-- Línea 1126: Diálogo de vincular, texto "Sin fee" → "Sin presupuesto"
+1. Primero, obtener los IDs de releases del proyecto:
+```sql
+SELECT id FROM releases WHERE project_id = :projectId
+```
 
-**2. `src/components/CreateBudgetDialog.tsx`**
-- Línea 513: Label "Fee (€)" → adaptar según tipo seleccionado: si `type === 'concierto'` → "Fee (€)", si no → "Capital / Presupuesto (€)"
+2. Luego, buscar presupuestos que cumplan cualquiera de estas condiciones:
+   - `budgets.project_id = projectId` (vinculacion directa)
+   - `budgets.release_id IN (releaseIds)` (vinculacion via release)
+   - Presupuestos en `budget_release_links` que apunten a esos releases
 
-**3. `src/components/project-detail/ProjectLinkedBudgets.tsx`**
-- El componente ya muestra `€{budget.fee}` sin etiqueta "Fee", así que no necesita cambio.
+3. Deduplicar resultados (un presupuesto podria aparecer por ambas vias).
 
-**4. `src/utils/exportUtils.ts`**
-- Línea 78: `Fee: €${budget.fee}` → adaptar label según `budget.type`: "Fee" para concierto, "Presupuesto" para el resto.
+4. Opcionalmente, mostrar un indicador sutil de donde viene cada presupuesto (ej: nombre del release asociado).
 
-### Resumen
-4 archivos tocados, solo cambios de texto condicional. Cero impacto en lógica financiera, queries o estructura de datos.
+### Riesgos
+- Ninguno. Es una query de lectura ampliada. No modifica datos ni afecta otros modulos.
+
+### Archivo modificado
+- `src/components/project-detail/ProjectLinkedBudgets.tsx`
 
