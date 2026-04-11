@@ -265,7 +265,7 @@ export default function ReleasePresupuestos() {
       // 1. Direct release_id budgets
       const { data: directBudgets, error: e1 } = await (supabase
         .from('budgets')
-        .select('id, name, fee, budget_status, created_at, metadata') as any)
+        .select('id, name, fee, budget_status, created_at, metadata, release_id') as any)
         .eq('release_id', id)
         .order('created_at', { ascending: false });
       if (e1) throw e1;
@@ -285,7 +285,7 @@ export default function ReleasePresupuestos() {
       if (extraIds.length > 0) {
         const { data: extras } = await (supabase
           .from('budgets')
-          .select('id, name, fee, budget_status, created_at, metadata') as any)
+          .select('id, name, fee, budget_status, created_at, metadata, release_id') as any)
           .in('id', extraIds);
         extraBudgets = (extras || []).map((b: any) => ({ ...b, isLinkedOnly: true }));
       }
@@ -321,6 +321,42 @@ export default function ReleasePresupuestos() {
             id: l.release_id,
             title: releaseNames[l.release_id] || 'Sin título',
           }));
+
+          // Determine all release IDs associated with this budget (primary + links)
+          const allBudgetReleaseIds = new Set<string>();
+          if (budget.release_id) allBudgetReleaseIds.add(budget.release_id);
+          (allLinks || []).filter((l: any) => l.budget_id === budget.id).forEach((l: any) => allBudgetReleaseIds.add(l.release_id));
+          
+          budget.isSharedBudget = allBudgetReleaseIds.size > 1;
+        }
+
+        // Fetch track counts for all linked releases to compute expectedTrackCount
+        const allLinkedReleaseIds = new Set<string>();
+        for (const budget of allBudgets) {
+          if (budget.release_id) allLinkedReleaseIds.add(budget.release_id);
+          (allLinks || []).filter((l: any) => l.budget_id === budget.id).forEach((l: any) => allLinkedReleaseIds.add(l.release_id));
+        }
+
+        if (allLinkedReleaseIds.size > 0) {
+          const { data: trackRows } = await supabase
+            .from('tracks')
+            .select('release_id')
+            .in('release_id', [...allLinkedReleaseIds]);
+
+          const trackCountByRelease: Record<string, number> = {};
+          (trackRows || []).forEach((t: any) => {
+            trackCountByRelease[t.release_id] = (trackCountByRelease[t.release_id] || 0) + 1;
+          });
+
+          for (const budget of allBudgets) {
+            const budgetReleaseIds = new Set<string>();
+            if (budget.release_id) budgetReleaseIds.add(budget.release_id);
+            (allLinks || []).filter((l: any) => l.budget_id === budget.id).forEach((l: any) => budgetReleaseIds.add(l.release_id));
+
+            let total = 0;
+            budgetReleaseIds.forEach(rid => { total += trackCountByRelease[rid] || 0; });
+            budget.expectedTrackCount = total;
+          }
         }
       }
 
