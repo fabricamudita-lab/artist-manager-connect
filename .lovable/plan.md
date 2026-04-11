@@ -1,28 +1,40 @@
 
 
-## Fix: "Vinculado a" muestra release en vez de proyecto
+## Eliminar CityZen del módulo de Booking
 
-### Problema
-El presupuesto "Presupuesto - ChromatisM + Nox + Hobba" tiene ambos vínculos:
-- `project_id` → PLAYGRXVND (proyecto)
-- `release_id` → ChromatisM (lanzamiento)
+CityZen era el antiguo booker y ya no cumple ninguna función. Se eliminará toda referencia visual y lógica de CityZen, manteniendo el campo `es_cityzen` en la base de datos (sin tocar migraciones).
 
-La función `getVinculacion` (línea 144) prioriza el release sobre el proyecto, mostrando "ChromatisM" cuando el usuario espera ver "PLAYGRXVND". Además, el dropdown de edición inline solo controla `project_id`, así que hay una inconsistencia visual.
+### Archivos a modificar (~17 archivos)
 
-### Solución
-Cambiar la prioridad en `getVinculacion` para mostrar el **proyecto** primero (ya que es el contenedor principal). Si no tiene proyecto, mostrar el release como fallback.
+**1. `src/components/BookingFiltersToolbar.tsx`**
+- Eliminar el checkbox "Solo CityZen" del panel de filtros avanzados
+- Eliminar `showCityzen` de la interfaz `BookingFiltersState`
+- Eliminar import de `Sparkles`
 
-### Cambio (1 archivo, 2 líneas)
+**2. `src/pages/Booking.tsx`**
+- Eliminar `showCityzen` del estado inicial de filtros y de `clearAllFilters`
+- Eliminar la línea de filtrado por `es_cityzen`
+- Eliminar columna `es_cityzen` del CSV export
+- Cambiar el subtítulo "con reglas CityZen" por algo genérico
 
-**`src/pages/Budgets.tsx`**, líneas 144-148:
+**3. `src/components/BookingKanban.tsx`**
+- Eliminar la tarjeta KPI "CityZen" del dashboard
+- Eliminar el filtro `showCityzen` y su lógica
+- Eliminar columna CityZen del export CSV
+- Eliminar el badge CityZen de las tarjetas del Kanban
+- Eliminar el comentario "Validate CityZen rules" (mantener la validación de comisión si tiene sentido por sí sola)
 
-```typescript
-function getVinculacion(budget: Budget): { label: string; type: 'release' | 'project' } | null {
-  if (budget.projects?.name) return { label: budget.projects.name, type: 'project' };
-  if (budget.releases?.title) return { label: budget.releases.title, type: 'release' };
-  return null;
-}
-```
+**4. `src/components/booking-detail/BookingOverviewTab.tsx`**
+- Eliminar el badge "CityZen" de la vista de detalle
 
-Se invierte el orden: proyecto primero, release después. Así "Vinculado a" será coherente con lo que controla el dropdown de edición.
+**5. `src/pages/BookingDetail.tsx`**
+- Eliminar `es_cityzen` de la exportación PDF
+
+**6. Resto de archivos** (formularios, tipos, etc.)
+- Eliminar checkboxes y campos de formulario `es_cityzen`
+- Eliminar badges naranjas de CityZen en tarjetas y listas
+- No tocar la columna de la base de datos
+
+### Resultado
+La UI queda limpia sin referencias a CityZen. El campo sigue en la BD por si acaso, pero no se muestra ni se filtra.
 
