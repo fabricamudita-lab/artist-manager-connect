@@ -72,11 +72,11 @@ export function FinanzasPanelTab({ artistId }: Props) {
               Registra tu primer cobro en la pestaña Cobros o liquida una factura en Pagos para ver datos aquí.
             </p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate('/finanzas?tab=cobros')}>
+              <Button onClick={() => navigate('/finanzas/cobros')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir cobro
               </Button>
-              <Button variant="outline" onClick={() => navigate('/finanzas?tab=pagos')}>
+              <Button variant="outline" onClick={() => navigate('/finanzas/pagos')}>
                 Ver Pagos
               </Button>
             </div>
@@ -111,14 +111,14 @@ export function FinanzasPanelTab({ artistId }: Props) {
           <CollapsibleContent>
             <div className="mt-2 space-y-1.5 pl-2">
               {data.cobrosVencidos > 0 && (
-                <button onClick={() => navigate('/finanzas?tab=cobros')} className="flex items-center gap-2 text-sm text-destructive/80 hover:text-destructive transition-colors w-full text-left">
+                <button onClick={() => navigate('/finanzas/cobros')} className="flex items-center gap-2 text-sm text-destructive/80 hover:text-destructive transition-colors w-full text-left">
                   <span className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
                   {data.cobrosVencidos} cobro{data.cobrosVencidos !== 1 ? 's' : ''} vencido{data.cobrosVencidos !== 1 ? 's' : ''}
                   <ArrowRight className="h-3 w-3 ml-auto" />
                 </button>
               )}
               {data.presupuestosExcedidos > 0 && (
-                <button onClick={() => navigate('/finanzas?tab=presupuestos')} className="flex items-center gap-2 text-sm text-destructive/80 hover:text-destructive transition-colors w-full text-left">
+                <button onClick={() => navigate('/finanzas/presupuestos')} className="flex items-center gap-2 text-sm text-destructive/80 hover:text-destructive transition-colors w-full text-left">
                   <span className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
                   {data.presupuestosExcedidos} presupuesto{data.presupuestosExcedidos !== 1 ? 's' : ''} excedido{data.presupuestosExcedidos !== 1 ? 's' : ''}
                   <ArrowRight className="h-3 w-3 ml-auto" />
@@ -192,7 +192,7 @@ export function FinanzasPanelTab({ artistId }: Props) {
         {/* Cobros Pendientes */}
         <Card
           className={`card-moodita border-l-4 cursor-pointer hover:border-primary/30 transition-colors ${data.vencidosCount > 0 ? 'border-l-destructive' : 'border-l-blue-500'}`}
-          onClick={() => navigate('/finanzas?tab=cobros')}
+          onClick={() => navigate('/finanzas/cobros')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Cobros Pendientes</CardTitle>
@@ -210,7 +210,7 @@ export function FinanzasPanelTab({ artistId }: Props) {
         {/* Pagos Pendientes */}
         <Card
           className="card-moodita border-l-4 border-l-orange-500 cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => navigate('/finanzas?tab=pagos')}
+          onClick={() => navigate('/finanzas/pagos')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pagos Pendientes</CardTitle>
@@ -227,7 +227,7 @@ export function FinanzasPanelTab({ artistId }: Props) {
         {/* Retenciones IRPF */}
         <Card
           className="card-moodita border-l-4 border-l-violet-500 cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => navigate('/finanzas?tab=fiscal')}
+          onClick={() => navigate('/finanzas/fiscal')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Retenciones IRPF</CardTitle>
