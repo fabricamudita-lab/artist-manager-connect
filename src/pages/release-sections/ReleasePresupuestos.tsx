@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   ArrowLeft, Plus, DollarSign, Eye, Trash2, Receipt, FileText, Music,
   AlertTriangle, CalendarIcon, ChevronDown, ChevronUp, CheckCircle2,
-  Calendar, ArrowRight, RefreshCw, X, Zap
+  Calendar, ArrowRight, RefreshCw, X, Zap, Link2, Search, Unlink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -39,6 +39,8 @@ interface LinkedBudget {
   budget_status?: string;
   created_at: string;
   metadata?: Record<string, any> | null;
+  isLinkedOnly?: boolean; // true if linked via budget_release_links (not direct release_id)
+  sharedReleases?: { id: string; title: string }[];
 }
 
 // Deadline offsets from release date (must match CreateReleaseBudgetDialog)
@@ -226,6 +228,10 @@ export default function ReleasePresupuestos() {
   const [linkedBudgets, setLinkedBudgets] = useState<LinkedBudget[]>([]);
   const [loadingBudgets, setLoadingBudgets] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
+  const [availableBudgets, setAvailableBudgets] = useState<{ id: string; name: string; fee: number | null; release_name?: string }[]>([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<LinkedBudget | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
@@ -253,21 +259,76 @@ export default function ReleasePresupuestos() {
     if (!id) return;
     setLoadingBudgets(true);
     try {
-      const { data, error } = await (supabase
+      // 1. Direct release_id budgets
+      const { data: directBudgets, error: e1 } = await (supabase
         .from('budgets')
         .select('id, name, fee, budget_status, created_at, metadata') as any)
         .eq('release_id', id)
         .order('created_at', { ascending: false });
+      if (e1) throw e1;
 
-      if (error) throw error;
-      setLinkedBudgets(data || []);
+      // 2. Budgets via junction table
+      const { data: links, error: e2 } = await supabase
+        .from('budget_release_links')
+        .select('budget_id')
+        .eq('release_id', id);
+      if (e2) throw e2;
+
+      const linkBudgetIds = (links || []).map((l: any) => l.budget_id);
+      const directIds = new Set((directBudgets || []).map((b: any) => b.id));
+      const extraIds = linkBudgetIds.filter((bid: string) => !directIds.has(bid));
+
+      let extraBudgets: any[] = [];
+      if (extraIds.length > 0) {
+        const { data: extras } = await (supabase
+          .from('budgets')
+          .select('id, name, fee, budget_status, created_at, metadata') as any)
+          .in('id', extraIds);
+        extraBudgets = (extras || []).map((b: any) => ({ ...b, isLinkedOnly: true }));
+      }
+
+      const allBudgets = [...(directBudgets || []), ...extraBudgets];
+
+      // 3. Fetch shared releases for each budget
+      if (allBudgets.length > 0) {
+        const allBudgetIds = allBudgets.map((b: any) => b.id);
+        const { data: allLinks } = await supabase
+          .from('budget_release_links')
+          .select('budget_id, release_id')
+          .in('budget_id', allBudgetIds);
+
+        // Get unique release IDs (excluding current)
+        const otherReleaseIds = [...new Set((allLinks || [])
+          .filter((l: any) => l.release_id !== id)
+          .map((l: any) => l.release_id))];
+
+        let releaseNames: Record<string, string> = {};
+        if (otherReleaseIds.length > 0) {
+          const { data: releases } = await supabase
+            .from('releases')
+            .select('id, title')
+            .in('id', otherReleaseIds);
+          releaseNames = Object.fromEntries((releases || []).map((r: any) => [r.id, r.title]));
+        }
+
+        // Attach shared releases to each budget
+        for (const budget of allBudgets) {
+          const budgetLinks = (allLinks || []).filter((l: any) => l.budget_id === budget.id && l.release_id !== id);
+          budget.sharedReleases = budgetLinks.map((l: any) => ({
+            id: l.release_id,
+            title: releaseNames[l.release_id] || 'Sin título',
+          }));
+        }
+      }
+
+      setLinkedBudgets(allBudgets);
 
       // Fetch totals for each budget from budget_items
-      if (data && data.length > 0) {
+      if (allBudgets.length > 0) {
         const { data: items, error: itemsError } = await supabase
           .from('budget_items')
           .select('budget_id, quantity, unit_price')
-          .in('budget_id', data.map((b: any) => b.id));
+          .in('budget_id', allBudgets.map((b: any) => b.id));
 
         if (!itemsError && items) {
           const totals: Record<string, { estimated: number; actual: number }> = {};
@@ -293,6 +354,25 @@ export default function ReleasePresupuestos() {
 
   const handleDeleteBudget = async () => {
     if (!deleteBudgetId) return;
+    const budget = linkedBudgets.find(b => b.id === deleteBudgetId);
+    
+    // If linked only (via junction table, not direct release_id), just unlink
+    if (budget?.isLinkedOnly) {
+      const { error } = await supabase
+        .from('budget_release_links')
+        .delete()
+        .eq('budget_id', deleteBudgetId)
+        .eq('release_id', id!);
+      if (error) {
+        toast.error('Error al desvincular');
+      } else {
+        toast.success('Presupuesto desvinculado');
+        fetchLinkedBudgets();
+      }
+      setDeleteBudgetId(null);
+      return;
+    }
+
     await undoableDelete({
       table: 'budgets',
       id: deleteBudgetId,
@@ -302,6 +382,62 @@ export default function ReleasePresupuestos() {
       },
     });
     setDeleteBudgetId(null);
+  };
+
+  // ─── Link existing budget ──────────────────────────────────────────
+  const fetchAvailableBudgets = async () => {
+    if (!release?.artist_id || !id) return;
+    setLoadingAvailable(true);
+    try {
+      // Get budgets from the same artist that are NOT already linked
+      const currentBudgetIds = linkedBudgets.map(b => b.id);
+      
+      const { data, error } = await (supabase
+        .from('budgets')
+        .select('id, name, fee, release_id') as any)
+        .eq('artist_id', release.artist_id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Filter out already linked budgets
+      const filtered = (data || []).filter((b: any) => !currentBudgetIds.includes(b.id));
+      
+      // Get release names for budgets with release_id
+      const releaseIds = [...new Set(filtered.filter((b: any) => b.release_id).map((b: any) => b.release_id))];
+      let releaseMap: Record<string, string> = {};
+      if (releaseIds.length > 0) {
+        const { data: releases } = await supabase
+          .from('releases')
+          .select('id, title')
+          .in('id', releaseIds as string[]);
+        releaseMap = Object.fromEntries((releases || []).map((r: any) => [r.id, r.title]));
+      }
+
+      setAvailableBudgets(filtered.map((b: any) => ({
+        ...b,
+        release_name: b.release_id ? releaseMap[b.release_id] : undefined,
+      })));
+    } catch (e) {
+      console.error('Error fetching available budgets:', e);
+    } finally {
+      setLoadingAvailable(false);
+    }
+  };
+
+  const handleLinkBudget = async (budgetId: string) => {
+    if (!id) return;
+    try {
+      const { error } = await supabase
+        .from('budget_release_links')
+        .insert({ budget_id: budgetId, release_id: id });
+      if (error) throw error;
+      toast.success('Presupuesto vinculado');
+      setShowLinkDialog(false);
+      fetchLinkedBudgets();
+    } catch {
+      toast.error('Error al vincular');
+    }
   };
 
   // ─── Conflict resolution ─────────────────────────────────────────
@@ -636,10 +772,16 @@ export default function ReleasePresupuestos() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Presupuestos del Lanzamiento</CardTitle>
-              <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Presupuesto
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setShowLinkDialog(true); fetchAvailableBudgets(); }}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Vincular existente
+                </Button>
+                <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuevo Presupuesto
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {loadingBudgets ? (
@@ -671,7 +813,18 @@ export default function ReleasePresupuestos() {
                             <div className="flex items-center gap-2">
                               {hasWarning && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 animate-pulse" />}
                               {budget.name}
+                              {(budget.sharedReleases && budget.sharedReleases.length > 0) && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+                                  <Link2 className="h-2.5 w-2.5" />
+                                  Compartido
+                                </Badge>
+                              )}
                             </div>
+                            {budget.sharedReleases && budget.sharedReleases.length > 0 && (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                También en: {budget.sharedReleases.map(r => r.title).join(', ')}
+                              </p>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
@@ -701,9 +854,10 @@ export default function ReleasePresupuestos() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-destructive"
+                                title={budget.isLinkedOnly ? 'Desvincular' : 'Eliminar'}
                                 onClick={() => setDeleteBudgetId(budget.id)}
                               >
-                                <Trash2 className="h-3 w-3" />
+                                {budget.isLinkedOnly ? <Unlink className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
                               </Button>
                             </div>
                           </TableCell>
@@ -839,23 +993,88 @@ export default function ReleasePresupuestos() {
         />
       )}
 
-      {/* Delete Confirmation */}
+      {/* Delete/Unlink Confirmation */}
       <AlertDialog open={!!deleteBudgetId} onOpenChange={() => setDeleteBudgetId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly
+                ? '¿Desvincular presupuesto?'
+                : '¿Eliminar presupuesto?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminarán todas las partidas asociadas. Esta acción no se puede deshacer.
+              {linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly
+                ? 'El presupuesto dejará de estar vinculado a este lanzamiento, pero seguirá existiendo y accesible desde otros lanzamientos vinculados.'
+                : 'Se eliminarán todas las partidas asociadas. Esta acción no se puede deshacer.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteBudget}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className={linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly
+                ? ''
+                : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
             >
-              Eliminar
+              {linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly ? 'Desvincular' : 'Eliminar'}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Link Existing Budget Dialog */}
+      <AlertDialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Vincular presupuesto existente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona un presupuesto del mismo artista para compartirlo con este lanzamiento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar presupuesto..."
+                value={linkSearch}
+                onChange={(e) => setLinkSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-input bg-background"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {loadingAvailable ? (
+                <Skeleton className="h-20 w-full" />
+              ) : availableBudgets
+                  .filter(b => !linkSearch || b.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                  .length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay presupuestos disponibles para vincular
+                </p>
+              ) : (
+                availableBudgets
+                  .filter(b => !linkSearch || b.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                  .map(b => (
+                    <button
+                      key={b.id}
+                      onClick={() => handleLinkBudget(b.id)}
+                      className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors border border-transparent hover:border-border"
+                    >
+                      <p className="text-sm font-medium">{b.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {b.fee ? `€${b.fee.toLocaleString()}` : 'Sin fee'}
+                        {b.release_name && ` · ${b.release_name}`}
+                      </p>
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1887,6 +1887,42 @@ export type Database = {
           },
         ]
       }
+      budget_release_links: {
+        Row: {
+          budget_id: string
+          created_at: string | null
+          id: string
+          release_id: string
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string | null
+          id?: string
+          release_id: string
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string | null
+          id?: string
+          release_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_release_links_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_release_links_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_template_items: {
         Row: {
           category: string

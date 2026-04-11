@@ -355,6 +355,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingAvance, setEditingAvance] = useState(false);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
   const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
+  const [sharedReleases, setSharedReleases] = useState<{ id: string; title: string }[]>([]);
   const [showLoadFromFormatDialog, setShowLoadFromFormatDialog] = useState(false);
   const [loadDialogTab, setLoadDialogTab] = useState<'formats' | 'team'>('formats');
   const [availableFormats, setAvailableFormats] = useState<Array<{
@@ -481,6 +482,24 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       }
     })();
   }, [open, budget?.id, budget?.booking_offer_id]);
+
+  // Fetch shared releases for this budget
+  useEffect(() => {
+    if (!open || !budget?.id) { setSharedReleases([]); return; }
+    (async () => {
+      const { data: links } = await supabase
+        .from('budget_release_links')
+        .select('release_id')
+        .eq('budget_id', budget.id);
+      if (!links || links.length <= 1) { setSharedReleases([]); return; }
+      const releaseIds = links.map((l: any) => l.release_id);
+      const { data: releases } = await supabase
+        .from('releases')
+        .select('id, title')
+        .in('id', releaseIds);
+      setSharedReleases((releases || []).map((r: any) => ({ id: r.id, title: r.title })));
+    })();
+  }, [open, budget?.id]);
 
   useEffect(() => {
     if (open && budget) {
@@ -3067,10 +3086,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         <ExternalLink className="w-3 h-3 ml-1" />
                       </Button>
                     )}
+                    {sharedReleases.length > 1 && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                        <Link2 className="h-2.5 w-2.5" />
+                        Compartido
+                      </Badge>
+                    )}
                   </div>
-                   <p className="text-gray-400 text-sm">
-                    {budgetData.formato ? <span className="text-primary">{budgetData.formato}</span> : 'Presupuesto'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-400 text-sm">
+                      {budgetData.formato ? <span className="text-primary">{budgetData.formato}</span> : 'Presupuesto'}
+                    </p>
+                    {sharedReleases.length > 1 && (
+                      <p className="text-gray-500 text-xs">
+                        · También en: {sharedReleases.filter(r => r.title !== budgetData.name).map(r => r.title).join(', ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               
