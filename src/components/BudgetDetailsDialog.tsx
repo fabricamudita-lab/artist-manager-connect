@@ -3086,10 +3086,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         <ExternalLink className="w-3 h-3 ml-1" />
                       </Button>
                     )}
+                    {sharedReleases.length > 1 && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                        <Link2 className="h-2.5 w-2.5" />
+                        Compartido
+                      </Badge>
+                    )}
                   </div>
-                   <p className="text-gray-400 text-sm">
-                    {budgetData.formato ? <span className="text-primary">{budgetData.formato}</span> : 'Presupuesto'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-400 text-sm">
+                      {budgetData.formato ? <span className="text-primary">{budgetData.formato}</span> : 'Presupuesto'}
+                    </p>
+                    {sharedReleases.length > 1 && (
+                      <p className="text-gray-500 text-xs">
+                        · También en: {sharedReleases.filter(r => r.title !== budgetData.name).map(r => r.title).join(', ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               
