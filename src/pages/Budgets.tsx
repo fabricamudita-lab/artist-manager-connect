@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, AlertTriangle, GitMerge } from 'lucide-react';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+
 import { BudgetSummaryCards } from '@/components/finanzas/BudgetSummaryCards';
 import { CapitalByArtistPanel } from '@/components/finanzas/CapitalByArtistPanel';
 import { CashflowPanel } from '@/components/finanzas/CashflowPanel';
@@ -20,7 +20,6 @@ import { CreateBudgetFromTemplateDialog } from '@/components/CreateBudgetFromTem
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
@@ -49,9 +48,21 @@ interface Budget {
   artist_id?: string;
   release_id?: string;
   project_id?: string;
+  booking_offer_id?: string;
   artists?: { name: string; stage_name?: string } | null;
   releases?: { title: string } | null;
   projects?: { name: string } | null;
+}
+
+interface BudgetImpact {
+  itemCount: number;
+  retentionCount: number;
+  lockedRetentionCount: number;
+  hasBooking: boolean;
+  hasProject: boolean;
+  hasRelease: boolean;
+  bookingName?: string;
+  projectName?: string;
 }
 
 interface EditValues {
@@ -518,9 +529,10 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
   const [showCapitalPanel, setShowCapitalPanel] = useState(false);
   const [showCashflowPanel, setShowCashflowPanel] = useState(false);
 
-  // Double-confirmation delete state
-  const [deleteStep1Id, setDeleteStep1Id] = useState<string | null>(null);
-  const [deleteStep2Id, setDeleteStep2Id] = useState<string | null>(null);
+  // Impact-based delete state
+  const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
+  const [deleteImpact, setDeleteImpact] = useState<BudgetImpact | null>(null);
+  const [loadingImpact, setLoadingImpact] = useState(false);
 
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
@@ -556,7 +568,7 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         .select(`
           id, name, type, city, venue, event_date, budget_status, show_status,
           fee, expense_budget, metadata, created_at, updated_at, artist_id,
-          release_id, project_id,
+          release_id, project_id, booking_offer_id,
           artists:artist_id(name, stage_name),
           releases:release_id(title),
           projects:project_id(name)
@@ -635,39 +647,71 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
 
   // ─── Delete ─────────────────────────────────────────────────────────────────
 
+  const fetchDeleteImpact = async (budget: Budget) => {
+    setLoadingImpact(true);
+    setDeleteTarget(budget);
+    try {
+      const [itemsRes, retentionsRes, bookingRes, projectRes] = await Promise.all([
+        supabase.from('budget_items').select('id', { count: 'exact', head: true }).eq('budget_id', budget.id),
+        supabase.from('irpf_retentions').select('id, trimestre, ejercicio', { count: 'exact' }).eq('budget_id', budget.id),
+        budget.booking_offer_id
+          ? supabase.from('booking_offers').select('id, festival_ciclo, lugar, ciudad').eq('id', budget.booking_offer_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        budget.project_id
+          ? supabase.from('projects').select('id, name').eq('id', budget.project_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      let lockedRetentionCount = 0;
+      if (retentionsRes.data && retentionsRes.data.length > 0) {
+        const { data: quarterStatuses } = await supabase
+          .from('irpf_quarter_status')
+          .select('trimestre, ejercicio, presentado')
+          .eq('presentado', true);
+        if (quarterStatuses) {
+          const lockedKeys = new Set(quarterStatuses.map(q => `${q.ejercicio}-${q.trimestre}`));
+          lockedRetentionCount = retentionsRes.data.filter(r => lockedKeys.has(`${r.ejercicio}-${r.trimestre}`)).length;
+        }
+      }
+
+      setDeleteImpact({
+        itemCount: itemsRes.count || 0,
+        retentionCount: retentionsRes.count || retentionsRes.data?.length || 0,
+        lockedRetentionCount,
+        hasBooking: !!budget.booking_offer_id,
+        hasProject: !!budget.project_id,
+        hasRelease: !!budget.release_id,
+        bookingName: (bookingRes as any)?.data?.festival_ciclo || (bookingRes as any)?.data?.lugar || (bookingRes as any)?.data?.ciudad || undefined,
+        projectName: (projectRes as any)?.data?.name || undefined,
+      });
+    } catch (error) {
+      console.error('Error fetching impact:', error);
+      toast({ title: 'Error', description: 'No se pudo analizar el impacto', variant: 'destructive' });
+      setDeleteTarget(null);
+    } finally {
+      setLoadingImpact(false);
+    }
+  };
+
   const handleDeleteBudget = async (budgetId: string) => {
     try {
-      // Snapshot for undo
-      const { data: snapshot } = await (supabase as any)
-        .from('budgets')
-        .select('*')
-        .eq('id', budgetId)
-        .single();
-
+      // Cascade delete in order
+      const { error: retError } = await supabase.from('irpf_retentions').delete().eq('budget_id', budgetId);
+      if (retError) throw retError;
+      const { error: itemsError } = await supabase.from('budget_items').delete().eq('budget_id', budgetId);
+      if (itemsError) throw itemsError;
+      const { error: versionsError } = await supabase.from('budget_versions').delete().eq('budget_id', budgetId);
+      if (versionsError) throw versionsError;
+      const { error: attachError } = await supabase.from('budget_attachments').delete().eq('budget_id', budgetId);
+      if (attachError) throw attachError;
       const { error } = await supabase.from('budgets').delete().eq('id', budgetId);
       if (error) throw error;
-      fetchBudgets();
 
-      if (snapshot) {
-        const { toast: sonnerToast } = await import('sonner');
-        sonnerToast.success('Presupuesto eliminado', {
-          duration: 5000,
-          action: {
-            label: 'Deshacer',
-            onClick: async () => {
-              const { error: insertError } = await (supabase as any)
-                .from('budgets')
-                .insert(snapshot);
-              if (insertError) {
-                sonnerToast.error('Error al deshacer');
-              } else {
-                sonnerToast.success('Acción revertida');
-                fetchBudgets();
-              }
-            },
-          },
-        });
-      }
+      toast({ title: 'Éxito', description: 'Presupuesto eliminado correctamente' });
+      setDeleteTarget(null);
+      setDeleteImpact(null);
+      setEditingRowId(null);
+      fetchBudgets();
     } catch (error) {
       console.error('Error deleting budget:', error);
       toast({ title: 'Error', description: 'No se pudo eliminar el presupuesto', variant: 'destructive' });
@@ -1224,13 +1268,12 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                     </TooltipTrigger>
                                     <TooltipContent>Cancelar</TooltipContent>
                                   </Tooltip>
-                                  <PermissionWrapper requiredPermission="manage">
-                                    <Tooltip>
+                                  <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => setDeleteStep1Id(budget.id)}
+                                          onClick={() => fetchDeleteImpact(budget)}
                                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -1238,7 +1281,6 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                       </TooltipTrigger>
                                       <TooltipContent>Eliminar</TooltipContent>
                                     </Tooltip>
-                                  </PermissionWrapper>
                                 </>
                               ) : (
                                 <>
@@ -1266,36 +1308,19 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                     </TooltipTrigger>
                                     <TooltipContent>Ver detalle</TooltipContent>
                                   </Tooltip>
-                                  <PermissionWrapper requiredPermission="manage">
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-destructive hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta acción no se puede deshacer. El presupuesto "{budget.name}" será eliminado permanentemente.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => handleDeleteBudget(budget.id)}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                          >
-                                            Eliminar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </PermissionWrapper>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => fetchDeleteImpact(budget)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Eliminar</TooltipContent>
+                                  </Tooltip>
                                 </>
                               )}
                             </div>
@@ -1385,40 +1410,75 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
 
         <GlobalSearchDialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch} />
 
-        {/* Double-confirmation delete: Step 1 */}
-        <ConfirmationDialog
-          open={!!deleteStep1Id}
-          onOpenChange={(open) => { if (!open) setDeleteStep1Id(null); }}
-          title="¿Eliminar presupuesto?"
-          description="Se eliminará este presupuesto y todos sus datos asociados (ítems, versiones, adjuntos)."
-          confirmText="Sí, eliminar"
-          cancelText="Cancelar"
-          variant="warning"
-          icon="delete"
-          onConfirm={() => {
-            setDeleteStep2Id(deleteStep1Id);
-            setDeleteStep1Id(null);
-          }}
-        />
-
-        {/* Double-confirmation delete: Step 2 */}
-        <ConfirmationDialog
-          open={!!deleteStep2Id}
-          onOpenChange={(open) => { if (!open) setDeleteStep2Id(null); }}
-          title="¿Estás completamente seguro?"
-          description="Esta acción es irreversible. El presupuesto y toda su información se borrarán permanentemente."
-          confirmText="Eliminar definitivamente"
-          cancelText="Volver"
-          variant="destructive"
-          icon="warning"
-          onConfirm={() => {
-            if (deleteStep2Id) {
-              handleDeleteBudget(deleteStep2Id);
-              setEditingRowId(null);
-            }
-            setDeleteStep2Id(null);
-          }}
-        />
+        {/* Impact-based delete dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteImpact(null); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar "{deleteTarget?.name}"?</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  {loadingImpact ? (
+                    <p>Analizando dependencias...</p>
+                  ) : deleteImpact && (deleteImpact.itemCount > 0 || deleteImpact.retentionCount > 0 || deleteImpact.hasBooking || deleteImpact.hasProject || deleteImpact.hasRelease) ? (
+                    <>
+                      <p>Este presupuesto tiene las siguientes vinculaciones:</p>
+                      <ul className="space-y-1.5 text-sm">
+                        {deleteImpact.itemCount > 0 && (
+                          <li className="flex items-start gap-2">
+                            <span className="text-amber-500">⚠️</span>
+                            <span>{deleteImpact.itemCount} partida{deleteImpact.itemCount !== 1 ? 's' : ''} presupuestaria{deleteImpact.itemCount !== 1 ? 's' : ''} (se eliminarán)</span>
+                          </li>
+                        )}
+                        {deleteImpact.retentionCount > 0 && (
+                          <li className="flex items-start gap-2">
+                            <span className="text-amber-500">⚠️</span>
+                            <span>{deleteImpact.retentionCount} retenci{deleteImpact.retentionCount !== 1 ? 'ones' : 'ón'} IRPF (se eliminarán)</span>
+                          </li>
+                        )}
+                        {deleteImpact.hasBooking && (
+                          <li className="flex items-start gap-2">
+                            <span>🔗</span>
+                            <span>Vinculado al booking "{deleteImpact.bookingName || 'Sin nombre'}" (perderá su presupuesto)</span>
+                          </li>
+                        )}
+                        {deleteImpact.hasProject && (
+                          <li className="flex items-start gap-2">
+                            <span>🔗</span>
+                            <span>Vinculado al proyecto "{deleteImpact.projectName || 'Sin nombre'}" (se desvinculará)</span>
+                          </li>
+                        )}
+                        {deleteImpact.hasRelease && (
+                          <li className="flex items-start gap-2">
+                            <span>🔗</span>
+                            <span>Vinculado a un lanzamiento (se desvinculará)</span>
+                          </li>
+                        )}
+                      </ul>
+                      {deleteImpact.lockedRetentionCount > 0 && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                          <p className="font-semibold text-destructive">🔴 {deleteImpact.lockedRetentionCount} retenci{deleteImpact.lockedRetentionCount !== 1 ? 'ones pertenecen' : 'ón pertenece'} a un trimestre fiscal PRESENTADO.</p>
+                          <p className="text-destructive/80 mt-1">Eliminar este presupuesto alterará las cifras del Modelo 111.</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p>Este presupuesto no tiene dependencias. Se eliminará de forma segura.</p>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteTarget && handleDeleteBudget(deleteTarget.id)}
+                className="bg-destructive hover:bg-destructive/90"
+                disabled={loadingImpact}
+              >
+                {deleteImpact?.lockedRetentionCount ? 'Eliminar igualmente' : 'Eliminar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
