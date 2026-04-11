@@ -569,7 +569,7 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         .select(`
           id, name, type, city, venue, event_date, budget_status, show_status,
           fee, expense_budget, metadata, created_at, updated_at, artist_id,
-          release_id, project_id,
+          release_id, project_id, booking_offer_id,
           artists:artist_id(name, stage_name),
           releases:release_id(title),
           projects:project_id(name)
