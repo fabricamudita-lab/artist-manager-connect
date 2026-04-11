@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, AlertTriangle, GitMerge } from 'lucide-react';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+
 import { BudgetSummaryCards } from '@/components/finanzas/BudgetSummaryCards';
 import { CapitalByArtistPanel } from '@/components/finanzas/CapitalByArtistPanel';
 import { CashflowPanel } from '@/components/finanzas/CashflowPanel';
