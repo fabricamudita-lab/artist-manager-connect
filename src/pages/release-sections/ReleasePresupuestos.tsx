@@ -41,6 +41,9 @@ interface LinkedBudget {
   metadata?: Record<string, any> | null;
   isLinkedOnly?: boolean; // true if linked via budget_release_links (not direct release_id)
   sharedReleases?: { id: string; title: string }[];
+  release_id?: string; // primary release_id from budgets table
+  expectedTrackCount?: number; // sum of tracks across all linked releases (for shared budgets)
+  isSharedBudget?: boolean; // true if linked to multiple releases
 }
 
 // Deadline offsets from release date (must match CreateReleaseBudgetDialog)
