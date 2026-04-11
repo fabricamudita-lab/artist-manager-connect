@@ -355,6 +355,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingAvance, setEditingAvance] = useState(false);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
   const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
+  const [sharedReleases, setSharedReleases] = useState<{ id: string; title: string }[]>([]);
   const [showLoadFromFormatDialog, setShowLoadFromFormatDialog] = useState(false);
   const [loadDialogTab, setLoadDialogTab] = useState<'formats' | 'team'>('formats');
   const [availableFormats, setAvailableFormats] = useState<Array<{
