@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   ArrowLeft, Plus, DollarSign, Eye, Trash2, Receipt, FileText, Music,
   AlertTriangle, CalendarIcon, ChevronDown, ChevronUp, CheckCircle2,
-  Calendar, ArrowRight, RefreshCw, X, Zap
+  Calendar, ArrowRight, RefreshCw, X, Zap, Link2, Search, Unlink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -39,6 +39,8 @@ interface LinkedBudget {
   budget_status?: string;
   created_at: string;
   metadata?: Record<string, any> | null;
+  isLinkedOnly?: boolean; // true if linked via budget_release_links (not direct release_id)
+  sharedReleases?: { id: string; title: string }[];
 }
 
 // Deadline offsets from release date (must match CreateReleaseBudgetDialog)
