@@ -354,6 +354,25 @@ export default function ReleasePresupuestos() {
 
   const handleDeleteBudget = async () => {
     if (!deleteBudgetId) return;
+    const budget = linkedBudgets.find(b => b.id === deleteBudgetId);
+    
+    // If linked only (via junction table, not direct release_id), just unlink
+    if (budget?.isLinkedOnly) {
+      const { error } = await supabase
+        .from('budget_release_links')
+        .delete()
+        .eq('budget_id', deleteBudgetId)
+        .eq('release_id', id!);
+      if (error) {
+        toast.error('Error al desvincular');
+      } else {
+        toast.success('Presupuesto desvinculado');
+        fetchLinkedBudgets();
+      }
+      setDeleteBudgetId(null);
+      return;
+    }
+
     await undoableDelete({
       table: 'budgets',
       id: deleteBudgetId,
@@ -363,6 +382,62 @@ export default function ReleasePresupuestos() {
       },
     });
     setDeleteBudgetId(null);
+  };
+
+  // ─── Link existing budget ──────────────────────────────────────────
+  const fetchAvailableBudgets = async () => {
+    if (!release?.artist_id || !id) return;
+    setLoadingAvailable(true);
+    try {
+      // Get budgets from the same artist that are NOT already linked
+      const currentBudgetIds = linkedBudgets.map(b => b.id);
+      
+      const { data, error } = await (supabase
+        .from('budgets')
+        .select('id, name, fee, release_id') as any)
+        .eq('artist_id', release.artist_id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Filter out already linked budgets
+      const filtered = (data || []).filter((b: any) => !currentBudgetIds.includes(b.id));
+      
+      // Get release names for budgets with release_id
+      const releaseIds = [...new Set(filtered.filter((b: any) => b.release_id).map((b: any) => b.release_id))];
+      let releaseMap: Record<string, string> = {};
+      if (releaseIds.length > 0) {
+        const { data: releases } = await supabase
+          .from('releases')
+          .select('id, title')
+          .in('id', releaseIds);
+        releaseMap = Object.fromEntries((releases || []).map((r: any) => [r.id, r.title]));
+      }
+
+      setAvailableBudgets(filtered.map((b: any) => ({
+        ...b,
+        release_name: b.release_id ? releaseMap[b.release_id] : undefined,
+      })));
+    } catch (e) {
+      console.error('Error fetching available budgets:', e);
+    } finally {
+      setLoadingAvailable(false);
+    }
+  };
+
+  const handleLinkBudget = async (budgetId: string) => {
+    if (!id) return;
+    try {
+      const { error } = await supabase
+        .from('budget_release_links')
+        .insert({ budget_id: budgetId, release_id: id });
+      if (error) throw error;
+      toast.success('Presupuesto vinculado');
+      setShowLinkDialog(false);
+      fetchLinkedBudgets();
+    } catch {
+      toast.error('Error al vincular');
+    }
   };
 
   // ─── Conflict resolution ─────────────────────────────────────────
