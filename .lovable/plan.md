@@ -1,30 +1,75 @@
 
 
-## Mostrar botón de eliminar en modo edición y añadir análisis de impacto en Budgets.tsx
+## Presupuestos compartidos entre varios lanzamientos (Many-to-Many)
 
 ### Problema
-En `src/pages/Budgets.tsx`, cuando se entra en modo edición inline de un presupuesto:
-1. El botón 🗑 está oculto porque está envuelto en `PermissionWrapper requiredPermission="manage"` y el usuario no tiene ese permiso.
-2. La función `handleDeleteBudget` no hace borrado en cascada (no elimina `budget_items`, `irpf_retentions`, etc.) y puede fallar por restricciones de FK.
-3. No se muestra ningún análisis de impacto antes de eliminar (a diferencia de lo ya implementado en `FinanzasPresupuestos.tsx`).
+Actualmente `budgets.release_id` es un campo singular: un presupuesto solo puede vincularse a un lanzamiento. Si dos EPs se grabaron el mismo día y comparten producción, hay que duplicar el presupuesto o elegir a cuál vincularlo.
 
-### Cambios en `src/pages/Budgets.tsx`
+### Solución
+Crear una tabla puente `budget_release_links` para permitir relación muchos-a-muchos entre presupuestos y lanzamientos. Mantener `release_id` como vínculo primario por compatibilidad, y usar la tabla puente para vínculos adicionales.
 
-**1. Mostrar el botón 🗑 siempre en modo edición**
-- Eliminar el `PermissionWrapper` que envuelve el botón de eliminar en el bloque `isEditing` (líneas 1227-1241).
-- Mantener el `PermissionWrapper` en el bloque NO-editing (líneas 1269-1298) para que solo aparezca el 🗑 al editar o con permisos.
+### Cambios
 
-**2. Añadir análisis de impacto antes de eliminar**
-- Portar la lógica de `fetchDeleteImpact` desde `FinanzasPresupuestos.tsx`: consultar `budget_items`, `irpf_retentions`, `irpf_quarter_status`, y verificar vínculos con booking/proyecto/release.
-- Reemplazar el `ConfirmationDialog` de doble paso por un `AlertDialog` que muestre las dependencias detectadas con los mismos avisos (partidas, retenciones, trimestres cerrados, vínculos).
+**1. Migración de base de datos**
+- Crear tabla `budget_release_links`:
+  ```sql
+  CREATE TABLE public.budget_release_links (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    budget_id uuid REFERENCES public.budgets(id) ON DELETE CASCADE NOT NULL,
+    release_id uuid REFERENCES public.releases(id) ON DELETE CASCADE NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    UNIQUE(budget_id, release_id)
+  );
+  ```
+- RLS: authenticated users can manage.
+- Migrar datos existentes: insertar un registro en `budget_release_links` por cada `budgets.release_id` que no sea null.
 
-**3. Borrado en cascada seguro**
-- Actualizar `handleDeleteBudget` para borrar en orden: `irpf_retentions` → `budget_items` → `budget_versions` → `budget_attachments` → `budgets`.
-- Mantener la funcionalidad de "Deshacer" solo para el presupuesto en sí (las dependencias borradas no se restauran, lo cual se indicará si es necesario).
+**2. Modificar `ReleasePresupuestos.tsx` (query de presupuestos vinculados)**
+- Cambiar `fetchLinkedBudgets` para buscar presupuestos tanto por `release_id = id` como por la tabla puente `budget_release_links`.
+- Usar dos queries y combinar resultados (deduplicados por `budget_id`).
 
-**4. Unificar el botón 🗑 del modo NO-editing**
-- Reemplazar el `AlertDialog` inline simple (líneas 1270-1297) por la misma llamada a `fetchDeleteImpact` + diálogo con análisis, para que ambos caminos (editando y no editando) usen el mismo flujo seguro.
+**3. Modificar `CreateReleaseBudgetDialog.tsx` (al crear presupuesto)**
+- Añadir opción "Vincular presupuesto existente de otro lanzamiento" con un selector que muestre presupuestos del mismo artista tipo `produccion_musical`.
+- Si se elige vincular uno existente, insertar en `budget_release_links` en vez de crear un nuevo presupuesto.
 
-### Archivo modificado
-- `src/pages/Budgets.tsx`
+**4. Añadir opción de vincular presupuesto existente desde la vista de presupuestos del release**
+- Botón "Vincular presupuesto existente" junto a "Nuevo presupuesto".
+- Popover/Dialog que liste presupuestos del artista (tipo producción) con búsqueda.
+- Al seleccionar, insertar en `budget_release_links`.
+- Mostrar badge "Compartido" en presupuestos que aparezcan en más de un lanzamiento.
+
+**5. Efecto espejo**
+- No se necesita lógica especial: al ser el mismo registro en `budgets`, cualquier edición desde cualquier release se refleja automáticamente.
+- Mostrar indicador visual "Compartido con: [EP X, EP Y]" en la cabecera del presupuesto cuando tenga múltiples releases vinculados.
+
+### Flujo visual
+
+```text
+ReleasePresupuestos (EP "ChromatisM")
+──────────────────────────────────────
+[+ Nuevo presupuesto]  [🔗 Vincular existente]
+
+┌─────────────────────────────────────────┐
+│ Producción ChromatisM + NOX   [Compartido]│
+│ €3.200   ● En curso                      │
+│ 📎 También en: NOX                       │
+└─────────────────────────────────────────┘
+
+Click "Vincular existente":
+┌──────────────────────────────────┐
+│ Presupuestos de Klaus Stroink    │
+│ 🔍 Buscar...                     │
+│                                  │
+│ ○ Prod. NOX (€2.800) - NOX      │
+│ ○ Prod. Masters (€1.500) - sin   │
+│                                  │
+│ [Cancelar] [Vincular]            │
+└──────────────────────────────────┘
+```
+
+### Archivos modificados
+- Nueva migración SQL (tabla `budget_release_links`)
+- `src/pages/release-sections/ReleasePresupuestos.tsx`
+- `src/components/releases/CreateReleaseBudgetDialog.tsx`
+- `src/components/BudgetDetailsDialog.tsx` (indicador "Compartido con")
 
