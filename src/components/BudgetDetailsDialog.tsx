@@ -342,6 +342,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
+  const [isDuplicateDrag, setIsDuplicateDrag] = useState(false);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'fecha_emision' | 'status'>('name');
