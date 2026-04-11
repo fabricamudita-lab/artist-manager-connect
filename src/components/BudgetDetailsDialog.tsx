@@ -999,15 +999,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const getCategoryChartData = () => {
     const colors = [
       '#2563eb', // blue
-      '#dc2626', // red  
-      '#16a34a', // green
-      '#d97706', // amber
-      '#7c3aed', // violet
-      '#0891b2', // cyan
-      '#c026d3', // magenta
-      '#65a30d', // lime
-      '#e11d48', // rose
-      '#0d9488'  // teal
+      '#f59e0b', // amber
+      '#10b981', // emerald
+      '#8b5cf6', // violet
+      '#ef4444', // red
+      '#06b6d4', // cyan
+      '#ec4899', // pink
+      '#84cc16', // lime
+      '#f97316', // orange
+      '#6366f1', // indigo
+      '#14b8a6', // teal
+      '#a855f7', // purple
+      '#eab308', // yellow
+      '#0ea5e9', // sky
+      '#d946ef', // fuchsia
+      '#64748b', // slate
     ];
     
     // Sort categories with priority: Artista first, Músicos second, Comisiones last
