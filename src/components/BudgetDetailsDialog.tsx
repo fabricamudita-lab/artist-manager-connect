@@ -483,6 +483,24 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     })();
   }, [open, budget?.id, budget?.booking_offer_id]);
 
+  // Fetch shared releases for this budget
+  useEffect(() => {
+    if (!open || !budget?.id) { setSharedReleases([]); return; }
+    (async () => {
+      const { data: links } = await supabase
+        .from('budget_release_links')
+        .select('release_id')
+        .eq('budget_id', budget.id);
+      if (!links || links.length <= 1) { setSharedReleases([]); return; }
+      const releaseIds = links.map((l: any) => l.release_id);
+      const { data: releases } = await supabase
+        .from('releases')
+        .select('id, title')
+        .in('id', releaseIds);
+      setSharedReleases((releases || []).map((r: any) => ({ id: r.id, title: r.title })));
+    })();
+  }, [open, budget?.id]);
+
   useEffect(() => {
     if (open && budget) {
       setBudgetData(budget);
