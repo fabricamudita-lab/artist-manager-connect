@@ -993,23 +993,88 @@ export default function ReleasePresupuestos() {
         />
       )}
 
-      {/* Delete Confirmation */}
+      {/* Delete/Unlink Confirmation */}
       <AlertDialog open={!!deleteBudgetId} onOpenChange={() => setDeleteBudgetId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly
+                ? '¿Desvincular presupuesto?'
+                : '¿Eliminar presupuesto?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminarán todas las partidas asociadas. Esta acción no se puede deshacer.
+              {linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly
+                ? 'El presupuesto dejará de estar vinculado a este lanzamiento, pero seguirá existiendo y accesible desde otros lanzamientos vinculados.'
+                : 'Se eliminarán todas las partidas asociadas. Esta acción no se puede deshacer.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteBudget}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className={linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly
+                ? ''
+                : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
             >
-              Eliminar
+              {linkedBudgets.find(b => b.id === deleteBudgetId)?.isLinkedOnly ? 'Desvincular' : 'Eliminar'}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Link Existing Budget Dialog */}
+      <AlertDialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Vincular presupuesto existente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona un presupuesto del mismo artista para compartirlo con este lanzamiento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar presupuesto..."
+                value={linkSearch}
+                onChange={(e) => setLinkSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-input bg-background"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {loadingAvailable ? (
+                <Skeleton className="h-20 w-full" />
+              ) : availableBudgets
+                  .filter(b => !linkSearch || b.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                  .length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay presupuestos disponibles para vincular
+                </p>
+              ) : (
+                availableBudgets
+                  .filter(b => !linkSearch || b.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                  .map(b => (
+                    <button
+                      key={b.id}
+                      onClick={() => handleLinkBudget(b.id)}
+                      className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors border border-transparent hover:border-border"
+                    >
+                      <p className="text-sm font-medium">{b.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {b.fee ? `€${b.fee.toLocaleString()}` : 'Sin fee'}
+                        {b.release_name && ` · ${b.release_name}`}
+                      </p>
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
