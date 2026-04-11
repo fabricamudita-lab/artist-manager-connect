@@ -342,6 +342,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
+  const [isDuplicateDrag, setIsDuplicateDrag] = useState(false);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'fecha_emision' | 'status'>('name');
@@ -2182,7 +2183,55 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
-  // Función para generar PDF del presupuesto
+  const duplicateItemAtPosition = async (sourceId: string, targetId: string, categoryId: string) => {
+    try {
+      const sourceItem = items.find(i => i.id === sourceId);
+      if (!sourceItem) return;
+
+      const categoryItems = getCategoryItems(categoryId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const targetIndex = categoryItems.findIndex(i => i.id === targetId);
+      const insertOrder = targetIndex >= 0 ? targetIndex : categoryItems.length;
+
+      // Shift sort_order of items at and after the target position
+      const updates = categoryItems
+        .filter((_, idx) => idx >= insertOrder)
+        .map((item, idx) => ({ id: item.id, sort_order: insertOrder + idx + 1 }));
+
+      for (const u of updates) {
+        await supabase.from('budget_items').update({ sort_order: u.sort_order } as any).eq('id', u.id);
+      }
+
+      // Insert the duplicate
+      const { error } = await supabase.from('budget_items').insert({
+        budget_id: sourceItem.budget_id,
+        category: sourceItem.category,
+        category_id: sourceItem.category_id || null,
+        subcategory: sourceItem.subcategory || null,
+        name: `${sourceItem.name} (copia)`,
+        quantity: sourceItem.quantity ?? 1,
+        unit_price: sourceItem.unit_price ?? 0,
+        iva_percentage: sourceItem.iva_percentage ?? 0,
+        irpf_percentage: sourceItem.irpf_percentage ?? 0,
+        is_attendee: sourceItem.is_attendee ?? false,
+        billing_status: 'pendiente' as any,
+        observations: sourceItem.observations || null,
+        contact_id: sourceItem.contact_id || null,
+        is_commission_percentage: sourceItem.is_commission_percentage ?? false,
+        commission_percentage: sourceItem.commission_percentage ?? null,
+        is_provisional: sourceItem.is_provisional ?? false,
+        sort_order: insertOrder,
+      } as any);
+
+      if (error) throw error;
+
+      await fetchBudgetItems();
+      toast({ title: "Elemento duplicado", description: `"${sourceItem.name}" duplicado correctamente` });
+    } catch (error) {
+      console.error('Error duplicating item:', error);
+      toast({ title: "Error", description: "No se pudo duplicar el elemento", variant: "destructive" });
+    }
+  };
+
   const downloadPDF = () => {
     const doc = new jsPDF();
     const totals = calculateGrandTotals();
@@ -4130,17 +4179,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         className={`${(item as any).is_provisional ? 'bg-amber-50/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
                                           selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
                                         } ${draggedElement === item.id ? 'opacity-50' : ''} ${
-                                          dragOverElement === item.id ? 'border-t-2 border-t-blue-500' : ''
+                                          dragOverElement === item.id 
+                                            ? isDuplicateDrag 
+                                              ? 'border-t-2 border-t-green-500' 
+                                              : 'border-t-2 border-t-blue-500' 
+                                            : ''
                                         } ${(item as any).is_provisional ? 'opacity-75' : ''}`}
                                        draggable
                                        onDragStart={(e) => {
                                          setDraggedElement(item.id);
-                                         e.dataTransfer.effectAllowed = 'move';
+                                         const alt = e.altKey;
+                                         setIsDuplicateDrag(alt);
+                                         e.dataTransfer.effectAllowed = alt ? 'copy' : 'move';
                                          e.dataTransfer.setData('text/plain', item.id);
                                        }}
                                        onDragOver={(e) => {
                                          e.preventDefault();
-                                         e.dataTransfer.dropEffect = 'move';
+                                         const alt = e.altKey;
+                                         setIsDuplicateDrag(alt);
+                                         e.dataTransfer.dropEffect = alt ? 'copy' : 'move';
                                          setDragOverElement(item.id);
                                        }}
                                        onDragLeave={() => {
@@ -4149,16 +4206,22 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        onDrop={(e) => {
                                          e.preventDefault();
                                          if (draggedElement && draggedElement !== item.id) {
-                                           reorderElements(draggedElement, item.id, category.id);
+                                           if (e.altKey || isDuplicateDrag) {
+                                             duplicateItemAtPosition(draggedElement, item.id, category.id);
+                                           } else {
+                                             reorderElements(draggedElement, item.id, category.id);
+                                           }
                                          }
                                          setDragOverElement(null);
                                          setDraggedElement(null);
+                                         setIsDuplicateDrag(false);
                                        }}
                                        onDragEnd={() => {
                                          setDraggedElement(null);
                                          setDragOverElement(null);
+                                         setIsDuplicateDrag(false);
                                        }}
-                                     >
+                                      >
                                         {/* Checkbox */}
                                         <TableCell className="p-2 text-center">
                                           <div className="flex items-center justify-center gap-2">
