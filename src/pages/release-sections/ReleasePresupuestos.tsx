@@ -813,7 +813,18 @@ export default function ReleasePresupuestos() {
                             <div className="flex items-center gap-2">
                               {hasWarning && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 animate-pulse" />}
                               {budget.name}
+                              {(budget.sharedReleases && budget.sharedReleases.length > 0) && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+                                  <Link2 className="h-2.5 w-2.5" />
+                                  Compartido
+                                </Badge>
+                              )}
                             </div>
+                            {budget.sharedReleases && budget.sharedReleases.length > 0 && (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                También en: {budget.sharedReleases.map(r => r.title).join(', ')}
+                              </p>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
@@ -843,9 +854,10 @@ export default function ReleasePresupuestos() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-destructive"
+                                title={budget.isLinkedOnly ? 'Desvincular' : 'Eliminar'}
                                 onClick={() => setDeleteBudgetId(budget.id)}
                               >
-                                <Trash2 className="h-3 w-3" />
+                                {budget.isLinkedOnly ? <Unlink className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
                               </Button>
                             </div>
                           </TableCell>
