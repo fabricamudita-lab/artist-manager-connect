@@ -648,39 +648,71 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
 
   // ─── Delete ─────────────────────────────────────────────────────────────────
 
+  const fetchDeleteImpact = async (budget: Budget) => {
+    setLoadingImpact(true);
+    setDeleteTarget(budget);
+    try {
+      const [itemsRes, retentionsRes, bookingRes, projectRes] = await Promise.all([
+        supabase.from('budget_items').select('id', { count: 'exact', head: true }).eq('budget_id', budget.id),
+        supabase.from('irpf_retentions').select('id, trimestre, ejercicio', { count: 'exact' }).eq('budget_id', budget.id),
+        budget.booking_offer_id
+          ? supabase.from('booking_offers').select('id, festival_ciclo, lugar, ciudad').eq('id', budget.booking_offer_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        budget.project_id
+          ? supabase.from('projects').select('id, name').eq('id', budget.project_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      let lockedRetentionCount = 0;
+      if (retentionsRes.data && retentionsRes.data.length > 0) {
+        const { data: quarterStatuses } = await supabase
+          .from('irpf_quarter_status')
+          .select('trimestre, ejercicio, presentado')
+          .eq('presentado', true);
+        if (quarterStatuses) {
+          const lockedKeys = new Set(quarterStatuses.map(q => `${q.ejercicio}-${q.trimestre}`));
+          lockedRetentionCount = retentionsRes.data.filter(r => lockedKeys.has(`${r.ejercicio}-${r.trimestre}`)).length;
+        }
+      }
+
+      setDeleteImpact({
+        itemCount: itemsRes.count || 0,
+        retentionCount: retentionsRes.count || retentionsRes.data?.length || 0,
+        lockedRetentionCount,
+        hasBooking: !!budget.booking_offer_id,
+        hasProject: !!budget.project_id,
+        hasRelease: !!budget.release_id,
+        bookingName: (bookingRes as any)?.data?.festival_ciclo || (bookingRes as any)?.data?.lugar || (bookingRes as any)?.data?.ciudad || undefined,
+        projectName: (projectRes as any)?.data?.name || undefined,
+      });
+    } catch (error) {
+      console.error('Error fetching impact:', error);
+      toast({ title: 'Error', description: 'No se pudo analizar el impacto', variant: 'destructive' });
+      setDeleteTarget(null);
+    } finally {
+      setLoadingImpact(false);
+    }
+  };
+
   const handleDeleteBudget = async (budgetId: string) => {
     try {
-      // Snapshot for undo
-      const { data: snapshot } = await (supabase as any)
-        .from('budgets')
-        .select('*')
-        .eq('id', budgetId)
-        .single();
-
+      // Cascade delete in order
+      const { error: retError } = await supabase.from('irpf_retentions').delete().eq('budget_id', budgetId);
+      if (retError) throw retError;
+      const { error: itemsError } = await supabase.from('budget_items').delete().eq('budget_id', budgetId);
+      if (itemsError) throw itemsError;
+      const { error: versionsError } = await supabase.from('budget_versions').delete().eq('budget_id', budgetId);
+      if (versionsError) throw versionsError;
+      const { error: attachError } = await supabase.from('budget_attachments').delete().eq('budget_id', budgetId);
+      if (attachError) throw attachError;
       const { error } = await supabase.from('budgets').delete().eq('id', budgetId);
       if (error) throw error;
-      fetchBudgets();
 
-      if (snapshot) {
-        const { toast: sonnerToast } = await import('sonner');
-        sonnerToast.success('Presupuesto eliminado', {
-          duration: 5000,
-          action: {
-            label: 'Deshacer',
-            onClick: async () => {
-              const { error: insertError } = await (supabase as any)
-                .from('budgets')
-                .insert(snapshot);
-              if (insertError) {
-                sonnerToast.error('Error al deshacer');
-              } else {
-                sonnerToast.success('Acción revertida');
-                fetchBudgets();
-              }
-            },
-          },
-        });
-      }
+      toast({ title: 'Éxito', description: 'Presupuesto eliminado correctamente' });
+      setDeleteTarget(null);
+      setDeleteImpact(null);
+      setEditingRowId(null);
+      fetchBudgets();
     } catch (error) {
       console.error('Error deleting budget:', error);
       toast({ title: 'Error', description: 'No se pudo eliminar el presupuesto', variant: 'destructive' });
