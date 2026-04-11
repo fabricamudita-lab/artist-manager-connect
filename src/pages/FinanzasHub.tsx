@@ -31,7 +31,14 @@ export default function FinanzasHub() {
   useAutoRealizado();
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedArtist, setSelectedArtist] = useState('all');
+  const [selectedArtist, setSelectedArtist] = useState(() => {
+    return sessionStorage.getItem('finanzas-artist-filter') || 'all';
+  });
+
+  const handleArtistChange = (value: string) => {
+    setSelectedArtist(value);
+    sessionStorage.setItem('finanzas-artist-filter', value);
+  };
 
   const activeTab = getTabFromPath(location.pathname);
 
@@ -54,7 +61,7 @@ export default function FinanzasHub() {
               <p className="text-muted-foreground">Panel de control económico</p>
             </div>
           </div>
-          <ArtistFilter value={selectedArtist} onChange={setSelectedArtist} />
+          <ArtistFilter value={selectedArtist} onChange={handleArtistChange} />
         </div>
 
         {/* Tab navigation */}
