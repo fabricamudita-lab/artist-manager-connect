@@ -25,14 +25,59 @@ export function ProjectLinkedBudgets({ projectId }: Props) {
   const { data: budgets } = useQuery({
     queryKey: ['project-budgets-linked', projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Direct budgets
+      const { data: directBudgets, error: e1 } = await supabase
         .from('budgets')
         .select('id, name, type, fee, show_status, budget_status')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
+      if (e1) throw e1;
 
-      if (error) throw error;
-      return data || [];
+      // 2. Get release IDs for this project
+      const { data: releases, error: e2 } = await supabase
+        .from('releases')
+        .select('id')
+        .eq('project_id', projectId);
+      if (e2) throw e2;
+
+      const releaseIds = (releases || []).map((r) => r.id);
+      if (releaseIds.length === 0) return directBudgets || [];
+
+      // 3. Budgets linked via release_id
+      const { data: releaseBudgets, error: e3 } = await supabase
+        .from('budgets')
+        .select('id, name, type, fee, show_status, budget_status')
+        .in('release_id', releaseIds)
+        .order('created_at', { ascending: false });
+      if (e3) throw e3;
+
+      // 4. Budgets linked via budget_release_links
+      const { data: links, error: e4 } = await supabase
+        .from('budget_release_links')
+        .select('budget_id')
+        .in('release_id', releaseIds);
+      if (e4) throw e4;
+
+      const linkedBudgetIds = (links || []).map((l) => l.budget_id);
+      let linkedBudgets: typeof directBudgets = [];
+      if (linkedBudgetIds.length > 0) {
+        const { data: lb, error: e5 } = await supabase
+          .from('budgets')
+          .select('id, name, type, fee, show_status, budget_status')
+          .in('id', linkedBudgetIds)
+          .order('created_at', { ascending: false });
+        if (e5) throw e5;
+        linkedBudgets = lb || [];
+      }
+
+      // 5. Deduplicate
+      const seen = new Set<string>();
+      const all = [...(directBudgets || []), ...(releaseBudgets || []), ...linkedBudgets];
+      return all.filter((b) => {
+        if (seen.has(b.id)) return false;
+        seen.add(b.id);
+        return true;
+      });
     },
     enabled: !!projectId,
   });
