@@ -1,34 +1,43 @@
 
 
-## Mostrar presupuestos de lanzamientos en la vista del Proyecto
+## Unificar terminología del campo "fee" según tipo de presupuesto
 
 ### Problema
-Los presupuestos creados desde un lanzamiento (release) tienen `budgets.project_id = NULL`. Se vinculan al proyecto indirectamente a traves de `releases.project_id`. El componente `ProjectLinkedBudgets` solo busca `budgets.project_id = projectId`, por lo que nunca muestra estos presupuestos.
+El mismo campo aparece como "Presupuesto Total" (vista release), "CAPITAL" (diálogo detalle) y "Caché (Ingresos)" (PDF/CSV). Debe ser consistente.
 
-### Solucion
-Ampliar la query en `ProjectLinkedBudgets` para incluir tambien los presupuestos cuyos releases pertenecen al proyecto.
+### Decisión de nomenclatura
 
-### Cambio tecnico
+Creo un helper centralizado `getCapitalLabel(type)` que devuelve:
 
-**Archivo: `src/components/project-detail/ProjectLinkedBudgets.tsx`**
+| `budget.type` | Label principal | Subtítulo KPI | En resumen financiero |
+|---|---|---|---|
+| `concierto` | **Caché** | "Fee del promotor" | "Caché (Ingresos)" |
+| Cualquier otro | **Capital** | "Presupuesto total" | "Capital (Presupuesto)" |
 
-1. Primero, obtener los IDs de releases del proyecto:
-```sql
-SELECT id FROM releases WHERE project_id = :projectId
-```
+**Por qué "Capital"**: es el término más neutro y escalable. Funciona para producción musical, videoclip, campaña, y cualquier tipo futuro. "Presupuesto Total" es demasiado largo para KPIs y se confunde con el nombre del propio presupuesto. "Capital Aportado" es demasiado específico (implica un aportante).
 
-2. Luego, buscar presupuestos que cumplan cualquiera de estas condiciones:
-   - `budgets.project_id = projectId` (vinculacion directa)
-   - `budgets.release_id IN (releaseIds)` (vinculacion via release)
-   - Presupuestos en `budget_release_links` que apunten a esos releases
+### Cambios por archivo
 
-3. Deduplicar resultados (un presupuesto podria aparecer por ambas vias).
+**1. `src/components/BudgetDetailsDialog.tsx`** (~6 puntos)
+- Línea ~628: toast → usar helper en vez de triple ternario
+- Línea ~3230: header editable → `isConcert ? 'Caché:' : 'Capital:'` (eliminar caso `Capital Aportado`)
+- Línea ~3349: KPI concierto → sin cambio (ya dice "CACHÉ")
+- Línea ~3396: KPI no-concierto → sin cambio (ya dice "CAPITAL")
+- Línea ~2298: PDF export → condicional: `isConcert ? 'Caché (Ingresos)' : 'Capital (Presupuesto)'`
+- Línea ~2675: CSV export → mismo condicional
 
-4. Opcionalmente, mostrar un indicador sutil de donde viene cada presupuesto (ej: nombre del release asociado).
+**2. `src/pages/release-sections/ReleasePresupuestos.tsx`**
+- Línea ~822: "Presupuesto Total" → "Capital"
 
-### Riesgos
-- Ninguno. Es una query de lectura ampliada. No modifica datos ni afecta otros modulos.
+**3. `src/components/CreateBudgetDialog.tsx`**
+- Línea ~513: "Capital / Presupuesto (€)" → `concierto ? 'Caché / Fee (€)' : 'Capital (€)'`
 
-### Archivo modificado
-- `src/components/project-detail/ProjectLinkedBudgets.tsx`
+**4. `src/utils/exportUtils.ts`**
+- Línea ~78: ya usa condicional, ajustar a "Capital" en vez de "Presupuesto"
+
+**5. `src/components/booking-detail/BookingPresupuestoTab.tsx`**
+- Línea ~228: KPI "Capital" → sin cambio (ya correcto para booking context donde siempre es concierto)
+
+### Resumen
+Helper centralizado + 4 archivos con cambios de texto. Sin impacto en lógica, DB ni cálculos. Escalable a nuevos tipos.
 
