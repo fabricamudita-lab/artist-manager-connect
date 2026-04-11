@@ -1,45 +1,35 @@
 
-Diagnóstico: el aviso entra en bucle por dos motivos combinados en `src/pages/release-sections/ReleasePresupuestos.tsx`.
 
-1. `metadata.variables.n_tracks` es un único valor guardado en el presupuesto, pero ese presupuesto ahora está compartido entre varios releases. La comprobación actual lo compara solo contra `tracks?.length` del release abierto, así que en un presupuesto espejo la comparación es conceptualmente incorrecta.
-2. `resolveTrackCount()` muestra toast de éxito aunque la actualización falle, porque no comprueba `error` en el `update()` de Supabase.
+## Cambiar etiqueta "Fee" → "Presupuesto Total" en contexto discográfico
 
-En este caso concreto, el presupuesto compartido `"Presupuesto - ChromatisM + Nox + Hobba"` tiene `n_tracks = 3`, mientras que el release actual tiene 1 track y además el presupuesto está vinculado a otros releases. Por eso el aviso no tiene una “salida estable” con la lógica actual.
+### Problema
+En la vista de presupuestos de un lanzamiento (discográfica), las etiquetas dicen "Fee" y "Fee Total", que es terminología de booking/conciertos. Para producción musical debería decir "Presupuesto Total" o "Capital".
 
-Plan de implementación:
+### Alcance del cambio
+**Solo etiquetas de UI** — el campo en base de datos sigue siendo `fee`. No hay riesgo de romper cálculos, queries ni lógica existente.
 
-1. Ajustar el modelo en pantalla para presupuestos compartidos
-- En `fetchLinkedBudgets`, además de `metadata`, traer también `release_id`.
-- Construir para cada presupuesto la lista completa de releases asociados: release principal (`budgets.release_id`) + extras de `budget_release_links`.
-- Calcular también el nº de tracks por release vinculado.
+### Análisis de riesgos
+- **Sin riesgo en DB**: no se toca la columna `fee`, solo texto visible.
+- **Sin riesgo en booking**: los cambios son condicionales por tipo de presupuesto o por contexto (release vs booking).
+- **Consistencia**: `BudgetDetailsDialog` ya usa etiquetas adaptativas (Caché/Capital Aportado/Capital según `type`). Estamos alineando el resto de la app.
 
-2. Crear una única regla de “track count esperado”
-- Añadir helper tipo `getExpectedTrackCount(budget)`.
-- Si el presupuesto es normal: esperado = tracks del release actual.
-- Si el presupuesto es compartido: esperado = suma de tracks de todos los releases vinculados al mismo presupuesto.
-- Normalizar a número con `Number(...)` para evitar falsos positivos por tipos.
+### Cambios por archivo
 
-3. Corregir el warning para que no compare mal
-- Cambiar la generación de warnings `track_count` para usar `getExpectedTrackCount(budget)`.
-- Cambiar el texto cuando sea compartido, por ejemplo:
-  - `El presupuesto tiene 3 canciones, pero los releases vinculados suman 4`
-  - detalle con los releases implicados si hace falta.
-- Así el aviso dejará de reaparecer por comparar un presupuesto compartido contra un solo release.
+**1. `src/pages/release-sections/ReleasePresupuestos.tsx`**
+- Línea 822: KPI card "Fee Total" → "Presupuesto Total"
+- Línea 854: Cabecera de tabla "Fee" → "Presupuesto"
+- Línea 896: Celda que muestra el valor — sin cambio (solo muestra `€X`)
+- Línea 1126: Diálogo de vincular, texto "Sin fee" → "Sin presupuesto"
 
-4. Corregir el botón “Actualizar presupuesto”
-- En `resolveTrackCount`, actualizar `metadata.variables.n_tracks` al valor esperado real (individual o combinado según el caso).
-- Comprobar explícitamente `const { error } = await ...update(...)`; si hay error, lanzar excepción y no mostrar éxito falso.
-- Solo mostrar el toast de éxito cuando la escritura haya terminado bien.
-- Refrescar `fetchLinkedBudgets()` al terminar.
+**2. `src/components/CreateBudgetDialog.tsx`**
+- Línea 513: Label "Fee (€)" → adaptar según tipo seleccionado: si `type === 'concierto'` → "Fee (€)", si no → "Capital / Presupuesto (€)"
 
-5. Mejorar feedback para presupuestos espejo
-- Si el presupuesto está compartido, cambiar el copy del botón/acción para que quede claro que actualizará el total compartido, no solo el release abierto.
-- Esto evita confusión con el comportamiento espejo.
+**3. `src/components/project-detail/ProjectLinkedBudgets.tsx`**
+- El componente ya muestra `€{budget.fee}` sin etiqueta "Fee", así que no necesita cambio.
 
-Archivos a tocar:
-- `src/pages/release-sections/ReleasePresupuestos.tsx`
+**4. `src/utils/exportUtils.ts`**
+- Línea 78: `Fee: €${budget.fee}` → adaptar label según `budget.type`: "Fee" para concierto, "Presupuesto" para el resto.
 
-Detalles técnicos:
-- No hace falta migración.
-- La clave es dejar de tratar `n_tracks` como “tracks del release actual” cuando el presupuesto pertenece a varios releases.
-- Además, hay que eliminar el falso positivo de éxito revisando `error` en Supabase antes del toast.
+### Resumen
+4 archivos tocados, solo cambios de texto condicional. Cero impacto en lógica financiera, queries o estructura de datos.
+
