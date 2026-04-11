@@ -75,7 +75,7 @@ export const exportBudgetToPDF = (
   yPosition += 10;
   doc.text(`Fecha: ${budget.event_date ? new Date(budget.event_date).toLocaleDateString() : 'No especificada'}`, 20, yPosition);
   yPosition += 10;
-  doc.text(`${budget.type === 'concierto' ? 'Fee' : 'Presupuesto'}: €${budget.fee || 0}`, 20, yPosition);
+  doc.text(`${budget.type === 'concierto' ? 'Caché' : 'Capital'}: €${budget.fee || 0}`, 20, yPosition);
   yPosition += 20;
 
   // Categories summary

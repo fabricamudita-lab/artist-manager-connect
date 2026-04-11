@@ -625,7 +625,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       setBudgetData(prev => ({ ...prev, fee: budgetAmount }));
       onUpdate();
       
-      const fieldLabel = budget.type === 'concierto' ? 'Caché' : budget.type === 'produccion_musical' ? 'Capital Aportado' : 'Capital';
+      const fieldLabel = budget.type === 'concierto' ? 'Caché' : 'Capital';
       toast({
         title: "¡Éxito!",
         description: `${fieldLabel} actualizado${commissionItems.length > 0 ? ` y ${commissionItems.length} comisiones recalculadas` : ''}`
@@ -2295,7 +2295,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     // Tabla de resumen financiero
     const summaryData = [
-      ['Caché (Ingresos)', `${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      [budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital (Presupuesto)', `${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
       ['Presupuesto Gastos', `${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
       ['Gastos Reales (Neto)', `${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €${expenseBudget > 0 ? ` (${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%)` : ''}`],
       ['IVA Repercutido', `+${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
@@ -2672,7 +2672,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     // Resumen financiero
     csvContent += "RESUMEN FINANCIERO\n";
-    csvContent += `Caché (Ingresos),"${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
+    csvContent += `${budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital (Presupuesto)'},"${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     csvContent += `Presupuesto Gastos,"${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     csvContent += `Gastos Reales (Neto),"${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     if (expenseBudget > 0) {
@@ -3224,10 +3224,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </div>
                       )}
 
-                      {/* Campo 2: Caché (concierto) / Capital Aportado (producción) / Capital (otros) */}
+                      {/* Campo 2: Caché (concierto) / Capital (otros) */}
                       <div className="text-right">
                         <div className="text-xs text-gray-400">
-                          {isConcert ? 'Caché:' : isProduccion ? 'Capital Aportado:' : 'Capital:'}
+                          {isConcert ? 'Caché:' : 'Capital:'}
                         </div>
                         {editingBudgetAmount ? (
                           <div className="flex items-center gap-1">
