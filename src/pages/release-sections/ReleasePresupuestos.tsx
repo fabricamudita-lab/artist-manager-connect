@@ -410,7 +410,7 @@ export default function ReleasePresupuestos() {
         const { data: releases } = await supabase
           .from('releases')
           .select('id, title')
-          .in('id', releaseIds);
+          .in('id', releaseIds as string[]);
         releaseMap = Object.fromEntries((releases || []).map((r: any) => [r.id, r.title]));
       }
 
