@@ -955,7 +955,7 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         )}
 
         {/* KPI Cards */}
-        <BudgetSummaryCards budgets={filteredBudgets} onCardClick={handleCardClick} activeCard={cardFilter} />
+        <BudgetSummaryCards budgets={budgetsForCards} onCardClick={handleCardClick} activeCard={cardFilter} />
 
         {/* Filters */}
         <div className="card-moodita hover-lift">
