@@ -58,7 +58,7 @@ export function generateBookingExportData(offers: any[], phases: { id: string; l
     neto_estimado: (offer.fee || 0) - (offer.gastos_estimados || 0) - (offer.comision_euros || 0),
     capacidad: offer.capacidad || '',
     formato: offer.formato || '',
-    es_cityzen: offer.es_cityzen || false,
+    
     es_internacional: offer.es_internacional || false,
     estado_facturacion: offer.estado_facturacion || 'pendiente',
     tour_manager: offer.tour_manager || '',
@@ -84,7 +84,7 @@ export const BOOKING_EXPORT_HEADERS = {
   neto_estimado: 'Neto Estimado (€)',
   capacidad: 'Capacidad',
   formato: 'Formato',
-  es_cityzen: 'CityZen',
+  
   es_internacional: 'Internacional',
   estado_facturacion: 'Estado Facturación',
   tour_manager: 'Tour Manager',

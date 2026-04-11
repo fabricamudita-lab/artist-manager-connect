@@ -121,11 +121,6 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
               />
             </div>
             
-            {offer.es_cityzen && (
-            <Badge className="bg-orange-500 text-white text-xs mb-2 font-medium">
-              CityZen
-            </Badge>
-            )}
           </div>
           
           <div className="flex items-center gap-1 ml-2">
