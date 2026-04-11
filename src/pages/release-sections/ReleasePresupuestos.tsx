@@ -772,10 +772,16 @@ export default function ReleasePresupuestos() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Presupuestos del Lanzamiento</CardTitle>
-              <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Presupuesto
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setShowLinkDialog(true); fetchAvailableBudgets(); }}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Vincular existente
+                </Button>
+                <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuevo Presupuesto
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {loadingBudgets ? (
