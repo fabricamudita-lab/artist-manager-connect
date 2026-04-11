@@ -228,6 +228,10 @@ export default function ReleasePresupuestos() {
   const [linkedBudgets, setLinkedBudgets] = useState<LinkedBudget[]>([]);
   const [loadingBudgets, setLoadingBudgets] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
+  const [availableBudgets, setAvailableBudgets] = useState<{ id: string; name: string; fee: number | null; release_name?: string }[]>([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<LinkedBudget | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
