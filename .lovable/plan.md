@@ -1,32 +1,22 @@
 
 
-## Capital Gestionado: desglose contextual según filtro de artista
+## Fix: Panel "Comprometido" no respeta el filtro de artista
 
 ### Problema
-Cuando se filtra por un artista específico, al hacer clic en "Capital Gestionado" se abre el panel mostrando **todos** los artistas. No tiene sentido ver el desglose por artista cuando ya has filtrado por uno.
+Al pulsar "Comprometido" con un filtro de artista activo, el `CashflowPanel` recibe `budgets` (todos los presupuestos) en lugar de los presupuestos filtrados por artista. Por eso aparecen pagos pendientes de otros artistas.
 
 ### Solución
-Comportamiento condicional del panel "Capital Gestionado":
+En `src/pages/Budgets.tsx`, línea 1357, cambiar:
 
-- **Sin filtro (todos los artistas)**: se muestra el panel actual — desglose por artista (sin cambios).
-- **Con artista filtrado**: se muestra un **desglose por tipo de presupuesto** del artista seleccionado (Concierto, Producción, Videoclip, Campaña, etc.), con barras de progreso, importes y conteo de presupuestos por tipo.
+```typescript
+budgets={budgets}
+```
 
-### Cambios técnicos
+por:
 
-**1. Nuevo componente `src/components/finanzas/CapitalByTypePanel.tsx`**
-- Panel lateral (Sheet) con título "Capital — [Nombre Artista]"
-- Agrupa los presupuestos del artista por `type`
-- Muestra por cada tipo: icono/color, nombre, cantidad de presupuestos, importe total, barra proporcional
-- Total al final
+```typescript
+budgets={filterArtist === 'all' ? budgets : budgets.filter(b => b.artist_id === filterArtist)}
+```
 
-**2. `src/pages/Budgets.tsx`**
-- Pasar `filterArtist` al handler de `handleCardClick`
-- Si `filterArtist !== 'all'`: abrir `CapitalByTypePanel` en vez de `CapitalByArtistPanel`
-- Pasar los budgets ya filtrados y el nombre del artista al nuevo panel
-
-**3. `src/components/finanzas/CapitalByArtistPanel.tsx`**
-- Sin cambios (sigue funcionando cuando no hay filtro de artista)
-
-### Resultado
-Con filtro de artista activo, el panel muestra información relevante (distribución del capital por tipo de proyecto) en vez de redundar con un solo artista en la lista.
+Un cambio de una sola línea. El panel mostrará solo los pagos del artista seleccionado.
 
