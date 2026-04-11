@@ -2183,7 +2183,55 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
-  // Función para generar PDF del presupuesto
+  const duplicateItemAtPosition = async (sourceId: string, targetId: string, categoryId: string) => {
+    try {
+      const sourceItem = items.find(i => i.id === sourceId);
+      if (!sourceItem) return;
+
+      const categoryItems = getCategoryItems(categoryId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const targetIndex = categoryItems.findIndex(i => i.id === targetId);
+      const insertOrder = targetIndex >= 0 ? targetIndex : categoryItems.length;
+
+      // Shift sort_order of items at and after the target position
+      const updates = categoryItems
+        .filter((_, idx) => idx >= insertOrder)
+        .map((item, idx) => ({ id: item.id, sort_order: insertOrder + idx + 1 }));
+
+      for (const u of updates) {
+        await supabase.from('budget_items').update({ sort_order: u.sort_order } as any).eq('id', u.id);
+      }
+
+      // Insert the duplicate
+      const { error } = await supabase.from('budget_items').insert({
+        budget_id: sourceItem.budget_id,
+        category: sourceItem.category,
+        category_id: sourceItem.category_id || null,
+        subcategory: sourceItem.subcategory || null,
+        name: `${sourceItem.name} (copia)`,
+        quantity: sourceItem.quantity ?? 1,
+        unit_price: sourceItem.unit_price ?? 0,
+        iva_percentage: sourceItem.iva_percentage ?? 0,
+        irpf_percentage: sourceItem.irpf_percentage ?? 0,
+        is_attendee: sourceItem.is_attendee ?? false,
+        billing_status: 'pendiente' as any,
+        observations: sourceItem.observations || null,
+        contact_id: sourceItem.contact_id || null,
+        is_commission_percentage: sourceItem.is_commission_percentage ?? false,
+        commission_percentage: sourceItem.commission_percentage ?? null,
+        is_provisional: sourceItem.is_provisional ?? false,
+        sort_order: insertOrder,
+      } as any);
+
+      if (error) throw error;
+
+      await fetchBudgetItems();
+      toast({ title: "Elemento duplicado", description: `"${sourceItem.name}" duplicado correctamente` });
+    } catch (error) {
+      console.error('Error duplicating item:', error);
+      toast({ title: "Error", description: "No se pudo duplicar el elemento", variant: "destructive" });
+    }
+  };
+
   const downloadPDF = () => {
     const doc = new jsPDF();
     const totals = calculateGrandTotals();
