@@ -694,10 +694,12 @@ export default function ReleasePresupuestos() {
     // Update detail for grouped warnings with multiple budgets
     for (const w of grouped.values()) {
       if (w.budgetIds && w.budgetIds.length > 1 && w.type === 'track_count') {
-        const meta0 = linkedBudgets.find(b => b.id === w.budgetIds![0])?.metadata as Record<string, any> | null;
-        const budgetTrackCount = meta0?.variables?.n_tracks;
+        const budget0 = linkedBudgets.find(b => b.id === w.budgetIds![0]);
+        const meta0 = budget0?.metadata as Record<string, any> | null;
+        const budgetTrackCount = Number(meta0?.variables?.n_tracks || 0);
+        const expectedCount = budget0?.expectedTrackCount ?? (tracks?.length || 0);
         w.detail = `${w.budgetIds.length} presupuestos afectados · Actualiza el número de canciones para que los cálculos sean correctos.`;
-        w.title = `Los presupuestos tienen ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero el release tiene ${tracks?.length || 0}`;
+        w.title = `Los presupuestos tienen ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero los releases suman ${expectedCount}`;
       }
     }
 
