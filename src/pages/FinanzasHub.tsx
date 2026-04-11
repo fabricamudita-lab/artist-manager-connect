@@ -61,7 +61,7 @@ export default function FinanzasHub() {
               <p className="text-muted-foreground">Panel de control económico</p>
             </div>
           </div>
-          <ArtistFilter value={selectedArtist} onChange={setSelectedArtist} />
+          <ArtistFilter value={selectedArtist} onChange={handleArtistChange} />
         </div>
 
         {/* Tab navigation */}
