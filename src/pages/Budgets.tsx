@@ -1354,7 +1354,7 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         <CashflowPanel
           open={showCashflowPanel}
           onOpenChange={setShowCashflowPanel}
-          budgets={budgets}
+          budgets={filterArtist === 'all' ? budgets : budgets.filter(b => b.artist_id === filterArtist)}
         />
 
         {/* Dialogs */}
