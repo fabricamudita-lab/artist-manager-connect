@@ -11,6 +11,7 @@ import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, Aler
 
 import { BudgetSummaryCards } from '@/components/finanzas/BudgetSummaryCards';
 import { CapitalByArtistPanel } from '@/components/finanzas/CapitalByArtistPanel';
+import { CapitalByTypePanel } from '@/components/finanzas/CapitalByTypePanel';
 import { CashflowPanel } from '@/components/finanzas/CashflowPanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
@@ -1336,11 +1337,20 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         </Card>
 
         {/* Side Panels */}
-        <CapitalByArtistPanel
-          open={showCapitalPanel}
-          onOpenChange={setShowCapitalPanel}
-          budgets={budgets}
-        />
+        {filterArtist !== 'all' ? (
+          <CapitalByTypePanel
+            open={showCapitalPanel}
+            onOpenChange={setShowCapitalPanel}
+            budgets={filteredBudgets}
+            artistName={artists.find(a => a.id === filterArtist)?.stage_name || artists.find(a => a.id === filterArtist)?.name || 'Artista'}
+          />
+        ) : (
+          <CapitalByArtistPanel
+            open={showCapitalPanel}
+            onOpenChange={setShowCapitalPanel}
+            budgets={budgets}
+          />
+        )}
         <CashflowPanel
           open={showCashflowPanel}
           onOpenChange={setShowCashflowPanel}
