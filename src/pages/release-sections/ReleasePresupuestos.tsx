@@ -819,7 +819,7 @@ export default function ReleasePresupuestos() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Presupuesto Total</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Capital</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">€{totalActual.toLocaleString()}</p>
