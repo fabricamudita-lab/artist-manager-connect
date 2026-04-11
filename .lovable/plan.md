@@ -1,25 +1,28 @@
 
 
-## Fix: Las tarjetas KPI no deben recalcularse al filtrar por clic
+## Fix: "Vinculado a" muestra release en vez de proyecto
 
 ### Problema
-Al pulsar "Disponible Agregado", se filtra la lista de presupuestos y las tarjetas KPI se recalculan con los presupuestos filtrados, mostrando valores incorrectos (el disponible pasa de negativo a positivo porque excluye los presupuestos en rojo).
+El presupuesto "Presupuesto - ChromatisM + Nox + Hobba" tiene ambos vínculos:
+- `project_id` → PLAYGRXVND (proyecto)
+- `release_id` → ChromatisM (lanzamiento)
 
-### Causa raíz
-En `Budgets.tsx`, las `BudgetSummaryCards` reciben `filteredBudgets` que incluyen el `cardFilter`. Las tarjetas deberían recibir los presupuestos filtrados solo por artista/tipo/búsqueda, pero **no** por el filtro de tarjeta activa.
+La función `getVinculacion` (línea 144) prioriza el release sobre el proyecto, mostrando "ChromatisM" cuando el usuario espera ver "PLAYGRXVND". Además, el dropdown de edición inline solo controla `project_id`, así que hay una inconsistencia visual.
 
 ### Solución
-Separar dos listas en `Budgets.tsx`:
+Cambiar la prioridad en `getVinculacion` para mostrar el **proyecto** primero (ya que es el contenedor principal). Si no tiene proyecto, mostrar el release como fallback.
 
-1. **`budgetsForCards`**: filtrada por artista, tipo y búsqueda (sin `cardFilter`) — se pasa a `BudgetSummaryCards`
-2. **`filteredBudgets`**: filtrada por todo incluyendo `cardFilter` — se usa para la tabla
+### Cambio (1 archivo, 2 líneas)
 
-### Cambio técnico (1 archivo)
+**`src/pages/Budgets.tsx`**, líneas 144-148:
 
-**`src/pages/Budgets.tsx`**:
-- Extraer la lógica de filtrado sin `cardFilter` como `budgetsForCards`
-- Pasar `budgetsForCards` a `<BudgetSummaryCards budgets={...}>`
-- Mantener `filteredBudgets` (con `cardFilter`) para la tabla
+```typescript
+function getVinculacion(budget: Budget): { label: string; type: 'release' | 'project' } | null {
+  if (budget.projects?.name) return { label: budget.projects.name, type: 'project' };
+  if (budget.releases?.title) return { label: budget.releases.title, type: 'release' };
+  return null;
+}
+```
 
-Esto asegura que los KPIs siempre muestren el dato real, independientemente de qué tarjeta esté activa como filtro.
+Se invierte el orden: proyecto primero, release después. Así "Vinculado a" será coherente con lo que controla el dropdown de edición.
 
