@@ -20,7 +20,6 @@ import { CreateBudgetFromTemplateDialog } from '@/components/CreateBudgetFromTem
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
