@@ -142,8 +142,8 @@ function getEstadoBadgeVariant(
 }
 
 function getVinculacion(budget: Budget): { label: string; type: 'release' | 'project' } | null {
-  if (budget.releases?.title) return { label: budget.releases.title, type: 'release' };
   if (budget.projects?.name) return { label: budget.projects.name, type: 'project' };
+  if (budget.releases?.title) return { label: budget.releases.title, type: 'release' };
   return null;
 }
 
