@@ -243,11 +243,6 @@ export function CompactBookingCard({
                         Equipo OK
                       </Badge>
                     )}
-                    {offer.es_cityzen && (
-                      <Badge className="bg-orange-500 text-white text-xs px-1.5 py-0.5">
-                        CityZen
-                      </Badge>
-                    )}
                     {offer.es_internacional && (
                       <Badge variant="outline" className="text-xs px-1.5 py-0.5 border-blue-300 text-blue-700">
                         Internacional

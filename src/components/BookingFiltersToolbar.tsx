@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, X, CalendarIcon, Globe, Sparkles, Download, FileSpreadsheet, Plus, CheckSquare, FileText } from 'lucide-react';
+import { Search, Filter, X, CalendarIcon, Globe, Download, FileSpreadsheet, Plus, CheckSquare, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ export interface BookingFiltersState {
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
   showInternational: boolean | 'all';
-  showCityzen: boolean | 'all';
+  
 }
 
 interface BookingFiltersToolbarProps {
@@ -85,8 +85,7 @@ export function BookingFiltersToolbar({
     filters.promoterFilter !== 'all' || 
     filters.dateFrom || 
     filters.dateTo || 
-    filters.showInternational !== 'all' || 
-    filters.showCityzen !== 'all';
+    filters.showInternational !== 'all';
 
   const activeFilterCount = [
     filters.searchTerm,
@@ -97,7 +96,6 @@ export function BookingFiltersToolbar({
     filters.dateFrom,
     filters.dateTo,
     filters.showInternational !== 'all',
-    filters.showCityzen !== 'all',
   ].filter(Boolean).length;
 
   const getArtistDisplayName = (artist: Artist) => {
@@ -290,19 +288,6 @@ export function BookingFiltersToolbar({
                       <Label htmlFor="international" className="flex items-center gap-1 text-sm cursor-pointer">
                         <Globe className="h-3 w-3" />
                         Solo Internacional
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id="cityzen" 
-                        checked={filters.showCityzen === true}
-                        onCheckedChange={(checked) => {
-                          onFiltersChange({ showCityzen: checked ? true : 'all' });
-                        }}
-                      />
-                      <Label htmlFor="cityzen" className="flex items-center gap-1 text-sm cursor-pointer">
-                        <Sparkles className="h-3 w-3" />
-                        Solo CityZen
                       </Label>
                     </div>
                   </div>

@@ -453,7 +453,7 @@ export default function BookingDetail() {
             if (booking.estado) detallesSection.push(`Estado: ${booking.estado}`);
             if (booking.phase) detallesSection.push(`Fase: ${booking.phase}`);
             if (booking.es_internacional !== null) detallesSection.push(`Internacional: ${booking.es_internacional ? 'Sí' : 'No'}`);
-            if (booking.es_cityzen !== null) detallesSection.push(`Cityzen: ${booking.es_cityzen ? 'Sí' : 'No'}`);
+            
             if (detallesSection.length > 0) {
               sections.push('');
               sections.push('🎭 DETALLES');

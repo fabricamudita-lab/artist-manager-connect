@@ -66,7 +66,7 @@ const fieldLabels: Record<string, string> = {
   gastos_estimados: 'Gastos Estimados',
   comision_porcentaje: 'Comisión %',
   comision_euros: 'Comisión €',
-  es_cityzen: 'CityZen',
+  
   es_internacional: 'Internacional',
   estado_facturacion: 'Estado Facturación',
   link_venta: 'Link Venta',

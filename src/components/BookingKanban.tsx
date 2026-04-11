@@ -192,7 +192,6 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     dateFrom: undefined,
     dateTo: undefined,
     showInternational: 'all',
-    showCityzen: 'all',
   });
   
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
@@ -385,10 +384,6 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       filtered = filtered.filter(offer => offer.es_internacional === filters.showInternational);
     }
 
-    // CityZen filter
-    if (filters.showCityzen !== 'all') {
-      filtered = filtered.filter(offer => offer.es_cityzen === filters.showCityzen);
-    }
 
     setFilteredOffers(filtered);
   };
@@ -403,7 +398,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       dateFrom: undefined,
       dateTo: undefined,
       showInternational: 'all',
-      showCityzen: 'all',
+      
     });
   };
 
@@ -468,7 +463,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
       if (error) throw error;
 
-      // Validate CityZen rules for international shows
+      // Validate commission for international shows
       const offer = offers.find(o => o.id === offerId);
       if (offer?.es_internacional && offer?.comision_porcentaje && offer?.comision_porcentaje > 10) {
         toast({
@@ -674,7 +669,6 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         fee: 'Fee (€)',
         gastos_estimados: 'Gastos Estimados (€)',
         comision_porcentaje: 'Comisión (%)',
-        es_cityzen: 'CityZen',
         es_internacional: 'Internacional',
         estado_facturacion: 'Estado Facturación',
         offer_number: 'Número Oferta'
@@ -690,7 +684,6 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         fee: offer.fee || 0,
         gastos_estimados: offer.gastos_estimados || 0,
         comision_porcentaje: offer.comision_porcentaje || 0,
-        es_cityzen: offer.es_cityzen ? 'Sí' : 'No',
         es_internacional: offer.es_internacional ? 'Sí' : 'No',
         estado_facturacion: offer.estado_facturacion || '',
         offer_number: generateOfferNumber(offer)
@@ -823,12 +816,6 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           <p className="text-xs text-muted-foreground">Internacionales</p>
           <p className="text-lg font-bold text-purple-600">
             {filteredOffers.filter(o => o.es_internacional).length}
-          </p>
-        </div>
-        <div className="bg-primary/10 rounded-lg px-3 py-2 border border-primary/20">
-          <p className="text-xs text-muted-foreground">CityZen</p>
-          <p className="text-lg font-bold text-primary">
-            {filteredOffers.filter(o => o.es_cityzen).length}
           </p>
         </div>
       </div>

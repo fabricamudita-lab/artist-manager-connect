@@ -124,7 +124,6 @@ export default function Booking() {
     dateFrom: undefined,
     dateTo: undefined,
     showInternational: 'all',
-    showCityzen: 'all',
   });
   const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -226,7 +225,7 @@ export default function Booking() {
     if (filters.dateFrom) filtered = filtered.filter(o => o.fecha && new Date(o.fecha) >= filters.dateFrom!);
     if (filters.dateTo) filtered = filtered.filter(o => o.fecha && new Date(o.fecha) <= filters.dateTo!);
     if (filters.showInternational !== 'all') filtered = filtered.filter(o => o.es_internacional === filters.showInternational);
-    if (filters.showCityzen !== 'all') filtered = filtered.filter(o => o.es_cityzen === filters.showCityzen);
+    
     setFilteredOffers(filtered);
   };
 
@@ -236,7 +235,7 @@ export default function Booking() {
 
   const clearAllFilters = () => setFilters({
     searchTerm: '', artistFilter: 'all', phaseFilter: [], countryFilter: 'all',
-    promoterFilter: 'all', dateFrom: undefined, dateTo: undefined, showInternational: 'all', showCityzen: 'all',
+    promoterFilter: 'all', dateFrom: undefined, dateTo: undefined, showInternational: 'all',
   });
 
   useEffect(() => {
@@ -542,7 +541,7 @@ export default function Booking() {
         gastos_estimados: 'Gastos Estimados (€)',
         comision_porcentaje: 'Comisión (%)',
         comision_euros: 'Comisión (€)',
-        es_cityzen: 'CityZen',
+        
         es_internacional: 'Internacional',
         estado_facturacion: 'Estado Facturación',
         oferta: 'Oferta',
@@ -567,7 +566,7 @@ export default function Booking() {
         gastos_estimados: offer.gastos_estimados || 0,
         comision_porcentaje: offer.comision_porcentaje || 0,
         comision_euros: offer.comision_euros || 0,
-        es_cityzen: offer.es_cityzen ? 'Sí' : 'No',
+        
         es_internacional: offer.es_internacional ? 'Sí' : 'No',
         estado_facturacion: offer.estado_facturacion || '',
         oferta: offer.oferta || '',
@@ -635,7 +634,7 @@ export default function Booking() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Booking</h1>
-              <p className="text-muted-foreground">Gestiona ofertas de conciertos por fases con reglas CityZen</p>
+              <p className="text-muted-foreground">Gestiona ofertas de conciertos por fases</p>
             </div>
           </div>
           

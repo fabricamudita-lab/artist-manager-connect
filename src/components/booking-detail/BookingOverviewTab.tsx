@@ -275,13 +275,6 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
               </div>
             )}
 
-            {booking.es_cityzen && (
-              <div className="pt-2">
-                <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
-                  CityZen
-                </Badge>
-              </div>
-            )}
           </CardContent>
         </Card>
 
