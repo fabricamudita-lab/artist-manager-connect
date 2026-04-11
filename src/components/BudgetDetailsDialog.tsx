@@ -4179,17 +4179,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         className={`${(item as any).is_provisional ? 'bg-amber-50/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
                                           selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
                                         } ${draggedElement === item.id ? 'opacity-50' : ''} ${
-                                          dragOverElement === item.id ? 'border-t-2 border-t-blue-500' : ''
+                                          dragOverElement === item.id 
+                                            ? isDuplicateDrag 
+                                              ? 'border-t-2 border-t-green-500' 
+                                              : 'border-t-2 border-t-blue-500' 
+                                            : ''
                                         } ${(item as any).is_provisional ? 'opacity-75' : ''}`}
                                        draggable
                                        onDragStart={(e) => {
                                          setDraggedElement(item.id);
-                                         e.dataTransfer.effectAllowed = 'move';
+                                         const alt = e.altKey;
+                                         setIsDuplicateDrag(alt);
+                                         e.dataTransfer.effectAllowed = alt ? 'copy' : 'move';
                                          e.dataTransfer.setData('text/plain', item.id);
                                        }}
                                        onDragOver={(e) => {
                                          e.preventDefault();
-                                         e.dataTransfer.dropEffect = 'move';
+                                         const alt = e.altKey;
+                                         setIsDuplicateDrag(alt);
+                                         e.dataTransfer.dropEffect = alt ? 'copy' : 'move';
                                          setDragOverElement(item.id);
                                        }}
                                        onDragLeave={() => {
@@ -4198,16 +4206,22 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        onDrop={(e) => {
                                          e.preventDefault();
                                          if (draggedElement && draggedElement !== item.id) {
-                                           reorderElements(draggedElement, item.id, category.id);
+                                           if (e.altKey || isDuplicateDrag) {
+                                             duplicateItemAtPosition(draggedElement, item.id, category.id);
+                                           } else {
+                                             reorderElements(draggedElement, item.id, category.id);
+                                           }
                                          }
                                          setDragOverElement(null);
                                          setDraggedElement(null);
+                                         setIsDuplicateDrag(false);
                                        }}
                                        onDragEnd={() => {
                                          setDraggedElement(null);
                                          setDragOverElement(null);
+                                         setIsDuplicateDrag(false);
                                        }}
-                                     >
+                                      >
                                         {/* Checkbox */}
                                         <TableCell className="p-2 text-center">
                                           <div className="flex items-center justify-center gap-2">
