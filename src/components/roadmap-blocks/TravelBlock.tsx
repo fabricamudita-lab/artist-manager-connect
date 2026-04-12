@@ -238,116 +238,152 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
         </div>
       </div>
 
-      {/* Trips list - visual style */}
-      <div className="space-y-3">
-        {localTrips.length > 0 ? (
-          localTrips.map((trip) => {
-            const config = getMediumConfig(trip.medium);
-            const Icon = config.icon;
-            
-            return (
-              <div
-                key={trip.id}
-                className="border rounded-lg p-4 hover:bg-muted/30 transition-colors group"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="flex flex-col items-center">
-                      <Badge variant="outline" className={`${config.color} gap-1`}>
-                        <Icon className="w-3 h-3" />
-                        {config.label}
-                      </Badge>
-                      {trip.date && (
-                        <span className="text-xs text-muted-foreground mt-1">
-                          {formatDate(trip.date)}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 text-lg font-medium">
-                        <span>{trip.origin || '—'}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span>{trip.destination || '—'}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        {trip.departureTime && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {trip.departureTime}
-                            {trip.arrivalTime && ` → ${trip.arrivalTime}`}
-                          </span>
-                        )}
-                        {trip.serviceNumber && (
-                          <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">
-                            {trip.serviceNumber}
-                          </span>
-                        )}
-                        {trip.pnr && (
-                          <span className="font-mono text-xs">
-                            PNR: {trip.pnr}
-                          </span>
-                        )}
-                      </div>
-
-                      {trip.passengerIds && trip.passengerIds.length > 0 && (
-                        <div className="mt-3 pt-3 border-t">
-                          <div className="text-xs text-muted-foreground mb-2">
-                            PASAJEROS ({trip.passengerIds.length})
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {trip.passengerIds.map(id => (
-                              <Badge key={id} variant="outline" className="text-xs gap-1">
-                                <User className="w-3 h-3" />
-                                {passengerNames[id] || id.slice(0, 8)}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {trip.luggagePolicy && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          <span className="font-medium">Equipaje:</span> {trip.luggagePolicy}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setEditingTrip({ ...trip })}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => removeTrip(trip.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">
-            No hay desplazamientos configurados
+      {/* Self-arranged travel option */}
+      <div
+        className={`border rounded-lg p-4 cursor-pointer transition-colors ${localSelfArranged ? 'bg-primary/5 border-primary/30' : 'bg-muted/30 hover:bg-muted/50'}`}
+        onClick={() => setLocalSelfArranged(!localSelfArranged)}
+      >
+        <div className="flex items-start gap-3">
+          <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${localSelfArranged ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+            {localSelfArranged && <span className="text-primary-foreground text-xs font-bold">✓</span>}
           </div>
-        )}
+          <div className="flex-1">
+            <h4 className="font-medium">Cada uno llega por sus propios medios</h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              No se organizan desplazamientos grupales. Cada miembro gestiona su propio transporte.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <Button onClick={addTrip} variant="outline" className="gap-2">
-        <Plus className="w-4 h-4" />
-        Añadir Desplazamiento
-      </Button>
+      {localSelfArranged && (
+        <div className="border rounded-lg p-4 bg-blue-500/5 border-blue-500/20">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground">{localSelfArrangedNote}</p>
+            </div>
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={(e) => { e.stopPropagation(); setShowSelfArrangedEdit(true); }}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Trips list - visual style */}
+      {!localSelfArranged && (
+        <>
+          <div className="space-y-3">
+            {localTrips.length > 0 ? (
+              localTrips.map((trip) => {
+                const config = getMediumConfig(trip.medium);
+                const Icon = config.icon;
+                
+                return (
+                  <div
+                    key={trip.id}
+                    className="border rounded-lg p-4 hover:bg-muted/30 transition-colors group"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="flex flex-col items-center">
+                          <Badge variant="outline" className={`${config.color} gap-1`}>
+                            <Icon className="w-3 h-3" />
+                            {config.label}
+                          </Badge>
+                          {trip.date && (
+                            <span className="text-xs text-muted-foreground mt-1">
+                              {formatDate(trip.date)}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-lg font-medium">
+                            <span>{trip.origin || '—'}</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span>{trip.destination || '—'}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            {trip.departureTime && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {trip.departureTime}
+                                {trip.arrivalTime && ` → ${trip.arrivalTime}`}
+                              </span>
+                            )}
+                            {trip.serviceNumber && (
+                              <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">
+                                {trip.serviceNumber}
+                              </span>
+                            )}
+                            {trip.pnr && (
+                              <span className="font-mono text-xs">
+                                PNR: {trip.pnr}
+                              </span>
+                            )}
+                          </div>
+
+                          {trip.passengerIds && trip.passengerIds.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <div className="text-xs text-muted-foreground mb-2">
+                                PASAJEROS ({trip.passengerIds.length})
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {trip.passengerIds.map(id => (
+                                  <Badge key={id} variant="outline" className="text-xs gap-1">
+                                    <User className="w-3 h-3" />
+                                    {passengerNames[id] || id.slice(0, 8)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {trip.luggagePolicy && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              <span className="font-medium">Equipaje:</span> {trip.luggagePolicy}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEditingTrip({ ...trip })}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => removeTrip(trip.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                No hay desplazamientos configurados
+              </div>
+            )}
+          </div>
+
+          <Button onClick={addTrip} variant="outline" className="gap-2">
+            <Plus className="w-4 h-4" />
+            Añadir Desplazamiento
+          </Button>
+        </>
+      )
 
       {/* Edit Luggage Dialog */}
       <Dialog open={showLuggageEdit} onOpenChange={setShowLuggageEdit}>
