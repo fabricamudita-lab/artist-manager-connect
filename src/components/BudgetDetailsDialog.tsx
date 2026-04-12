@@ -3603,10 +3603,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     </div>
                   )}
                    {/* Category Management Header - Compact */}
-                  <div className="bg-black text-white p-3 border-b border-gray-700">
+                  <div className="bg-gray-900 text-white px-3 py-2 border-b border-gray-700">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-sm font-semibold tracking-wide">Gestión de Elementos</h2>
+                        <div className="w-px h-5 bg-gray-600" />
                         <div className="flex items-center gap-2 bg-white/10 rounded-md px-1 py-0.5">
                           <ToggleGroup type="single" value={displayMode} onValueChange={(v) => { if (v) setDisplayMode(v as any); }} className="gap-0">
                             <ToggleGroupItem value="neto" className="h-6 px-2.5 text-[11px] font-medium rounded-sm data-[state=on]:bg-white data-[state=on]:text-black text-white/60 hover:text-white">Neto</ToggleGroupItem>
@@ -4033,7 +4034,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         <div key={category.id} data-category-id={category.id} className="mb-6">
                           {/* Category Header */}
                           <div 
-                            className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700 cursor-pointer hover:bg-gray-900 transition-colors"
+                            className="bg-gray-50 border-b-2 border-b-gray-300 px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
                             onClick={() => {
                               setOpenCategories(prev => {
                                 const newSet = new Set(prev);
@@ -4046,13 +4047,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               });
                             }}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2.5">
                               <div className="transform transition-transform duration-200" style={{ transform: openCategories.has(category.id) ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                <ArrowRightLeft className="w-4 h-4 rotate-90" />
+                                <ArrowRightLeft className="w-3.5 h-3.5 text-gray-500 rotate-90" />
                               </div>
-                              <IconComponent className="w-5 h-5" />
-                              <h3 className="text-lg font-bold tracking-wider">{category.name.toUpperCase()}</h3>
-                              <span className="text-sm text-white/60">({categoryItems.length} elementos)</span>
+                              <IconComponent className="w-4 h-4 text-gray-600" />
+                              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{category.name}</h3>
+                              <span className="text-xs text-gray-400">({categoryItems.length})</span>
                             </div>
                             <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex gap-4 text-sm">
@@ -4087,12 +4088,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   return (
                                     <>
                                       <div className="text-right">
-                                        <div className="text-xs text-white/50 mb-1">{modeLabel}</div>
-                                        <div className="font-semibold">
+                                        <div className="text-[10px] text-gray-400 mb-0.5">{modeLabel}</div>
+                                        <div className="font-semibold font-mono text-sm text-gray-700">
                                           €{displayTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                                         </div>
                                         {displayMode === 'liquido' && totalRetention > 0 && (
-                                          <div className="text-[10px] text-white/40">+ €{totalRetention.toLocaleString('es-ES', { minimumFractionDigits: 2 })} ret.</div>
+                                          <div className="text-[10px] text-gray-400">+ €{totalRetention.toLocaleString('es-ES', { minimumFractionDigits: 2 })} ret.</div>
                                         )}
                                         {provisionalNeto > 0 && (
                                           <div className="text-[10px] text-amber-400">⏳ €{provisionalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} prov.</div>
@@ -4110,10 +4111,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 }}
                                 size="sm"
                                 variant="ghost"
-                                className="text-white/60 hover:text-white hover:bg-white/10"
+                                className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 h-7 w-7 p-0"
                                 title="Ocultar categoría"
                               >
-                                <EyeOff className="w-4 h-4" />
+                                <EyeOff className="w-3.5 h-3.5" />
                               </Button>
                               <Button
                                 onClick={(e) => {
@@ -4121,9 +4122,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   addNewItem(category.id);
                                 }}
                                 size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs"
                               >
-                                <Plus className="w-4 h-4 mr-1" />
+                                <Plus className="w-3.5 h-3.5 mr-1" />
                                 Agregar
                               </Button>
                             </div>
@@ -4131,7 +4132,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           
                           {/* Excel-style Table */}
                           {openCategories.has(category.id) && (
-                            <div className="bg-white border-b border-gray-300 overflow-x-auto">
+                            <div className="bg-white border-b border-gray-100 overflow-x-auto">
                               {categoryItems.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500 bg-white">
                                   <p>No hay elementos en esta categoría</p>
@@ -4147,8 +4148,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               ) : (
                               <Table>
                                  <TableHeader>
-                                    <TableRow className="bg-gray-100 hover:bg-gray-100">
-                                      <TableHead className="font-bold text-black w-[50px] text-center">
+                                    <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 border-b border-gray-100">
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[50px] text-center">
                                         <input
                                           type="checkbox"
                                           className="rounded"
@@ -4164,23 +4165,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           }}
                                         />
                                       </TableHead>
-                                      <TableHead className="font-bold text-black w-[200px]">Concepto</TableHead>
-                                      <TableHead className="font-bold text-black w-[130px] text-center">Contacto</TableHead>
-                                      <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
-                                      <TableHead className="font-bold text-black w-[200px] text-right">Precio / Comisión</TableHead>
-                                      <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
-                                      <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
-                                      <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
-                                      <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
-                                      <TableHead className="font-bold text-black w-[150px] text-center">Enlace Factura</TableHead>
-                                      <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[200px]">Concepto</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[130px] text-center">Contacto</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[130px] text-center">Fecha Emisión</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[200px] text-right">Precio / Comisión</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[80px] text-center">IVA (%)</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[80px] text-center">IRPF (%)</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[120px] text-right">Total (€)</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[150px] text-center">Estado</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[150px] text-center">Factura</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[100px] text-center">Acciones</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                 <TableBody>
                                    {categoryItems.map((item, index) => (
                                      <TableRow 
                                         key={item.id} 
-                                        className={`${(item as any).is_provisional ? 'bg-amber-50/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
+                                        className={`${(item as any).is_provisional ? 'bg-amber-50/40' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')} hover:bg-blue-50/50 transition-colors border-b border-gray-100 ${
                                           selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
                                         } ${draggedElement === item.id ? 'opacity-50' : ''} ${
                                           dragOverElement === item.id 
