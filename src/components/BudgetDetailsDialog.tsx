@@ -3392,23 +3392,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       <>
                         {/* PRODUCCIÓN / CAMPAÑA / VIDEOCLIP — 4 métricas */}
                         {/* 1. CAPITAL */}
-                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-blue-500 border border-blue-500/10 bg-blue-500/5">
-                          <div className="text-[10px] font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
-                          <div className="text-lg font-bold font-mono text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-blue-400/60 mt-0.5">Presupuesto total</div>
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
+                          <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="flex items-center gap-0.5 text-[9px] text-blue-400/70 mt-0.5">
+                            <span>Presupuesto total</span>
+                          </div>
                         </div>
 
                         {/* 2. PAGADO */}
-                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-green-500 border border-green-500/10 bg-green-500/5">
-                          <div className="text-[10px] font-semibold text-green-500 uppercase tracking-wide mb-1">PAGADO</div>
-                          <div className="text-lg font-bold font-mono text-green-500">€{pagado.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-green-500/60 mt-0.5">{facturasCobradas} factura{facturasCobradas !== 1 ? 's' : ''} cobrada{facturasCobradas !== 1 ? 's' : ''}</div>
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                          <div className="text-xs font-semibold text-green-500 uppercase tracking-wide mb-1">PAGADO</div>
+                          <div className="text-xl font-bold text-green-500">€{pagado.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-green-500/70 mt-0.5">{facturasCobradas} factura{facturasCobradas !== 1 ? 's' : ''} cobrada{facturasCobradas !== 1 ? 's' : ''}</div>
                         </div>
 
                         {/* 3. COMPROMETIDO + popover fiscal */}
-                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-amber-500 border border-amber-500/10 bg-amber-500/5">
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
                           <div className="flex items-center gap-1 mb-1">
-                            <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">COMPROMETIDO</span>
+                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">COMPROMETIDO</span>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <button className="text-amber-400/60 hover:text-amber-400 transition-colors">
@@ -3423,9 +3425,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               </PopoverContent>
                             </Popover>
                           </div>
-                          <div className="text-lg font-bold font-mono text-amber-400">€{(comprometido + provisionalTotal).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-xl font-bold text-amber-400">€{(comprometido + provisionalTotal).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           <div className="text-[9px] mt-0.5 flex items-center gap-1">
-                            <span className="text-amber-400/60">€{comprometido.toLocaleString('es-ES', { minimumFractionDigits: 0 })} confirmado</span>
+                            <span className="text-amber-400/70">€{comprometido.toLocaleString('es-ES', { minimumFractionDigits: 0 })} confirmado</span>
                             {provisionalTotal > 0 && (
                               <>
                                 <span className="text-amber-400/40">·</span>
@@ -3436,17 +3438,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </div>
 
                         {/* 4. DISPONIBLE — semáforo */}
-                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${
-                          disponiblePct < 0 ? 'border-l-destructive bg-destructive/5 border-destructive/10' :
-                          disponiblePct <= 15 ? 'border-l-amber-500 bg-amber-500/5 border-amber-500/10' :
-                          'border-l-green-500 bg-green-500/5 border-green-500/10'
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
+                          disponiblePct < 0 ? 'bg-destructive/10 border-destructive/20' :
+                          disponiblePct <= 15 ? 'bg-amber-500/10 border-amber-500/20' :
+                          'bg-green-500/10 border-green-500/20'
                         }`}>
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
+                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
                             disponiblePct < 0 ? 'text-destructive' :
                             disponiblePct <= 15 ? 'text-amber-400' :
                             'text-green-500'
                           }`}>DISPONIBLE</div>
-                          <div className={`text-lg font-bold font-mono ${
+                          <div className={`text-xl font-bold ${
                             disponiblePct < 0 ? 'text-destructive' :
                             disponiblePct <= 15 ? 'text-amber-400' :
                             'text-green-500'
