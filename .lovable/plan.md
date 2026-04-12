@@ -1,28 +1,25 @@
 
 
-## Hover highlight en filas de categorías ocultas
+## Hacer colapsables "Estado de Pagos" y "Timeline"
 
 ### Cambio
-Añadir un efecto hover suave a cada fila de categoría oculta para que al pasar el ratón se ilumine, facilitando la identificación visual.
+Añadir un estado `collapsed` con toggle en el header de cada componente. Al minimizar, se oculta el `CardContent` con animación suave. Se persiste en `localStorage` para recordar la preferencia.
 
-### Archivo: `src/components/BudgetDetailsDialog.tsx`
+### Archivos a modificar
 
-**Línea 3900** — Cambiar las clases del `<div>` de cada fila de categoría oculta:
+**1. `src/components/booking-detail/BookingTimeline.tsx`**
+- Añadir estado `collapsed` inicializado desde `localStorage('timeline_collapsed')`
+- Añadir icono `ChevronDown`/`ChevronUp` al header con `onClick` toggle
+- Envolver `CardContent` en condicional `{!collapsed && <CardContent>...</CardContent>}`
+- Header con `cursor-pointer` y transición en el icono
 
-De:
-```
-className="flex items-center justify-between px-3 py-2 bg-gray-800/80"
-```
+**2. `src/components/booking-detail/PaymentStatusCard.tsx`**
+- Mismo patrón: estado `collapsed` con `localStorage('payment_status_collapsed')`
+- Icono toggle en el header junto a "Estado de Pagos"
+- Ocultar `CardContent` cuando colapsado
 
-A:
-```
-className="flex items-center justify-between px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 transition-colors duration-200 cursor-pointer"
-```
-
-Esto añade:
-- `hover:bg-gray-700/80` — iluminación sutil al pasar el ratón
-- `transition-colors duration-200` — transición suave
-- `cursor-pointer` — indica que es interactivo
-
-Un cambio mínimo, solo CSS, sin riesgo funcional.
+### Detalle visual
+- El icono de chevron rota 180° con `transition-transform duration-200`
+- El header completo es clickable para toggle
+- Al colapsar, la Card queda solo con el título (compacta)
 
