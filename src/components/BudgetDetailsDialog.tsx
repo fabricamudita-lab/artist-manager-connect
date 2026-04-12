@@ -3897,7 +3897,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        .map(category => {
                                          const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                                          return (
-                                           <div key={category.id} className="flex items-center justify-between px-3 py-2 bg-gray-800/80">
+                                           <div key={category.id} <div key={category.id} className="flex items-center justify-between px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 transition-colors duration-200 cursor-pointer">>
                                              <div className="flex items-center gap-2 text-gray-400">
                                                <IconComponent className="w-4 h-4" />
                                                <span className="text-sm">{category.name}</span>
