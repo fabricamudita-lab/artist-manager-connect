@@ -1,24 +1,15 @@
 
 
-## Convertir campo Mood a selector con opciones de Ditto
+## Fix: Input pierde foco al escribir en ArtistInfoDialog
 
-### Cambio
-Reemplazar el `Input` de texto libre del campo "Mood / Estilo" por un `Select` con las 9 opciones exactas que exige Ditto:
+### Problema
+`Field` y `TextareaField` están definidos como componentes inline dentro de `ArtistInfoDialog` (líneas 263-287). Cada cambio en `formData` re-renderiza el componente padre, lo que recrea las definiciones de `Field`/`TextareaField`. React interpreta esto como componentes nuevos, desmonta los anteriores y monta nuevos — el input pierde el foco.
 
-- Chill
-- Energetic
-- Happy
-- Fierce
-- Meditative
-- Romantic
-- Sad
-- Sexy
-- None of these
+### Solución
+Extraer `Field` y `TextareaField` fuera de `ArtistInfoDialog` como componentes independientes con props explícitas (`editing`, `formData`, `artistData`, `onChange`). Al ser referencias estables, React los reconcilia correctamente y no pierde el foco.
 
-### Archivos afectados
+### Archivo afectado
+`src/components/ArtistInfoDialog.tsx` — mover las definiciones de `Field` (línea 263) y `TextareaField` (línea 276) fuera del cuerpo de `ArtistInfoDialog`, pasando como props: `editing`, `value`, `displayValue`, `onChange`, `label`, `icon`, `placeholder`.
 
-1. **`src/pages/release-sections/ReleasePitch.tsx`** — reemplazar el `<Input>` de mood por un `<Select>` con las 9 opciones
-2. **`src/pages/PublicReleaseForm.tsx`** — mismo cambio en el formulario público
-
-Cambio menor, solo UI — no requiere migración ni nuevos campos.
+Cambio localizado, sin migraciones ni nuevos archivos.
 
