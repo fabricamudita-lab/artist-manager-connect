@@ -249,7 +249,7 @@ interface PitchEditorProps {
   pitch: Pitch;
   release: any;
   releaseId: string;
-  tracks: Array<{ id: string; title: string; track_number: number | null }>;
+  tracks: Array<{ id: string; title: string; track_number: number | null; isrc: string | null }>;
   onBack: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -577,10 +577,23 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
             <p className="text-xs text-muted-foreground mt-1">Agrega un link de descarga de la canción en Drive.</p>
           </div>
 
-          {/* 5. UPC (read-only from release) */}
+          {/* 5. UPC / ISRC (dinámico según tipo) */}
           <div>
-            <Label className="text-xs text-muted-foreground">UPC</Label>
-            <p className="text-sm font-medium">{release.upc || '—'}</p>
+            {pitchType === 'single' ? (
+              <>
+                <Label className="text-xs text-muted-foreground">ISRC</Label>
+                <p className="text-sm font-medium">
+                  {trackId
+                    ? (tracks.find(t => t.id === trackId)?.isrc || '—')
+                    : 'Selecciona una canción para ver el ISRC'}
+                </p>
+              </>
+            ) : (
+              <>
+                <Label className="text-xs text-muted-foreground">UPC</Label>
+                <p className="text-sm font-medium">{release.upc || '—'}</p>
+              </>
+            )}
             <p className="text-xs text-muted-foreground mt-1">Si la plataforma ya lo asignó, completarlo en la ficha del release. Si no se tiene, dejar en blanco.</p>
           </div>
 
