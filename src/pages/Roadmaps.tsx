@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRoadmaps, TourRoadmap } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
@@ -50,6 +51,14 @@ export default function Roadmaps() {
   const [newName, setNewName] = useState('');
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<BookingForSelector | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('roadmaps_view_mode') as 'grid' | 'list') || 'grid';
+  });
+
+  const toggleViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('roadmaps_view_mode', mode);
+  };
 
   // Filters
   const [filterArtist, setFilterArtist] = useState<string | null>(null);
@@ -142,11 +151,30 @@ export default function Roadmaps() {
           <h1 className="text-3xl font-bold font-playfair">Hojas de Ruta</h1>
           <p className="text-muted-foreground mt-1">Gestiona las hojas de ruta de tus giras</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nueva Hoja de Ruta
-        </Button>
-      </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border rounded-md">
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9 rounded-r-none"
+              onClick={() => toggleViewMode('grid')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9 rounded-l-none"
+              onClick={() => toggleViewMode('list')}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Nueva Hoja de Ruta
+          </Button>
+        </div>
 
       {/* Filters */}
       <Card className="p-4">
