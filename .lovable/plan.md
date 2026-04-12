@@ -1,14 +1,28 @@
 
 
-## KPI Cards: 3 fijos + 3 configurables
+## Hover highlight en filas de categorías ocultas
 
 ### Cambio
-Los primeros 3 KPIs (Total Ofertas, Confirmados, En Negociación) pasan a ser fijos con título estático. Solo los 3 últimos mantienen el desplegable `<Select>` para elegir entre las 7 métricas restantes.
+Añadir un efecto hover suave a cada fila de categoría oculta para que al pasar el ratón se ilumine, facilitando la identificación visual.
 
-### Archivo: `src/components/booking-detail/KpiStatsBar.tsx`
+### Archivo: `src/components/BudgetDetailsDialog.tsx`
 
-1. **Slots fijos (posiciones 0-2)**: Renderizar con un `<p>` de texto estático en lugar del `<Select>`. Claves fijas: `totalOfertas`, `confirmados`, `negociacion`.
-2. **Slots configurables (posiciones 3-5)**: Mantienen el `<Select>` actual pero solo ofrecen las 7 métricas no fijas como opciones: `feeTotalConf`, `internacionales`, `next30`, `cobrosPendientes`, `conversion`, `feeMedia`, `realizados`.
-3. **Persistencia**: `localStorage('booking_kpi_config')` guarda solo las 3 claves configurables (posiciones 3-5). Los defaults configurables son `feeTotalConf`, `internacionales`, `next30`.
-4. **Migración**: Si hay config antigua de 6 slots, se toman solo las últimas 3 posiciones (validando que no sean claves fijas).
+**Línea 3900** — Cambiar las clases del `<div>` de cada fila de categoría oculta:
+
+De:
+```
+className="flex items-center justify-between px-3 py-2 bg-gray-800/80"
+```
+
+A:
+```
+className="flex items-center justify-between px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 transition-colors duration-200 cursor-pointer"
+```
+
+Esto añade:
+- `hover:bg-gray-700/80` — iluminación sutil al pasar el ratón
+- `transition-colors duration-200` — transición suave
+- `cursor-pointer` — indica que es interactivo
+
+Un cambio mínimo, solo CSS, sin riesgo funcional.
 
