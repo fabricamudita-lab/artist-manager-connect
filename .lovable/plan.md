@@ -1,32 +1,34 @@
 
 
-## Plan: Auto-nombrar pitch según tipo y canción seleccionada
+## Plan: Sugerencias automáticas y cambio de opciones de tipo
 
-### Qué cambia
-Cuando el usuario selecciona un tipo de pitch o una canción, el nombre del pitch se actualiza automáticamente para reflejar la selección. Ejemplos:
-- Single con canción "Ver el mundo pasar" → nombre: **"Ver el mundo pasar"**
-- Focus Track con canción "Ver el mundo pasar" → nombre: **"Ver el mundo pasar"**
-- Album Completo → nombre: **título del release** (ej. "Con una mano delante y otra detrás")
-- Al crear un pitch con 1 sola canción → nombre = título de esa canción
+### 3 cambios solicitados
 
-El usuario sigue pudiendo editar el nombre manualmente después.
+**1. País — sugerir desde el artista**
+El campo `artists` tiene `address` (texto libre). Al abrir el editor de pitch, si `country` está vacío, consultar el artista principal del release (vía `release_artists`) y extraer su `address` para pre-rellenar el campo país. Como `address` es texto libre y no hay campo `country` explícito en artistas, se usará el valor completo de `address` como sugerencia inicial (el usuario puede editarlo).
 
-### Cambios en un solo archivo
+**2. Tipo — cambiar opciones a Single / EP / Album**
+Reemplazar las opciones actuales `single`, `focus_track`, `full_album` por `single`, `ep`, `album`:
+- Actualizar `PITCH_TYPE_LABELS` con las nuevas claves
+- Cambiar los `SelectItem` en el editor
+- Ajustar la lógica existente: donde dice `full_album` pasa a `album`, donde dice `focus_track` pasa a `ep`
+- Mantener la lógica de auto-nombre: `album` y `ep` usan título del release, `single` usa título del track
+- Si hay 1 sola canción, sigue siendo `single` por defecto
+- Si hay varias, mostrar las 3 opciones
 
-**`src/pages/release-sections/ReleasePitch.tsx`**
-
-1. **Al crear pitch** (`handleCreatePitch`): si hay 1 track, usar `tracks[0].title` como nombre en vez de "Nuevo Pitch". Si hay varias, usar `release.title`.
-
-2. **Al cambiar tipo** (onValueChange del select de Tipo):
-   - Si `full_album` → `setPitchName(release.title)` y guardar nombre junto con tipo
-   - Si `single`/`focus_track` y ya hay un `trackId` seleccionado → buscar título del track y poner como nombre
-
-3. **Al cambiar canción** (onValueChange del select de Canción):
-   - Buscar el título del track seleccionado y `setPitchName(track.title)`, guardar nombre junto con track_id
-
-4. **En `useCreatePitch`** (`usePitches.ts`): aceptar `name` ya existente (ya lo hace), solo asegurar que se pasa desde el componente.
+**3. Instrumentos — sugerir desde créditos**
+Consultar `track_credits` de los tracks del release. Filtrar los roles de categoría `interprete` (guitarra, bajo, voz, etc.) y mapearlos a sus labels usando `INTERPRETE_ROLES` de `creditRoles.ts`. Incluir también `custom_instruments` si existen (campo `notes` en créditos con rol `otro_instrumento`). Pre-rellenar el campo `instruments` con la lista deduplicada separada por comas, solo si el campo está vacío.
 
 ### Archivos afectados
-- `src/pages/release-sections/ReleasePitch.tsx` — lógica de auto-nombre en 3 puntos
-- `src/hooks/usePitches.ts` — sin cambios (ya soporta `name`)
+
+- `src/pages/release-sections/ReleasePitch.tsx` — los 3 cambios
+- `src/lib/creditRoles.ts` — solo importar, sin modificar
+
+### Detalle técnico
+
+En `PitchEditor`, añadir un `useEffect` que al montar (cuando `pitch.id` cambia):
+1. Consulta `release_artists` → `artists.address` del artista principal → si `localData.country` vacío, lo rellena
+2. Consulta `track_credits` con los `track_id` del release → filtra roles de `INTERPRETE_ROLES` → mapea a labels → si `localData.instruments` vacío, lo rellena
+
+Para el tipo, cambio directo de constantes y valores.
 
