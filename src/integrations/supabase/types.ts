@@ -5737,14 +5737,21 @@ export type Database = {
         Row: {
           artist_id: string | null
           copyright: string | null
+          country: string | null
           cover_image_url: string | null
           created_at: string
           created_by: string
           description: string | null
+          general_strategy: string | null
           genre: string | null
           id: string
           label: string | null
           language: string | null
+          mood: string | null
+          pitch_config: Json | null
+          pitch_deadline: string | null
+          pitch_status: Database["public"]["Enums"]["pitch_status"] | null
+          pitch_token: string | null
           production_year: number | null
           project_id: string | null
           release_date: string | null
@@ -5752,9 +5759,15 @@ export type Database = {
           share_enabled: boolean | null
           share_expires_at: string | null
           share_token: string | null
+          social_links: string | null
+          spotify_followers: number | null
           spotify_id: string | null
+          spotify_milestones: string | null
+          spotify_monthly_listeners: number | null
+          spotify_strategy: string | null
           spotify_url: string | null
           status: string
+          synopsis: string | null
           title: string
           type: string
           upc: string | null
@@ -5763,14 +5776,21 @@ export type Database = {
         Insert: {
           artist_id?: string | null
           copyright?: string | null
+          country?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by: string
           description?: string | null
+          general_strategy?: string | null
           genre?: string | null
           id?: string
           label?: string | null
           language?: string | null
+          mood?: string | null
+          pitch_config?: Json | null
+          pitch_deadline?: string | null
+          pitch_status?: Database["public"]["Enums"]["pitch_status"] | null
+          pitch_token?: string | null
           production_year?: number | null
           project_id?: string | null
           release_date?: string | null
@@ -5778,9 +5798,15 @@ export type Database = {
           share_enabled?: boolean | null
           share_expires_at?: string | null
           share_token?: string | null
+          social_links?: string | null
+          spotify_followers?: number | null
           spotify_id?: string | null
+          spotify_milestones?: string | null
+          spotify_monthly_listeners?: number | null
+          spotify_strategy?: string | null
           spotify_url?: string | null
           status?: string
+          synopsis?: string | null
           title: string
           type?: string
           upc?: string | null
@@ -5789,14 +5815,21 @@ export type Database = {
         Update: {
           artist_id?: string | null
           copyright?: string | null
+          country?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
+          general_strategy?: string | null
           genre?: string | null
           id?: string
           label?: string | null
           language?: string | null
+          mood?: string | null
+          pitch_config?: Json | null
+          pitch_deadline?: string | null
+          pitch_status?: Database["public"]["Enums"]["pitch_status"] | null
+          pitch_token?: string | null
           production_year?: number | null
           project_id?: string | null
           release_date?: string | null
@@ -5804,9 +5837,15 @@ export type Database = {
           share_enabled?: boolean | null
           share_expires_at?: string | null
           share_token?: string | null
+          social_links?: string | null
+          spotify_followers?: number | null
           spotify_id?: string | null
+          spotify_milestones?: string | null
+          spotify_monthly_listeners?: number | null
+          spotify_strategy?: string | null
           spotify_url?: string | null
           status?: string
+          synopsis?: string | null
           title?: string
           type?: string
           upc?: string | null
@@ -7762,6 +7801,7 @@ export type Database = {
       epk_video_type: "youtube" | "vimeo" | "archivo"
       epk_visibility: "publico" | "privado" | "protegido_password"
       node_type: "folder" | "file"
+      pitch_status: "draft" | "sent" | "in_progress" | "completed" | "reviewed"
       project_role: "EDITOR" | "COMMENTER" | "VIEWER"
       project_status: "en_curso" | "finalizado" | "archivado"
       project_type: "TOUR" | "SINGLE_RELEASE" | "VIDEO" | "CAMPAIGN"
@@ -7999,6 +8039,7 @@ export const Constants = {
       epk_video_type: ["youtube", "vimeo", "archivo"],
       epk_visibility: ["publico", "privado", "protegido_password"],
       node_type: ["folder", "file"],
+      pitch_status: ["draft", "sent", "in_progress", "completed", "reviewed"],
       project_role: ["EDITOR", "COMMENTER", "VIEWER"],
       project_status: ["en_curso", "finalizado", "archivado"],
       project_type: ["TOUR", "SINGLE_RELEASE", "VIDEO", "CAMPAIGN"],
