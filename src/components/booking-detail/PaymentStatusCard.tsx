@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { PagoDialog } from '@/components/PagoDialog';
-import { Check, Clock, AlertTriangle, Banknote, Lock, Music, Pencil, RotateCcw } from 'lucide-react';
+import { Check, Clock, AlertTriangle, Banknote, Lock, Music, Pencil, RotateCcw, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
