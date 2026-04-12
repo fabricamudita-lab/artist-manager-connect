@@ -1,37 +1,44 @@
 
 
-## Resumen visible en "Estado de Pagos" cuando está colapsado
+## Mostrar resumen de tareas pendientes en el header del Timeline cuando está colapsado
 
-### Problema
-Al minimizar la tarjeta, solo se ve el título "Estado de Pagos" sin ninguna información útil. El usuario pierde visibilidad del estado actual del cobro.
+### Cambio
+Cuando el Timeline está colapsado, mostrar un aviso compacto en el header indicando cuántas tareas están pendientes o vencidas, similar al resumen que ya se implementó en "Estado de Pagos".
 
-### Solución
-Añadir un resumen compacto inline en el header que se muestre **solo cuando está colapsado**, con:
-- Badge de estado (Cobrado / Pendiente / Vencido)
-- Importe cobrado o pendiente
+### Archivo: `src/components/booking-detail/BookingTimeline.tsx`
 
-### Archivo: `src/components/booking-detail/PaymentStatusCard.tsx`
+**En el `CardTitle` (línea ~168-172)**, añadir un bloque condicional cuando `collapsed`:
 
-**En el `CardHeader` (línea ~206-210)**, después del título "Estado de Pagos" y antes del chevron, añadir un bloque condicional que solo aparece cuando `collapsed`:
+1. Contar checkpoints pendientes (`status === 'pending'`) y vencidos (`due_date < today && status !== 'done'`)
+2. Mostrar badges inline:
+   - Si hay vencidos: badge rojo `🔴 X vencidas`
+   - Si hay pendientes (no vencidos): badge amarillo `X pendientes`
+   - Si todo está hecho: badge verde `✓ Al día`
 
 ```tsx
-<CardTitle className="text-base flex items-center gap-2 w-full">
-  <Banknote className="h-4 w-4 text-primary" />
-  Estado de Pagos
+<CardTitle className="text-sm flex items-center gap-2 w-full">
+  <Clock className="h-4 w-4" />
+  Timeline
   {collapsed && (
     <div className="flex items-center gap-2 ml-2">
-      <StatusBadge estado={...} fechaEsperada={...} />
-      <span className="text-sm font-semibold text-muted-foreground">{fmt(amount)}</span>
+      {overdueCount > 0 && (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
+          {overdueCount} vencida{overdueCount > 1 ? 's' : ''}
+        </span>
+      )}
+      {pendingCount > 0 && (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">
+          {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+        </span>
+      )}
+      {overdueCount === 0 && pendingCount === 0 && checkpoints.length > 0 && (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">✓ Al día</span>
+      )}
     </div>
   )}
-  <ChevronDown className="..." />
+  <ChevronDown ... />
 </CardTitle>
 ```
 
-La lógica del badge y el importe reutiliza las mismas variables ya calculadas (`cobroEstado`, `fee`, `hasFraccionado`, etc.) para mostrar:
-- **Pago único cobrado**: Badge "Cobrado" + importe
-- **Fraccionado**: Badge con estado general + total cobrado / total
-- **Sin pagos**: Badge "Pendiente" + fee total
-
-Un cambio pequeño, solo en el header, sin tocar la lógica existente.
+Las variables `overdueCount` y `pendingCount` se calculan a partir de `checkpoints` ya cargado en el componente — sin queries adicionales.
 
