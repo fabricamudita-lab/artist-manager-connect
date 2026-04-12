@@ -279,6 +279,8 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
       setPitchConfig((pitch.pitch_config as PitchConfig) || {});
       setPitchDeadline(pitch.pitch_deadline || '');
       setPitchName(pitch.name);
+      setPitchType(pitch.pitch_type || 'full_album');
+      setTrackId(pitch.track_id || null);
     }
   }, [pitch.id]);
 
@@ -419,6 +421,67 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
               className="w-auto"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Pitch Type & Track */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tipo de Pitch</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Define si el pitch es para un single, focus track o el álbum completo
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Tipo</Label>
+            {tracks.length <= 1 ? (
+              <p className="text-sm font-medium mt-1">Single{tracks.length === 1 ? `: ${tracks[0].title}` : ''}</p>
+            ) : (
+              <Select
+                value={pitchType}
+                onValueChange={(v) => {
+                  setPitchType(v);
+                  const newTrackId = v === 'full_album' ? null : trackId;
+                  if (v === 'full_album') setTrackId(null);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: newTrackId });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="focus_track">Focus Track</SelectItem>
+                  <SelectItem value="full_album">Album Completo</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {pitchType !== 'full_album' && tracks.length > 1 && (
+            <div>
+              <Label>Canción</Label>
+              <Select
+                value={trackId || ''}
+                onValueChange={(v) => {
+                  setTrackId(v);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una canción..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tracks.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.track_number ? `${t.track_number}. ` : ''}{t.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
