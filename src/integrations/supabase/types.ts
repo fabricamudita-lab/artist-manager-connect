@@ -3546,6 +3546,7 @@ export type Database = {
         Row: {
           acceso_directo: boolean
           actualizado_en: string | null
+          artist_id: string | null
           artista_proyecto: string
           bio_corta: string | null
           booking: Json | null
@@ -3578,6 +3579,7 @@ export type Database = {
         Insert: {
           acceso_directo?: boolean
           actualizado_en?: string | null
+          artist_id?: string | null
           artista_proyecto: string
           bio_corta?: string | null
           booking?: Json | null
@@ -3610,6 +3612,7 @@ export type Database = {
         Update: {
           acceso_directo?: boolean
           actualizado_en?: string | null
+          artist_id?: string | null
           artista_proyecto?: string
           bio_corta?: string | null
           booking?: Json | null
@@ -3640,6 +3643,13 @@ export type Database = {
           vistas_unicas?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "epks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "epks_creado_por_fkey"
             columns: ["creado_por"]
