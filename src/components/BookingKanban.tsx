@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, ShieldCheck } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { CompactBookingCard } from './CompactBookingCard';
@@ -165,6 +166,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [pendingConfirmOffer, setPendingConfirmOffer] = useState<string | null>(null);
   const [cobradoBooking, setCobradoBooking] = useState<BookingOffer | null>(null);
+  const [customKpiMetric, setCustomKpiMetric] = useState<'next30' | 'cobrosPendientes' | 'conversion' | 'feeMedia'>(
+    () => (localStorage.getItem('booking_custom_kpi') as any) || 'next30'
+  );
   const [buddyOpen, setBuddyOpen] = useState(() => {
     try { return localStorage.getItem('buddy-panel-open') === 'true'; } catch { return false; }
   });
@@ -816,6 +820,60 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           <p className="text-xs text-muted-foreground">Internacionales</p>
           <p className="text-lg font-bold text-purple-600">
             {filteredOffers.filter(o => o.es_internacional).length}
+          </p>
+        </div>
+        {/* Configurable KPI Card */}
+        <div className="bg-teal-500/10 rounded-lg px-3 py-2 border border-teal-500/20">
+          <Select value={customKpiMetric} onValueChange={(v: typeof customKpiMetric) => {
+            setCustomKpiMetric(v);
+            localStorage.setItem('booking_custom_kpi', v);
+          }}>
+            <SelectTrigger className="h-5 p-0 border-0 bg-transparent text-xs text-muted-foreground shadow-none focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="next30">Próximos 30 días</SelectItem>
+              <SelectItem value="cobrosPendientes">Cobros Pendientes</SelectItem>
+              <SelectItem value="conversion">Tasa de Conversión</SelectItem>
+              <SelectItem value="feeMedia">Fee Medio</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-lg font-bold text-teal-600">
+            {customKpiMetric === 'next30' && (() => {
+              const now = new Date();
+              const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+              return filteredOffers.filter(o => {
+                if (o.phase !== 'confirmado') return false;
+                if (!o.fecha) return false;
+                const d = new Date(o.fecha);
+                return d >= now && d <= in30;
+              }).length;
+            })()}
+            {customKpiMetric === 'cobrosPendientes' && (() => {
+              const now = new Date();
+              const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              return filteredOffers.filter(o => {
+                if (o.phase !== 'realizado') return false;
+                if (!o.fecha) return false;
+                return new Date(o.fecha) < sevenDaysAgo;
+              }).length;
+            })()}
+            {customKpiMetric === 'conversion' && (() => {
+              const total = filteredOffers.length;
+              if (total === 0) return '0%';
+              const converted = filteredOffers.filter(o => 
+                ['confirmado', 'realizado', 'facturado'].includes(o.phase || '')
+              ).length;
+              return Math.round((converted / total) * 100) + '%';
+            })()}
+            {customKpiMetric === 'feeMedia' && (() => {
+              const confirmed = filteredOffers.filter(o => 
+                ['confirmado', 'realizado', 'facturado'].includes(o.phase || '') && o.fee
+              );
+              if (confirmed.length === 0) return '0€';
+              const avg = confirmed.reduce((s, o) => s + (o.fee || 0), 0) / confirmed.length;
+              return Math.round(avg).toLocaleString() + '€';
+            })()}
           </p>
         </div>
       </div>
