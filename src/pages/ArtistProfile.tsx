@@ -23,6 +23,7 @@ import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
+import { ArtistEPKsList } from '@/components/artist/ArtistEPKsList';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
