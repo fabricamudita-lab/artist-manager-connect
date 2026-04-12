@@ -128,20 +128,27 @@ const KPI_METRICS: Record<MetricKey, KpiMetricDef> = {
   },
 };
 
-const ALL_METRIC_KEYS: MetricKey[] = Object.keys(KPI_METRICS) as MetricKey[];
-const DEFAULT_CONFIG: MetricKey[] = ['totalOfertas', 'confirmados', 'negociacion', 'feeTotalConf', 'internacionales', 'next30'];
+const FIXED_KEYS: MetricKey[] = ['totalOfertas', 'confirmados', 'negociacion'];
+const CONFIGURABLE_OPTIONS: MetricKey[] = ['feeTotalConf', 'internacionales', 'next30', 'cobrosPendientes', 'conversion', 'feeMedia', 'realizados'];
+const DEFAULT_CONFIGURABLE: [MetricKey, MetricKey, MetricKey] = ['feeTotalConf', 'internacionales', 'next30'];
 
-function loadConfig(): MetricKey[] {
+function loadConfigurable(): [MetricKey, MetricKey, MetricKey] {
   try {
     const raw = localStorage.getItem('booking_kpi_config');
-    if (!raw) return DEFAULT_CONFIG;
+    if (!raw) return DEFAULT_CONFIGURABLE;
     const parsed = JSON.parse(raw) as string[];
-    if (!Array.isArray(parsed) || parsed.length !== 6) return DEFAULT_CONFIG;
-    return parsed.map((k, i) =>
-      ALL_METRIC_KEYS.includes(k as MetricKey) ? (k as MetricKey) : DEFAULT_CONFIG[i]
-    );
+    // Migration: old format was 6 items, take last 3
+    const slice = Array.isArray(parsed) && parsed.length === 6
+      ? parsed.slice(3)
+      : Array.isArray(parsed) && parsed.length === 3
+        ? parsed
+        : null;
+    if (!slice) return DEFAULT_CONFIGURABLE;
+    return slice.map((k, i) =>
+      CONFIGURABLE_OPTIONS.includes(k as MetricKey) ? (k as MetricKey) : DEFAULT_CONFIGURABLE[i]
+    ) as [MetricKey, MetricKey, MetricKey];
   } catch {
-    return DEFAULT_CONFIG;
+    return DEFAULT_CONFIGURABLE;
   }
 }
 
@@ -150,38 +157,45 @@ interface KpiStatsBarProps {
 }
 
 export function KpiStatsBar({ filteredOffers }: KpiStatsBarProps) {
-  const [config, setConfig] = useState<MetricKey[]>(loadConfig);
+  const [configurable, setConfigurable] = useState<[MetricKey, MetricKey, MetricKey]>(loadConfigurable);
 
-  const updateSlot = useCallback((index: number, key: MetricKey) => {
-    setConfig(prev => {
-      const next = [...prev];
-      next[index] = key;
+  const updateSlot = useCallback((slotIndex: number, key: MetricKey) => {
+    setConfigurable(prev => {
+      const next = [...prev] as [MetricKey, MetricKey, MetricKey];
+      next[slotIndex] = key;
       localStorage.setItem('booking_kpi_config', JSON.stringify(next));
       return next;
     });
   }, []);
 
+  const allKeys = useMemo(() => [...FIXED_KEYS, ...configurable], [configurable]);
+
   const values = useMemo(() =>
-    config.map(key => KPI_METRICS[key].calc(filteredOffers)),
-    [config, filteredOffers]
+    allKeys.map(key => KPI_METRICS[key].calc(filteredOffers)),
+    [allKeys, filteredOffers]
   );
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-      {config.map((key, i) => {
+      {allKeys.map((key, i) => {
         const metric = KPI_METRICS[key];
+        const isFixed = i < 3;
         return (
           <div key={i} className={`${metric.bgClass} rounded-lg px-3 py-2 border ${metric.borderClass}`}>
-            <Select value={key} onValueChange={(v: string) => updateSlot(i, v as MetricKey)}>
-              <SelectTrigger className="h-5 p-0 border-0 bg-transparent text-xs text-muted-foreground shadow-none focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ALL_METRIC_KEYS.map(mk => (
-                  <SelectItem key={mk} value={mk}>{KPI_METRICS[mk].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isFixed ? (
+              <p className="h-5 flex items-center text-xs text-muted-foreground">{metric.label}</p>
+            ) : (
+              <Select value={key} onValueChange={(v: string) => updateSlot(i - 3, v as MetricKey)}>
+                <SelectTrigger className="h-5 p-0 border-0 bg-transparent text-xs text-muted-foreground shadow-none focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONFIGURABLE_OPTIONS.map(mk => (
+                    <SelectItem key={mk} value={mk}>{KPI_METRICS[mk].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <p className={`text-lg font-bold ${metric.textClass}`}>{values[i]}</p>
           </div>
         );
