@@ -998,21 +998,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Funciones para el gráfico y resumen
   const getCategoryChartData = () => {
     const colors = [
-      '#2563eb', // blue
-      '#f59e0b', // amber
-      '#10b981', // emerald
-      '#8b5cf6', // violet
-      '#ef4444', // red
+      '#2563eb', // azul
+      '#f59e0b', // ámbar
+      '#10b981', // esmeralda
+      '#ef4444', // rojo
+      '#8b5cf6', // violeta
       '#06b6d4', // cyan
-      '#ec4899', // pink
-      '#84cc16', // lime
-      '#f97316', // orange
-      '#6366f1', // indigo
+      '#ec4899', // rosa
+      '#84cc16', // lima
+      '#f97316', // naranja
+      '#7c3aed', // púrpura oscuro
       '#14b8a6', // teal
-      '#a855f7', // purple
-      '#eab308', // yellow
-      '#0ea5e9', // sky
-      '#d946ef', // fuchsia
+      '#e11d48', // rosa fuerte
+      '#eab308', // amarillo
+      '#0891b2', // cyan oscuro
+      '#d946ef', // fucsia
       '#64748b', // slate
     ];
     
@@ -2573,8 +2573,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       }
       
       doc.setFillColor(...rgb);
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.5);
+      doc.setDrawColor(...rgb);
+      doc.setLineWidth(0);
       
       if (points.length > 2) {
         for (let i = 1; i < points.length - 1; i++) {
