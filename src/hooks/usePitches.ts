@@ -20,6 +20,8 @@ export interface Pitch {
   pitch_deadline: string | null;
   pitch_token: string | null;
   pitch_config: Record<string, { visible: boolean; editable: boolean }>;
+  pitch_type: string;
+  track_id: string | null;
   created_at: string;
   updated_at: string;
 }
