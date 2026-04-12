@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X, Link2 } from 'lucide-react';
+import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X, Link2, LayoutGrid, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRoadmaps, TourRoadmap } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
@@ -50,6 +51,14 @@ export default function Roadmaps() {
   const [newName, setNewName] = useState('');
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<BookingForSelector | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('roadmaps_view_mode') as 'grid' | 'list') || 'grid';
+  });
+
+  const toggleViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('roadmaps_view_mode', mode);
+  };
 
   // Filters
   const [filterArtist, setFilterArtist] = useState<string | null>(null);
@@ -142,10 +151,30 @@ export default function Roadmaps() {
           <h1 className="text-3xl font-bold font-playfair">Hojas de Ruta</h1>
           <p className="text-muted-foreground mt-1">Gestiona las hojas de ruta de tus giras</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nueva Hoja de Ruta
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border rounded-md">
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9 rounded-r-none"
+              onClick={() => toggleViewMode('grid')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9 rounded-l-none"
+              onClick={() => toggleViewMode('list')}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Nueva Hoja de Ruta
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -226,6 +255,74 @@ export default function Roadmaps() {
           ))}
         </div>
       ) : filteredRoadmaps && filteredRoadmaps.length > 0 ? (
+        viewMode === 'list' ? (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Artista</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fechas</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRoadmaps.map((roadmap) => (
+                  <TableRow
+                    key={roadmap.id}
+                    className="cursor-pointer group"
+                    onClick={() => navigate(`/roadmaps/${roadmap.id}`)}
+                  >
+                    <TableCell className="font-medium">{roadmap.name}</TableCell>
+                    <TableCell>
+                      {roadmap.artist ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={roadmap.artist.avatar_url || undefined} />
+                            <AvatarFallback><User className="w-3 h-3" /></AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-muted-foreground">{roadmap.artist.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[roadmap.status].variant}>
+                        {statusConfig[roadmap.status].label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDateRange(roadmap.start_date, roadmap.end_date)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteRoadmap.mutate(roadmap.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredRoadmaps.map((roadmap) => (
             <Card
@@ -278,6 +375,7 @@ export default function Roadmaps() {
             </Card>
           ))}
         </div>
+        )
       ) : (
         <Card className="p-12 text-center">
           <div className="flex flex-col items-center gap-4">
