@@ -91,8 +91,7 @@ export default function PublicReleaseForm() {
   const [error, setError] = useState<string | null>(null);
   const [release, setRelease] = useState<ReleaseData | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [saving, setSaving] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const hasInitialized = useRef(false);
 
   // Fetch release by token
   useEffect(() => {
