@@ -260,10 +260,8 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const set = (key: typeof FORM_FIELDS[number]) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setFormData(prev => ({ ...prev, [key]: e.target.value }));
 
-  const Field = ({ label, field, icon, placeholder, disabled: forceDisabled }: {
-    label: string; field: typeof FORM_FIELDS[number]; icon?: React.ReactNode; placeholder?: string; disabled?: boolean;
-  }) => (
-    <div className="space-y-2">
+  const renderField = (label: string, field: typeof FORM_FIELDS[number], icon?: React.ReactNode, placeholder?: string, forceDisabled?: boolean) => (
+    <div className="space-y-2" key={field}>
       <Label className={icon ? "flex items-center gap-2" : ""}>{icon}{label}</Label>
       {editing && !forceDisabled ? (
         <Input value={formData[field]} onChange={set(field)} placeholder={placeholder || label} />
@@ -273,10 +271,8 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
     </div>
   );
 
-  const TextareaField = ({ label, field, placeholder, rows = 3 }: {
-    label: string; field: typeof FORM_FIELDS[number]; placeholder?: string; rows?: number;
-  }) => (
-    <div className="space-y-2">
+  const renderTextareaField = (label: string, field: typeof FORM_FIELDS[number], placeholder?: string, rows = 3) => (
+    <div className="space-y-2" key={field}>
       <Label>{label}</Label>
       {editing ? (
         <Textarea value={formData[field]} onChange={set(field)} placeholder={placeholder || label} rows={rows} />
