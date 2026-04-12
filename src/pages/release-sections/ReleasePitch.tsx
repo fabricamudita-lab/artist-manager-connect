@@ -253,7 +253,6 @@ const SECTION_GROUPS = [
   { id: 'vevo', label: 'Vevo (opcional)', icon: '🎬', defaultOpen: false },
 ];
 
-type PitchConfig = Record<string, { visible: boolean; editable: boolean }>;
 
 function FieldConfigGrouped({ pitchConfig, onToggle, onBatchToggle }: {
   pitchConfig: PitchConfig;
