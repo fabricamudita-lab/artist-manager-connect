@@ -471,7 +471,7 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
                 </div>
               </div>
             )}
-          </CardContent>
+          </CardContent>}
         </Card>
 
         <PagoDialog
