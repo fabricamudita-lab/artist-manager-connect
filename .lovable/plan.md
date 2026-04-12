@@ -1,47 +1,39 @@
 
 
-## KPI Cards configurables con menú desplegable
+## Pulido visual del módulo de Presupuestos
 
-### Concepto
-Extender el sistema del 6o KPI card a las 6 tarjetas. Cada una tendrá un desplegable para elegir qué métrica mostrar. Se guardan las 6 selecciones en `localStorage` y se restauran al volver.
+Inspirado en el diseño de referencia (spreadsheet limpio, jerarquía clara, mejor uso del espacio), se proponen ajustes puramente estéticos sin tocar ninguna funcionalidad.
 
-### Pool de métricas disponibles (10 opciones)
-Cada tarjeta puede mostrar cualquiera de estas:
+### Cambios propuestos
 
-| Clave | Etiqueta | Valor | Color |
-|-------|----------|-------|-------|
-| `totalOfertas` | Total Ofertas | Conteo total | gris |
-| `confirmados` | Confirmados | Conteo fase confirmado | verde |
-| `negociacion` | En Negociación | Conteo fase negociación | ámbar |
-| `feeTotalConf` | Fee Total Confirmados | Suma fee confirmados+facturados | azul |
-| `internacionales` | Internacionales | Conteo `es_internacional` | púrpura |
-| `next30` | Próximos 30 días | Confirmados próximos 30 días | teal |
-| `cobrosPendientes` | Cobros Pendientes | Realizados >7 días sin cobrar | teal |
-| `conversion` | Tasa de Conversión | % ofertas → confirmado+ | teal |
-| `feeMedia` | Fee Medio | Promedio fee confirmados | teal |
-| `realizados` | Realizados | Conteo fase realizado | teal |
+**1. Cabeceras de categoría** (`BudgetDetailsDialog.tsx`, ~línea 4037)
+- Fondo actual: negro sólido con texto blanco pesado → Fondo más sutil con borde inferior coloreado (como la barra verde "I. INGRESSOS" de la referencia)
+- Usar un acento de color por categoría (heredado del icono) en el borde izquierdo o inferior
+- Tipografía: reducir de `text-lg font-bold tracking-wider` a `text-sm font-semibold uppercase tracking-wide` para un look más elegante y menos agresivo
+- Mover el total de la categoría al extremo derecho con color destacado (como el "103.585 €" verde de la referencia)
 
-### Diseño visual
-- Cada tarjeta mantiene su estilo visual actual por defecto (colores distintivos por métrica)
-- El título se reemplaza por un `<Select>` compacto (igual que el 6o card actual)
-- Al cambiar la métrica, el color del borde y fondo se adapta a la métrica seleccionada
+**2. Tabla de ítems** (~línea 4150)
+- Header de columnas: cambiar de `bg-gray-100` con texto negro bold a un gris más suave (`bg-gray-50`) con texto `text-gray-500 font-medium text-xs uppercase`
+- Filas: reducir padding vertical (`py-1.5` en vez de `p-2`), hacer las filas más compactas
+- Alternar colores: blanco / `bg-gray-50/50` más sutil
+- Bordes: usar `border-gray-100` en vez de `border-gray-200` para líneas más sutiles
+- Precio y Total: usar tipografía monoespaciada (`font-mono`) para mejor alineación de cifras
 
-### Defaults y persistencia
-- **Valores por defecto** (idénticos al estado actual): Total Ofertas, Confirmados, En Negociación, Fee Total Confirmados, Internacionales, Próximos 30 días
-- Se guarda un array en `localStorage('booking_kpi_config')` con las 6 claves
-- Si no hay nada guardado, usa los defaults
+**3. KPI Cards del header** (~línea 3344)
+- Reducir altura de `h-[80px]` a `h-[72px]`
+- Reducir tamaño del valor de `text-xl` a `text-lg`
+- Añadir un borde izquierdo grueso coloreado (`border-l-3`) en vez del borde completo, para un look más limpio (estilo dashboard moderno)
 
-### Seguridad / Riesgos mitigados
-- Sin cambios en datos ni lógica de negocio, solo presentación
-- Si una clave guardada no existe (por actualización futura), se revierte al default de esa posición
-- Los cálculos son los mismos que ya existen, solo se extraen a una función reutilizable
+**4. Toolbar "Gestión de Elementos"** (~línea 3608)
+- Reducir padding y hacer más compacto
+- Separar visualmente los botones de acción del toggle Neto/IVA/Líquido con un divider
 
-### Cambio técnico (1 archivo)
+**5. Badge de estado de facturación** (en las filas)
+- Badges más compactos: `text-[10px] px-2 py-0.5` con colores más suaves (pastel en vez de saturados)
 
-**`src/components/BookingKanban.tsx`**:
-1. Crear un mapa `KPI_METRICS` con las 10 métricas: clave, label, función de cálculo, y estilos (color borde/fondo/texto)
-2. Reemplazar los 6 `<div>` hardcodeados por un `.map()` sobre un array de 6 slots
-3. Estado `kpiConfig` (array de 6 claves) inicializado desde `localStorage` con fallback a defaults
-4. Cada slot renderiza un `<Select>` + el valor calculado, usando los estilos de la métrica seleccionada
-5. Eliminar el estado `customKpiMetric` anterior (se absorbe en el nuevo sistema)
+### Archivo a modificar
+- `src/components/BudgetDetailsDialog.tsx` (solo clases CSS, sin cambios de lógica)
+
+### Resultado esperado
+Un presupuesto visualmente más limpio, con mejor jerarquía de información, donde los datos importantes (totales, estados) destacan sin que el diseño compita por atención.
 
