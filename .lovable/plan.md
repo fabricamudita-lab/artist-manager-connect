@@ -1,40 +1,26 @@
 
 
-## Eliminar CityZen del módulo de Booking
+## Tarjeta KPI configurable con menú desplegable
 
-CityZen era el antiguo booker y ya no cumple ninguna función. Se eliminará toda referencia visual y lógica de CityZen, manteniendo el campo `es_cityzen` en la base de datos (sin tocar migraciones).
+### Concepto
+Añadir una 6a tarjeta KPI en el hueco de CityZen que permite al usuario elegir qué métrica mostrar mediante un pequeño desplegable. La selección se guarda en `localStorage` para que persista entre sesiones.
 
-### Archivos a modificar (~17 archivos)
+### Métricas disponibles
+1. **Próximos 30 días** -- cuenta de eventos confirmados en los próximos 30 días
+2. **Cobros Pendientes** -- eventos realizados con cobro pendiente (>7 días)
+3. **Tasa de Conversión** -- % de ofertas que llegan a confirmado/facturado/realizado
+4. **Fee Medio** -- fee promedio de los confirmados
 
-**1. `src/components/BookingFiltersToolbar.tsx`**
-- Eliminar el checkbox "Solo CityZen" del panel de filtros avanzados
-- Eliminar `showCityzen` de la interfaz `BookingFiltersState`
-- Eliminar import de `Sparkles`
+### Cambio técnico (1 archivo)
 
-**2. `src/pages/Booking.tsx`**
-- Eliminar `showCityzen` del estado inicial de filtros y de `clearAllFilters`
-- Eliminar la línea de filtrado por `es_cityzen`
-- Eliminar columna `es_cityzen` del CSV export
-- Cambiar el subtítulo "con reglas CityZen" por algo genérico
+**`src/components/BookingKanban.tsx`**:
+- Añadir un estado `customKpiMetric` con 4 opciones, inicializado desde `localStorage`
+- Después de la tarjeta "Internacionales" (línea 820), insertar una nueva tarjeta con:
+  - Un `<Select>` pequeño en la cabecera (en lugar del título fijo)
+  - El valor calculado debajo según la métrica seleccionada
+  - Estilo con borde teal/cyan para diferenciarlo visualmente
+- Guardar la selección en `localStorage('booking_custom_kpi')`
 
-**3. `src/components/BookingKanban.tsx`**
-- Eliminar la tarjeta KPI "CityZen" del dashboard
-- Eliminar el filtro `showCityzen` y su lógica
-- Eliminar columna CityZen del export CSV
-- Eliminar el badge CityZen de las tarjetas del Kanban
-- Eliminar el comentario "Validate CityZen rules" (mantener la validación de comisión si tiene sentido por sí sola)
-
-**4. `src/components/booking-detail/BookingOverviewTab.tsx`**
-- Eliminar el badge "CityZen" de la vista de detalle
-
-**5. `src/pages/BookingDetail.tsx`**
-- Eliminar `es_cityzen` de la exportación PDF
-
-**6. Resto de archivos** (formularios, tipos, etc.)
-- Eliminar checkboxes y campos de formulario `es_cityzen`
-- Eliminar badges naranjas de CityZen en tarjetas y listas
-- No tocar la columna de la base de datos
-
-### Resultado
-La UI queda limpia sin referencias a CityZen. El campo sigue en la BD por si acaso, pero no se muestra ni se filtra.
+### Resultado visual
+Las 6 tarjetas quedan: Total Ofertas | Confirmados | En Negociación | Fee Total | Internacionales | **[Desplegable]**
 
