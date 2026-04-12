@@ -20,6 +20,8 @@ export interface Pitch {
   pitch_deadline: string | null;
   pitch_token: string | null;
   pitch_config: Record<string, { visible: boolean; editable: boolean }>;
+  pitch_type: string;
+  track_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,13 +46,15 @@ export function usePitchesByRelease(releaseId: string | undefined) {
 export function useCreatePitch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { release_id: string; created_by: string; name?: string }) => {
+    mutationFn: async (params: { release_id: string; created_by: string; name?: string; pitch_type?: string; track_id?: string | null }) => {
       const { data, error } = await supabase
         .from('pitches')
         .insert({
           release_id: params.release_id,
           created_by: params.created_by,
           name: params.name || 'Nuevo Pitch',
+          pitch_type: params.pitch_type || 'full_album',
+          track_id: params.track_id || null,
         } as any)
         .select()
         .single();
@@ -125,6 +129,8 @@ export function useDuplicatePitch() {
           general_strategy: pitch.general_strategy,
           social_links: pitch.social_links,
           pitch_config: pitch.pitch_config,
+          pitch_type: pitch.pitch_type,
+          track_id: pitch.track_id,
         } as any)
         .select()
         .single();

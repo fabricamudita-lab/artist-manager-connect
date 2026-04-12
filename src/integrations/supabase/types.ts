@@ -4490,6 +4490,7 @@ export type Database = {
           pitch_deadline: string | null
           pitch_status: string
           pitch_token: string | null
+          pitch_type: string
           release_id: string
           social_links: string | null
           spotify_followers: number | null
@@ -4497,6 +4498,7 @@ export type Database = {
           spotify_monthly_listeners: number | null
           spotify_strategy: string | null
           synopsis: string | null
+          track_id: string | null
           updated_at: string
         }
         Insert: {
@@ -4511,6 +4513,7 @@ export type Database = {
           pitch_deadline?: string | null
           pitch_status?: string
           pitch_token?: string | null
+          pitch_type?: string
           release_id: string
           social_links?: string | null
           spotify_followers?: number | null
@@ -4518,6 +4521,7 @@ export type Database = {
           spotify_monthly_listeners?: number | null
           spotify_strategy?: string | null
           synopsis?: string | null
+          track_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -4532,6 +4536,7 @@ export type Database = {
           pitch_deadline?: string | null
           pitch_status?: string
           pitch_token?: string | null
+          pitch_type?: string
           release_id?: string
           social_links?: string | null
           spotify_followers?: number | null
@@ -4539,6 +4544,7 @@ export type Database = {
           spotify_monthly_listeners?: number | null
           spotify_strategy?: string | null
           synopsis?: string | null
+          track_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4547,6 +4553,13 @@ export type Database = {
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pitches_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
             referencedColumns: ["id"]
           },
         ]

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRelease } from '@/hooks/useReleases';
+import { useRelease, useTracks } from '@/hooks/useReleases';
 import { usePitchesByRelease, useCreatePitch, useUpdatePitch, useDeletePitch, useDuplicatePitch, Pitch } from '@/hooks/usePitches';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -62,11 +62,18 @@ const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : 
 
 type PitchConfig = Record<string, { visible: boolean; editable: boolean }>;
 
+const PITCH_TYPE_LABELS: Record<string, string> = {
+  single: 'Single',
+  focus_track: 'Focus Track',
+  full_album: 'Album Completo',
+};
+
 export default function ReleasePitch() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading: releaseLoading } = useRelease(id);
   const { data: pitches = [], isLoading: pitchesLoading } = usePitchesByRelease(id);
+  const { data: tracks = [] } = useTracks(id);
   const createPitch = useCreatePitch();
   const updatePitch = useUpdatePitch({ silent: true });
   const deletePitch = useDeletePitch();
@@ -90,7 +97,17 @@ export default function ReleasePitch() {
     if (!id) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    createPitch.mutate({ release_id: id, created_by: user.id });
+    // If only 1 track, auto-assign as single
+    if (tracks.length === 1) {
+      createPitch.mutate({ release_id: id, created_by: user.id, pitch_type: 'single', track_id: tracks[0].id });
+    } else {
+      createPitch.mutate({ release_id: id, created_by: user.id });
+    }
+  };
+
+  const getTrackName = (trackId: string | null) => {
+    if (!trackId) return null;
+    return tracks.find(t => t.id === trackId)?.title || null;
   };
 
   if (isLoading) {
@@ -114,6 +131,7 @@ export default function ReleasePitch() {
         pitch={selectedPitch}
         release={release}
         releaseId={id!}
+        tracks={tracks}
         onBack={() => setSelectedPitchId(null)}
         onDelete={() => {
           deletePitch.mutate({ id: selectedPitch.id, release_id: id! });
@@ -174,7 +192,9 @@ export default function ReleasePitch() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
+                    {PITCH_TYPE_LABELS[pitch.pitch_type] || 'Album Completo'}
+                    {pitch.track_id && getTrackName(pitch.track_id) ? `: ${getTrackName(pitch.track_id)}` : ''}
+                    {' · '}Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
                     {pitch.pitch_deadline && ` · Límite: ${new Date(pitch.pitch_deadline).toLocaleDateString('es-ES')}`}
                   </p>
                 </div>
@@ -211,12 +231,13 @@ interface PitchEditorProps {
   pitch: Pitch;
   release: any;
   releaseId: string;
+  tracks: Array<{ id: string; title: string; track_number: number | null }>;
   onBack: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
 }
 
-function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate }: PitchEditorProps) {
+function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDuplicate }: PitchEditorProps) {
   const updatePitch = useUpdatePitch({ silent: true });
   const [copied, setCopied] = useState(false);
   const hasInitialized = useRef(false);
@@ -225,6 +246,8 @@ function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate 
   const [pitchConfig, setPitchConfig] = useState<PitchConfig>({});
   const [pitchDeadline, setPitchDeadline] = useState('');
   const [pitchName, setPitchName] = useState('');
+  const [pitchType, setPitchType] = useState(pitch.pitch_type || 'full_album');
+  const [trackId, setTrackId] = useState<string | null>(pitch.track_id || null);
 
   useEffect(() => {
     if (pitch && !hasInitialized.current) {
@@ -256,6 +279,8 @@ function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate 
       setPitchConfig((pitch.pitch_config as PitchConfig) || {});
       setPitchDeadline(pitch.pitch_deadline || '');
       setPitchName(pitch.name);
+      setPitchType(pitch.pitch_type || 'full_album');
+      setTrackId(pitch.track_id || null);
     }
   }, [pitch.id]);
 
@@ -396,6 +421,67 @@ function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate 
               className="w-auto"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Pitch Type & Track */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tipo de Pitch</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Define si el pitch es para un single, focus track o el álbum completo
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Tipo</Label>
+            {tracks.length <= 1 ? (
+              <p className="text-sm font-medium mt-1">Single{tracks.length === 1 ? `: ${tracks[0].title}` : ''}</p>
+            ) : (
+              <Select
+                value={pitchType}
+                onValueChange={(v) => {
+                  setPitchType(v);
+                  const newTrackId = v === 'full_album' ? null : trackId;
+                  if (v === 'full_album') setTrackId(null);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: newTrackId });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="focus_track">Focus Track</SelectItem>
+                  <SelectItem value="full_album">Album Completo</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {pitchType !== 'full_album' && tracks.length > 1 && (
+            <div>
+              <Label>Canción</Label>
+              <Select
+                value={trackId || ''}
+                onValueChange={(v) => {
+                  setTrackId(v);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una canción..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tracks.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.track_number ? `${t.track_number}. ` : ''}{t.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
