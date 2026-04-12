@@ -25,6 +25,13 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
   const [history, setHistory] = useState<any[]>([]);
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('timeline_collapsed') === 'true');
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      localStorage.setItem('timeline_collapsed', String(!prev));
+      return !prev;
+    });
+  };
 
   useEffect(() => {
     fetchData();
