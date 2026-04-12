@@ -100,8 +100,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 />
               </div>
               <Select 
-                value={filters.type || ''} 
-                onValueChange={(value) => updateFilters({ type: value || undefined })}
+                value={filters.type || 'all'} 
+                onValueChange={(value) => updateFilters({ type: value === 'all' ? undefined : value })}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Tipo de archivo" />
