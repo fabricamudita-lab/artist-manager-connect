@@ -383,6 +383,13 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
+              <Route path="/releases/:id/pitch" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleasePitch />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
               {/* Roadmaps Routes */}
               <Route path="/roadmaps" element={
                 <ProtectedRoute>
@@ -420,6 +427,8 @@ const App = () => (
               <Route path="/sync-request/:token" element={<PublicSyncRequestForm />} />
               {/* Public Artist Form */}
               <Route path="/artist-form/:token" element={<PublicArtistForm />} />
+              {/* Public Release Pitch Form */}
+              <Route path="/release-form/:token" element={<PublicReleaseForm />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
