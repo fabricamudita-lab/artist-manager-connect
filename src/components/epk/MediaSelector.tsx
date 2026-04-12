@@ -107,7 +107,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   <SelectValue placeholder="Tipo de archivo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="image">Imágenes</SelectItem>
                   <SelectItem value="video">Videos</SelectItem>
                   <SelectItem value="audio">Audio</SelectItem>
