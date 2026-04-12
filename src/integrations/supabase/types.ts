@@ -4467,6 +4467,80 @@ export type Database = {
           },
         ]
       }
+      pitches: {
+        Row: {
+          country: string | null
+          created_at: string
+          created_by: string
+          general_strategy: string | null
+          id: string
+          mood: string | null
+          name: string
+          pitch_config: Json | null
+          pitch_deadline: string | null
+          pitch_status: string
+          pitch_token: string | null
+          release_id: string
+          social_links: string | null
+          spotify_followers: number | null
+          spotify_milestones: string | null
+          spotify_monthly_listeners: number | null
+          spotify_strategy: string | null
+          synopsis: string | null
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          created_by: string
+          general_strategy?: string | null
+          id?: string
+          mood?: string | null
+          name?: string
+          pitch_config?: Json | null
+          pitch_deadline?: string | null
+          pitch_status?: string
+          pitch_token?: string | null
+          release_id: string
+          social_links?: string | null
+          spotify_followers?: number | null
+          spotify_milestones?: string | null
+          spotify_monthly_listeners?: number | null
+          spotify_strategy?: string | null
+          synopsis?: string | null
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          created_by?: string
+          general_strategy?: string | null
+          id?: string
+          mood?: string | null
+          name?: string
+          pitch_config?: Json | null
+          pitch_deadline?: string | null
+          pitch_status?: string
+          pitch_token?: string | null
+          release_id?: string
+          social_links?: string | null
+          spotify_followers?: number | null
+          spotify_milestones?: string | null
+          spotify_monthly_listeners?: number | null
+          spotify_strategy?: string | null
+          synopsis?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pitches_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_earnings: {
         Row: {
           amount: number
