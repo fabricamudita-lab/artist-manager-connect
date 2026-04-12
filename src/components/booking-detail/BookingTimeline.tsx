@@ -159,13 +159,8 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
     );
   }
 
-  // moved to top of component
-  const toggleCollapsed = () => {
-    setCollapsed(prev => {
-      localStorage.setItem('timeline_collapsed', String(!prev));
-      return !prev;
-    });
-  };
+
+
 
   return (
     <Card>
