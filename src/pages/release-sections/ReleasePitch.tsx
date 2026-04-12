@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -355,12 +356,17 @@ export default function ReleasePitch() {
                 <p className="text-xs text-muted-foreground mt-1">{(localData.synopsis || '').length}/500</p>
               </div>
               <div>
-                <Label>Mood / Estilo</Label>
-                <Input
-                  value={localData.mood || ''}
-                  onChange={e => handleFieldChange('mood', e.target.value)}
-                  placeholder="Ej: Melancólico, Bailable, Energético..."
-                />
+                <Label>Mood / Estado de ánimo</Label>
+                <Select value={localData.mood || ''} onValueChange={v => handleFieldChange('mood', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un mood..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Romantic', 'Sad', 'Sexy', 'None of these'].map(m => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>País</Label>

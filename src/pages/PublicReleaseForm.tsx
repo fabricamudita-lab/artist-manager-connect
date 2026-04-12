@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,7 +50,7 @@ interface ReleaseData {
 
 const FIELD_LABELS: Record<string, string> = {
   synopsis: 'Sinopsis (max 500 caracteres)',
-  mood: 'Mood / Estilo',
+  mood: 'Mood / Estado de ánimo',
   country: 'País',
   description: 'Descripción',
   genre: 'Género principal',
@@ -68,6 +69,9 @@ const FIELD_LABELS: Record<string, string> = {
 
 const TEXTAREA_FIELDS = ['synopsis', 'description', 'spotify_strategy', 'spotify_milestones', 'general_strategy', 'social_links'];
 const NUMBER_FIELDS = ['spotify_monthly_listeners', 'spotify_followers'];
+const SELECT_FIELDS: Record<string, string[]> = {
+  mood: ['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Romantic', 'Sad', 'Sexy', 'None of these'],
+};
 
 const SECTION_MAP: Record<string, { title: string; icon: string }> = {
   info: { title: 'Información básica', icon: '📋' },
@@ -375,6 +379,24 @@ export default function PublicReleaseForm() {
                         {key === 'synopsis' && isEditable && (
                           <p className="text-xs text-muted-foreground mt-1">{String(value).length}/500</p>
                         )}
+                      </div>
+                    );
+                  }
+
+                  if (SELECT_FIELDS[key]) {
+                    return (
+                      <div key={key}>
+                        <Label>{label}</Label>
+                        <Select value={value || ''} onValueChange={v => handleChange(key, v)} disabled={!isEditable}>
+                          <SelectTrigger className={!isEditable ? 'opacity-60' : ''}>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SELECT_FIELDS[key].map(opt => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     );
                   }
