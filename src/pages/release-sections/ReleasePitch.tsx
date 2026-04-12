@@ -39,21 +39,27 @@ const MOOD_OPTIONS = ['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Ro
 
 const PITCH_FIELDS = [
   { key: 'country', label: 'País', section: 'info' },
-  { key: 'synopsis', label: 'Sinopsis', section: 'content' },
-  { key: 'mood', label: 'Mood / Estilo', section: 'content' },
-  { key: 'instruments', label: 'Instrumentos', section: 'content' },
   { key: 'audio_link', label: 'Link Audio MP3', section: 'content' },
+  { key: 'mood', label: 'Mood / Estilo', section: 'content' },
+  { key: 'general_strategy', label: 'Estrategia general', section: 'strategy' },
+  { key: 'instruments', label: 'Instrumentos', section: 'content' },
   { key: 'artist_photos_link', label: 'Fotos del artista', section: 'content' },
   { key: 'video_link', label: 'Video', section: 'content' },
+  { key: 'synopsis', label: 'Sinopsis', section: 'content' },
   { key: 'spotify_strategy', label: 'Estrategia Spotify', section: 'spotify' },
   { key: 'spotify_milestones', label: 'Hitos Spotify', section: 'spotify' },
   { key: 'spotify_photos_link', label: 'Fotos Spotify', section: 'spotify' },
   { key: 'spotify_monthly_listeners', label: 'Oyentes mensuales', section: 'spotify' },
   { key: 'spotify_followers', label: 'Seguidores Spotify', section: 'spotify' },
-  { key: 'general_strategy', label: 'Estrategia general', section: 'strategy' },
   { key: 'social_links', label: 'Redes sociales', section: 'strategy' },
   { key: 'additional_info', label: 'Otros datos', section: 'strategy' },
+  { key: 'future_planning', label: 'Proyección futura', section: 'strategy' },
   { key: 'artist_bio', label: 'Biografía artista', section: 'strategy' },
+  { key: 'vevo_content_type', label: 'Vevo - Tipo contenido', section: 'vevo' },
+  { key: 'vevo_premiere_date', label: 'Vevo - Fecha premier', section: 'vevo' },
+  { key: 'vevo_is_new_edit', label: 'Vevo - Nueva edición', section: 'vevo' },
+  { key: 'vevo_brand_notes', label: 'Vevo - Notas marca', section: 'vevo' },
+  { key: 'vevo_link', label: 'Vevo - Link previo', section: 'vevo' },
   { key: 'description', label: 'Descripción', section: 'info' },
   { key: 'genre', label: 'Género principal', section: 'info' },
   { key: 'secondary_genre', label: 'Género secundario', section: 'info' },
@@ -69,6 +75,8 @@ const PITCH_LOCAL_KEYS = [
   'general_strategy', 'social_links',
   'audio_link', 'instruments', 'artist_photos_link', 'video_link',
   'spotify_photos_link', 'additional_info', 'artist_bio',
+  'future_planning', 'vevo_content_type', 'vevo_premiere_date',
+  'vevo_is_new_edit', 'vevo_brand_notes', 'vevo_link',
 ];
 
 const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v));
@@ -479,77 +487,8 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
         </CardContent>
       </Card>
 
-      {/* Pitch Type & Track */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tipo de Pitch</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Define si el pitch es para un Single, EP o Album
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Tipo</Label>
-            {tracks.length <= 1 ? (
-              <p className="text-sm font-medium mt-1">Single{tracks.length === 1 ? `: ${tracks[0].title}` : ''}</p>
-            ) : (
-              <Select
-                value={pitchType}
-                onValueChange={(v) => {
-                  setPitchType(v);
-                  if (v === 'album' || v === 'ep') {
-                    setTrackId(null);
-                    const newName = release?.title || pitchName;
-                    setPitchName(newName);
-                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: null, name: newName });
-                  } else {
-                    const selectedTrack = trackId ? tracks.find(t => t.id === trackId) : null;
-                    const newName = selectedTrack ? selectedTrack.title : pitchName;
-                    setPitchName(newName);
-                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: trackId, name: newName });
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="ep">EP</SelectItem>
-                  <SelectItem value="album">Album</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
 
-          {pitchType === 'single' && tracks.length > 1 && (
-            <div>
-              <Label>Canción</Label>
-              <Select
-                value={trackId || ''}
-                onValueChange={(v) => {
-                  setTrackId(v);
-                  const selectedTrack = tracks.find(t => t.id === v);
-                  const newName = selectedTrack ? selectedTrack.title : pitchName;
-                  setPitchName(newName);
-                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v, name: newName });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una canción..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tracks.map(t => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.track_number ? `${t.track_number}. ` : ''}{t.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
 
       {/* Field visibility config */}
       <Card>
@@ -592,7 +531,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
         </CardContent>
       </Card>
 
-      {/* Pitch form fields */}
+      {/* Pitch form fields — Ditto order */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del Pitch</CardTitle>
@@ -601,170 +540,287 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Info Básica (del release) */}
+
+          {/* 1. País */}
           <div>
-            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Info Básica (del release)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Título</Label>
-                <p className="text-sm font-medium">{release.title}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Tipo</Label>
-                <p className="text-sm font-medium capitalize">{release.type}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Fecha de lanzamiento</Label>
-                <p className="text-sm font-medium">{release.release_date || '—'}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Género</Label>
-                <p className="text-sm font-medium">{release.genre || '—'}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Sello</Label>
-                <p className="text-sm font-medium">{release.label || '—'}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">UPC</Label>
-                <p className="text-sm font-medium">{release.upc || '—'}</p>
-              </div>
-            </div>
+            <Label>País en que reside *</Label>
+            <Input
+              value={localData.country || ''}
+              onChange={e => handleFieldChange('country', e.target.value)}
+              placeholder="Ej: Colombia"
+              maxLength={40}
+            />
           </div>
 
-          <Separator />
-
-          {/* País */}
+          {/* 2. Artista (read-only from release) */}
           <div>
-            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">País</h3>
+            <Label className="text-xs text-muted-foreground">Nombre del artista(s) — Si tiene featuring, indicarlo</Label>
+            <p className="text-sm font-medium">{release.title ? release.title : '—'}</p>
+            <p className="text-xs text-muted-foreground mt-1">Se toma del release. Edítalo en la ficha del release si necesitas cambiarlo.</p>
+          </div>
+
+          {/* 3. Título de lanzamiento (read-only) */}
+          <div>
+            <Label className="text-xs text-muted-foreground">Título de lanzamiento *</Label>
+            <p className="text-sm font-medium">{release.title}</p>
+          </div>
+
+          {/* 4. Audio MP3 */}
+          <div>
+            <Label>Audio MP3 — Link de descarga en Drive *</Label>
+            <Input
+              value={localData.audio_link || ''}
+              onChange={e => handleFieldChange('audio_link', e.target.value)}
+              placeholder="https://drive.google.com/..."
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Agrega un link de descarga de la canción en Drive.</p>
+          </div>
+
+          {/* 5. UPC (read-only from release) */}
+          <div>
+            <Label className="text-xs text-muted-foreground">UPC</Label>
+            <p className="text-sm font-medium">{release.upc || '—'}</p>
+            <p className="text-xs text-muted-foreground mt-1">Si la plataforma ya lo asignó, completarlo en la ficha del release. Si no se tiene, dejar en blanco.</p>
+          </div>
+
+          {/* 6. Focus Track (for EP/Album) */}
+          {(pitchType === 'ep' || pitchType === 'album') && tracks.length > 1 && (
             <div>
-              <Label>País en que reside el artista</Label>
-              <Input
-                value={localData.country || ''}
-                onChange={e => handleFieldChange('country', e.target.value)}
-                placeholder="Ej: España"
-                maxLength={20}
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Contenido */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Contenido</h3>
-            <div className="space-y-4">
-              <div>
-                <Label>Link Audio MP3 (link de Drive)</Label>
-                <Input
-                  value={localData.audio_link || ''}
-                  onChange={e => handleFieldChange('audio_link', e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  maxLength={80}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Enlace de descarga del audio en formato MP3</p>
-              </div>
-              <div>
-                <Label>Sinopsis (max 500 caracteres)</Label>
-                <Textarea
-                  value={localData.synopsis || ''}
-                  onChange={e => handleFieldChange('synopsis', e.target.value.slice(0, 500))}
-                  maxLength={500}
-                  rows={3}
-                  placeholder="Escribe una sinopsis del lanzamiento explicando la temática, inspiración, concepto... Ej: 'Este single marca el inicio de una nueva etapa para el artista, explorando sonidos electrónicos con influencias latinas.'"
-                />
-                <p className="text-xs text-muted-foreground mt-1">{(localData.synopsis || '').length}/500</p>
-              </div>
-              <div>
-                <Label>Mood / Estado de ánimo (selección múltiple)</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                  {MOOD_OPTIONS.map(mood => (
-                    <label key={mood} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <Checkbox
-                        checked={getMoodList().includes(mood)}
-                        onCheckedChange={() => handleMoodToggle(mood)}
-                      />
-                      {mood}
-                    </label>
+              <Label>Focus Track — Track destacado del lanzamiento</Label>
+              <Select
+                value={trackId || ''}
+                onValueChange={(v) => {
+                  setTrackId(v);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el track destacado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tracks.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.track_number ? `${t.track_number}. ` : ''}{t.title}
+                    </SelectItem>
                   ))}
-                </div>
-              </div>
-              <div>
-                <Label>Instrumentos involucrados</Label>
-                <Input
-                  value={localData.instruments || ''}
-                  onChange={e => handleFieldChange('instruments', e.target.value)}
-                  placeholder="Ej: Guitarra, bajo, sintetizador, batería, voz"
-                  maxLength={60}
-                />
-              </div>
-              <div>
-                <Label>Fotos del artista (link de Drive)</Label>
-                <Input
-                  value={localData.artist_photos_link || ''}
-                  onChange={e => handleFieldChange('artist_photos_link', e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  maxLength={80}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Mínimo 3000x3000px. Sin logos, sin close-ups extremos, sin texto superpuesto. Fondo limpio.
-                </p>
-              </div>
-              <div>
-                <Label>Video (link YouTube/Drive)</Label>
-                <Input
-                  value={localData.video_link || ''}
-                  onChange={e => handleFieldChange('video_link', e.target.value)}
-                  placeholder="https://youtube.com/... o https://drive.google.com/..."
-                  maxLength={80}
-                />
-              </div>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Si es un EP o álbum, indicar el nombre del track destacado del lanzamiento.</p>
+            </div>
+          )}
+
+          {/* 7. Tipo de lanzamiento (inline) */}
+          <div>
+            <Label>Tipo de lanzamiento</Label>
+            {tracks.length <= 1 ? (
+              <p className="text-sm font-medium mt-1">Single{tracks.length === 1 ? `: ${tracks[0].title}` : ''}</p>
+            ) : (
+              <Select
+                value={pitchType}
+                onValueChange={(v) => {
+                  setPitchType(v);
+                  if (v === 'album' || v === 'ep') {
+                    setTrackId(null);
+                    const newName = release?.title || pitchName;
+                    setPitchName(newName);
+                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: null, name: newName });
+                  } else {
+                    const selectedTrack = trackId ? tracks.find(t => t.id === trackId) : null;
+                    const newName = selectedTrack ? selectedTrack.title : pitchName;
+                    setPitchName(newName);
+                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: trackId, name: newName });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="ep">EP</SelectItem>
+                  <SelectItem value="album">Album</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Track selector for Single */}
+          {pitchType === 'single' && tracks.length > 1 && (
+            <div>
+              <Label>Canción</Label>
+              <Select
+                value={trackId || ''}
+                onValueChange={(v) => {
+                  setTrackId(v);
+                  const selectedTrack = tracks.find(t => t.id === v);
+                  const newName = selectedTrack ? selectedTrack.title : pitchName;
+                  setPitchName(newName);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v, name: newName });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una canción..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tracks.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.track_number ? `${t.track_number}. ` : ''}{t.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* 8. Fecha de lanzamiento (read-only) */}
+          <div>
+            <Label className="text-xs text-muted-foreground">Fecha de lanzamiento *</Label>
+            <p className="text-sm font-medium">{release.release_date || '—'}</p>
+          </div>
+
+          {/* 9. Género (read-only) */}
+          <div>
+            <Label className="text-xs text-muted-foreground">Género musical *</Label>
+            <p className="text-sm font-medium">{release.genre || '—'}</p>
+          </div>
+
+          <Separator />
+
+          {/* 10. Mood */}
+          <div>
+            <Label>Mood / Estado de ánimo (selección múltiple)</Label>
+            <p className="text-xs text-muted-foreground mb-2">Corresponde a nuevos criterios editoriales de plataformas.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {MOOD_OPTIONS.map(mood => (
+                <label key={mood} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={getMoodList().includes(mood)}
+                    onCheckedChange={() => handleMoodToggle(mood)}
+                  />
+                  {mood}
+                </label>
+              ))}
             </div>
           </div>
 
           <Separator />
 
-          {/* Spotify */}
+          {/* 11. Estrategia general */}
+          <div>
+            <Label>Estrategia general de lanzamiento</Label>
+            <Textarea
+              value={localData.general_strategy || ''}
+              onChange={e => handleFieldChange('general_strategy', e.target.value)}
+              rows={4}
+              placeholder="Acciones de marketing convencional (Prensa/Radio/Tv) y digital (Internet/Social Media). Campaña de expectativa, lanzamiento, posts, pauta y/o direccionamiento a cada plataforma."
+              maxLength={1000}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{(localData.general_strategy || '').length}/1000</p>
+          </div>
+
+          {/* 12. Instrumentos */}
+          <div>
+            <Label>Instrumentos involucrados *</Label>
+            <Input
+              value={localData.instruments || ''}
+              onChange={e => handleFieldChange('instruments', e.target.value)}
+              placeholder="Ej: Guitarra, bajo, sintetizador, batería, voz"
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Listado de instrumentos involucrados en la creación del lanzamiento.</p>
+          </div>
+
+          {/* 13. Fotos del artista */}
+          <div>
+            <Label>Fotos del artista o proyecto (link Drive)</Label>
+            <Input
+              value={localData.artist_photos_link || ''}
+              onChange={e => handleFieldChange('artist_photos_link', e.target.value)}
+              placeholder="https://drive.google.com/..."
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Anexa link de la carpeta de Drive con las fotos para todas las tiendas. Recuerda dejar la carpeta con acceso público.
+            </p>
+          </div>
+
+          {/* 14. Video */}
+          <div>
+            <Label>Video (link YouTube/Drive)</Label>
+            <Input
+              value={localData.video_link || ''}
+              onChange={e => handleFieldChange('video_link', e.target.value)}
+              placeholder="https://youtube.com/... o https://drive.google.com/..."
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Si el lanzamiento incluye video, anexa el link privado en YouTube o link al archivo en Drive.</p>
+          </div>
+
+          <Separator />
+
+          {/* 15. Sinopsis */}
+          <div>
+            <Label>Sinopsis (max 500 caracteres) *</Label>
+            <Textarea
+              value={localData.synopsis || ''}
+              onChange={e => handleFieldChange('synopsis', e.target.value.slice(0, 500))}
+              maxLength={500}
+              rows={3}
+              placeholder="Texto breve para presentar el lanzamiento a editores curatoriales. ¿En qué se destaca esta canción y tu proyecto?"
+            />
+            <p className="text-xs text-muted-foreground mt-1">{(localData.synopsis || '').length}/500</p>
+          </div>
+
+          <Separator />
+
+          {/* 16. Estrategia Spotify */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Spotify</h3>
             <div className="space-y-4">
               <div>
-                <Label>Estrategia Spotify</Label>
+                <Label>Estrategia dirigida a Spotify</Label>
                 <Textarea
                   value={localData.spotify_strategy || ''}
                   onChange={e => handleFieldChange('spotify_strategy', e.target.value)}
                   rows={3}
-                  placeholder="¿A qué playlists editoriales aspiras? ¿Tienes playlists propias o de terceros confirmadas? Describe tu plan de lanzamiento en Spotify."
+                  placeholder="Texto corto presentando la estrategia específica para dirigir al público a Spotify. Puede incluir o no presupuesto."
                   maxLength={600}
                 />
                 <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_strategy || '').length}/600</p>
               </div>
+
+              {/* 17. Hitos Spotify */}
               <div>
-                <Label>Hitos destacados en Spotify</Label>
+                <Label>Hitos en Spotify *</Label>
                 <Textarea
                   value={localData.spotify_milestones || ''}
                   onChange={e => handleFieldChange('spotify_milestones', e.target.value)}
                   rows={2}
-                  placeholder="Ej: 1M streams en primer single, Top 50 Viral España, inclusión en Radar de Novedades..."
+                  placeholder="Picos de audiencia, incorporación en alguna playlist que haya tenido impacto. Escribir en tercera persona."
                   maxLength={350}
                 />
                 <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_milestones || '').length}/350</p>
               </div>
+
+              {/* 18. Fotos Spotify */}
               <div>
-                <Label>Fotos exclusivas para Spotify (link Drive)</Label>
+                <Label>Fotos exclusivas para Spotify (link Drive) *</Label>
                 <Input
                   value={localData.spotify_photos_link || ''}
                   onChange={e => handleFieldChange('spotify_photos_link', e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  maxLength={80}
+                  maxLength={200}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Fotos específicas para canvas, header y perfil de Spotify. Mínimo 2660x1140px para header.
+                  Fotos específicas para canvas, header y perfil de Spotify. Mínimo 2660x1140px para header. Carpeta con acceso público.
                 </p>
               </div>
+
+              {/* 19-20. Oyentes y Seguidores */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Oyentes mensuales</Label>
+                  <Label>Oyentes mensuales Spotify *</Label>
                   <Input
                     type="number"
                     value={localData.spotify_monthly_listeners || ''}
@@ -773,7 +829,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                   />
                 </div>
                 <div>
-                  <Label>Seguidores</Label>
+                  <Label>Seguidores en Spotify *</Label>
                   <Input
                     type="number"
                     value={localData.spotify_followers || ''}
@@ -787,55 +843,115 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
 
           <Separator />
 
-          {/* Estrategia & RRSS */}
+          {/* 21. Redes sociales */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Estrategia & RRSS</h3>
             <div className="space-y-4">
               <div>
-                <Label>Estrategia general de lanzamiento</Label>
-                <Textarea
-                  value={localData.general_strategy || ''}
-                  onChange={e => handleFieldChange('general_strategy', e.target.value)}
-                  rows={4}
-                  placeholder="Describe tu plan completo: PR, marketing, contenido en redes, colaboraciones, eventos, radio... Ej: 'Campaña de pre-save 2 semanas antes. Estreno de videoclip en YouTube el día del lanzamiento. Entrevistas confirmadas en...'"
-                  maxLength={1000}
-                />
-                <p className="text-xs text-muted-foreground mt-1">{(localData.general_strategy || '').length}/1000</p>
-              </div>
-              <div>
-                <Label>Redes sociales (links)</Label>
+                <Label>Links de redes sociales *</Label>
                 <Textarea
                   value={localData.social_links || ''}
                   onChange={e => handleFieldChange('social_links', e.target.value)}
                   rows={2}
-                  placeholder="Instagram, TikTok, YouTube, Twitter... Un link por línea"
-                  maxLength={100}
+                  placeholder="Incluyendo TikTok si tiene. Separar por comas cada link."
+                  maxLength={300}
                 />
               </div>
+
+              {/* 22. Otros datos */}
               <div>
-                <Label>Otros datos relevantes</Label>
+                <Label>Otros datos relevantes del lanzamiento</Label>
                 <Textarea
                   value={localData.additional_info || ''}
                   onChange={e => handleFieldChange('additional_info', e.target.value)}
                   rows={2}
-                  placeholder="Cualquier información adicional relevante para la distribuidora..."
-                  maxLength={200}
+                  placeholder="Breve descripción del contenido, productores musicales, compositores, giras o alguna otra información importante."
+                  maxLength={500}
                 />
-                <p className="text-xs text-muted-foreground mt-1">{(localData.additional_info || '').length}/200</p>
+                <p className="text-xs text-muted-foreground mt-1">{(localData.additional_info || '').length}/500</p>
               </div>
+
+              {/* 23. Proyección futura */}
               <div>
-                <Label>Biografía del artista</Label>
+                <Label>Proyección futura y planeación de lanzamientos</Label>
+                <Textarea
+                  value={localData.future_planning || ''}
+                  onChange={e => handleFieldChange('future_planning', e.target.value)}
+                  rows={3}
+                  placeholder="Una proyección de lo que viene a futuro y la planeación de lanzamientos con Ditto a lo largo del año."
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground mt-1">{(localData.future_planning || '').length}/500</p>
+              </div>
+
+              {/* 24. Biografía */}
+              <div>
+                <Label>Biografía del o los artistas *</Label>
                 <Textarea
                   value={localData.artist_bio || ''}
                   onChange={e => handleFieldChange('artist_bio', e.target.value)}
                   rows={3}
                   placeholder="Biografía breve pero poderosa del artista. Incluye trayectoria, logros y estilo."
-                  maxLength={300}
+                  maxLength={500}
                 />
-                <p className="text-xs text-muted-foreground mt-1">{(localData.artist_bio || '').length}/300</p>
+                <p className="text-xs text-muted-foreground mt-1">{(localData.artist_bio || '').length}/500</p>
               </div>
             </div>
           </div>
+
+          <Separator />
+
+          {/* 25-29. Vevo Feature Request (OPCIONAL) */}
+          <div>
+            <h3 className="text-sm font-semibold mb-1 text-muted-foreground uppercase tracking-wider">Vevo Feature Request (US/ROW) — OPCIONAL</h3>
+            <p className="text-xs text-muted-foreground mb-3">Completa esta sección solo si aplica para tu lanzamiento.</p>
+            <div className="space-y-4">
+              <div>
+                <Label>Tipo de contenido</Label>
+                <Input
+                  value={localData.vevo_content_type || ''}
+                  onChange={e => handleFieldChange('vevo_content_type', e.target.value)}
+                  placeholder="Ej: Official Music Video, Lyric Video, Visualizer..."
+                  maxLength={100}
+                />
+              </div>
+              <div>
+                <Label>Fecha premier exclusiva para Vevo</Label>
+                <Input
+                  type="date"
+                  value={localData.vevo_premiere_date || ''}
+                  onChange={e => handleFieldChange('vevo_premiere_date', e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={!!localData.vevo_is_new_edit}
+                  onCheckedChange={(checked) => handleFieldChange('vevo_is_new_edit', checked)}
+                />
+                <Label>¿Es este video una nueva edición?</Label>
+              </div>
+              <div>
+                <Label>Marca asociada, restricciones o notas adicionales</Label>
+                <Textarea
+                  value={localData.vevo_brand_notes || ''}
+                  onChange={e => handleFieldChange('vevo_brand_notes', e.target.value)}
+                  rows={2}
+                  placeholder="Alguna marca asociada, restricciones de categoría, exhibición de marca en el video o notas adicionales."
+                  maxLength={300}
+                />
+              </div>
+              <div>
+                <Label>Link previo</Label>
+                <Input
+                  value={localData.vevo_link || ''}
+                  onChange={e => handleFieldChange('vevo_link', e.target.value)}
+                  placeholder="https://..."
+                  maxLength={200}
+                />
+              </div>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
     </div>
