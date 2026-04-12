@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Loader2, Plus, Trash2, CopyPlus, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRelease, useUpdateRelease } from '@/hooks/useReleases';
+import { useRelease } from '@/hooks/useReleases';
+import { usePitchesByRelease, useCreatePitch, useUpdatePitch, useDeletePitch, useDuplicatePitch, Pitch } from '@/hooks/usePitches';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -32,7 +33,6 @@ const PITCH_STATUS_COLORS: Record<string, string> = {
   reviewed: 'bg-purple-500/20 text-purple-600',
 };
 
-// All configurable pitch fields
 const PITCH_FIELDS = [
   { key: 'synopsis', label: 'Sinopsis', section: 'content' },
   { key: 'mood', label: 'Mood / Estilo', section: 'content' },
@@ -65,110 +65,32 @@ type PitchConfig = Record<string, { visible: boolean; editable: boolean }>;
 export default function ReleasePitch() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: release, isLoading } = useRelease(id);
-  const updateRelease = useUpdateRelease({ silent: true });
-  const [copied, setCopied] = useState(false);
-  const [generatingToken, setGeneratingToken] = useState(false);
-  const hasInitialized = useRef(false);
+  const { data: release, isLoading: releaseLoading } = useRelease(id);
+  const { data: pitches = [], isLoading: pitchesLoading } = usePitchesByRelease(id);
+  const createPitch = useCreatePitch();
+  const updatePitch = useUpdatePitch({ silent: true });
+  const deletePitch = useDeletePitch();
+  const duplicatePitch = useDuplicatePitch();
 
-  // Local form state for pitch-specific fields
-  const [localData, setLocalData] = useState<Record<string, any>>({});
-  const [pitchConfig, setPitchConfig] = useState<PitchConfig>({});
-  const [pitchDeadline, setPitchDeadline] = useState('');
+  const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
 
-  // Initialize from release — only once
+  const isLoading = releaseLoading || pitchesLoading;
+
+  // Auto-select first pitch or clear if deleted
   useEffect(() => {
-    if (release && !hasInitialized.current) {
-      hasInitialized.current = true;
-      const initial: Record<string, any> = {};
-      PITCH_LOCAL_KEYS.forEach(k => {
-        initial[k] = (release as any)[k] ?? '';
-      });
-      setLocalData(initial);
-      setPitchConfig((release.pitch_config as PitchConfig) || {});
-      setPitchDeadline(release.pitch_deadline || '');
+    if (pitches.length > 0 && !selectedPitchId) {
+      // Don't auto-navigate into editor
     }
-  }, [release]);
-
-  const debouncedData = useDebounce(localData, 1500);
-
-  // Auto-save pitch fields — only real changes
-  useEffect(() => {
-    if (!id || !release || !hasInitialized.current) return;
-
-    const numericFields = ['spotify_monthly_listeners', 'spotify_followers'];
-    const updates: Record<string, any> = {};
-
-    for (const k of PITCH_LOCAL_KEYS) {
-      const dbVal = normalize((release as any)[k]);
-      const localVal = normalize(debouncedData[k]);
-      if (localVal !== dbVal) {
-        if (numericFields.includes(k)) {
-          updates[k] = debouncedData[k] === '' ? null : Number(debouncedData[k]);
-        } else {
-          updates[k] = debouncedData[k] || null;
-        }
-      }
+    if (selectedPitchId && !pitches.find(p => p.id === selectedPitchId)) {
+      setSelectedPitchId(null);
     }
+  }, [pitches, selectedPitchId]);
 
-    if (Object.keys(updates).length > 0) {
-      updateRelease.mutate({ id, ...updates });
-    }
-  }, [debouncedData]);
-
-  const handleFieldChange = (key: string, value: any) => {
-    setLocalData(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleConfigToggle = (fieldKey: string, prop: 'visible' | 'editable') => {
-    setPitchConfig(prev => {
-      const current = prev[fieldKey] || { visible: true, editable: false };
-      const updated = { ...prev, [fieldKey]: { ...current, [prop]: !current[prop] } };
-      // Save config
-      if (id) {
-        updateRelease.mutate({ id, pitch_config: updated as any });
-      }
-      return updated;
-    });
-  };
-
-  const generateToken = async () => {
+  const handleCreatePitch = async () => {
     if (!id) return;
-    setGeneratingToken(true);
-    try {
-      const token = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
-      const { error } = await supabase
-        .from('releases')
-        .update({ pitch_token: token, pitch_status: 'sent' as any })
-        .eq('id', id);
-      if (error) throw error;
-      toast.success('Enlace de pitch generado');
-      // Refresh
-      window.location.reload();
-    } catch {
-      toast.error('Error al generar el enlace');
-    } finally {
-      setGeneratingToken(false);
-    }
-  };
-
-  const copyLink = () => {
-    if (!release?.pitch_token) return;
-    const url = `${window.location.origin}/release-form/${release.pitch_token}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success('Enlace copiado');
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const updatePitchStatus = (status: string) => {
-    if (!id) return;
-    updateRelease.mutate({ id, pitch_status: status as any });
-  };
-
-  const savePitchDeadline = () => {
-    if (!id) return;
-    updateRelease.mutate({ id, pitch_deadline: pitchDeadline || null } as any);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    createPitch.mutate({ release_id: id, created_by: user.id });
   };
 
   if (isLoading) {
@@ -184,12 +106,27 @@ export default function ReleasePitch() {
     return <div className="p-6">Release no encontrado</div>;
   }
 
-  const pitchStatus = (release as any).pitch_status || 'draft';
-  const pitchToken = (release as any).pitch_token;
+  const selectedPitch = pitches.find(p => p.id === selectedPitchId);
 
+  if (selectedPitch) {
+    return (
+      <PitchEditor
+        pitch={selectedPitch}
+        release={release}
+        releaseId={id!}
+        onBack={() => setSelectedPitchId(null)}
+        onDelete={() => {
+          deletePitch.mutate({ id: selectedPitch.id, release_id: id! });
+          setSelectedPitchId(null);
+        }}
+        onDuplicate={() => duplicatePitch.mutate(selectedPitch)}
+      />
+    );
+  }
+
+  // List view
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
           <ArrowLeft className="h-5 w-5" />
@@ -198,9 +135,215 @@ export default function ReleasePitch() {
           <h1 className="text-2xl font-bold">Pitch de Distribución</h1>
           <p className="text-sm text-muted-foreground">{release.title}</p>
         </div>
-        <Badge className={PITCH_STATUS_COLORS[pitchStatus]}>
-          {PITCH_STATUS_LABELS[pitchStatus] || pitchStatus}
+        <Button onClick={handleCreatePitch} disabled={createPitch.isPending}>
+          {createPitch.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+          Nuevo Pitch
+        </Button>
+      </div>
+
+      {pitches.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center space-y-4">
+            <Send className="h-12 w-12 mx-auto text-muted-foreground" />
+            <div>
+              <h3 className="text-lg font-semibold">Sin pitches</h3>
+              <p className="text-sm text-muted-foreground">
+                Crea tu primer pitch para preparar la información de distribución.
+              </p>
+            </div>
+            <Button onClick={handleCreatePitch} disabled={createPitch.isPending}>
+              <Plus className="h-4 w-4 mr-2" />
+              Crear primer pitch
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {pitches.map(pitch => (
+            <Card
+              key={pitch.id}
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => setSelectedPitchId(pitch.id)}
+            >
+              <CardContent className="flex items-center gap-4 py-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold truncate">{pitch.name}</h3>
+                    <Badge className={PITCH_STATUS_COLORS[pitch.pitch_status] || ''}>
+                      {PITCH_STATUS_LABELS[pitch.pitch_status] || pitch.pitch_status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
+                    {pitch.pitch_deadline && ` · Límite: ${new Date(pitch.pitch_deadline).toLocaleDateString('es-ES')}`}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={e => { e.stopPropagation(); duplicatePitch.mutate(pitch); }}
+                  >
+                    <CopyPlus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={e => { e.stopPropagation(); deletePitch.mutate({ id: pitch.id, release_id: id! }); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Pitch Editor ────────────────────────────────────────────
+
+interface PitchEditorProps {
+  pitch: Pitch;
+  release: any;
+  releaseId: string;
+  onBack: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+}
+
+function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate }: PitchEditorProps) {
+  const updatePitch = useUpdatePitch({ silent: true });
+  const [copied, setCopied] = useState(false);
+  const hasInitialized = useRef(false);
+
+  const [localData, setLocalData] = useState<Record<string, any>>({});
+  const [pitchConfig, setPitchConfig] = useState<PitchConfig>({});
+  const [pitchDeadline, setPitchDeadline] = useState('');
+  const [pitchName, setPitchName] = useState('');
+
+  useEffect(() => {
+    if (pitch && !hasInitialized.current) {
+      hasInitialized.current = true;
+      const initial: Record<string, any> = {};
+      PITCH_LOCAL_KEYS.forEach(k => {
+        initial[k] = (pitch as any)[k] ?? '';
+      });
+      setLocalData(initial);
+      setPitchConfig((pitch.pitch_config as PitchConfig) || {});
+      setPitchDeadline(pitch.pitch_deadline || '');
+      setPitchName(pitch.name);
+    }
+  }, [pitch]);
+
+  // Reset on pitch change
+  useEffect(() => {
+    hasInitialized.current = false;
+  }, [pitch.id]);
+
+  useEffect(() => {
+    if (pitch) {
+      hasInitialized.current = true;
+      const initial: Record<string, any> = {};
+      PITCH_LOCAL_KEYS.forEach(k => {
+        initial[k] = (pitch as any)[k] ?? '';
+      });
+      setLocalData(initial);
+      setPitchConfig((pitch.pitch_config as PitchConfig) || {});
+      setPitchDeadline(pitch.pitch_deadline || '');
+      setPitchName(pitch.name);
+    }
+  }, [pitch.id]);
+
+  const debouncedData = useDebounce(localData, 1500);
+
+  useEffect(() => {
+    if (!pitch || !hasInitialized.current) return;
+    const numericFields = ['spotify_monthly_listeners', 'spotify_followers'];
+    const updates: Record<string, any> = {};
+
+    for (const k of PITCH_LOCAL_KEYS) {
+      const dbVal = normalize((pitch as any)[k]);
+      const localVal = normalize(debouncedData[k]);
+      if (localVal !== dbVal) {
+        if (numericFields.includes(k)) {
+          updates[k] = debouncedData[k] === '' ? null : Number(debouncedData[k]);
+        } else {
+          updates[k] = debouncedData[k] || null;
+        }
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updatePitch.mutate({ id: pitch.id, release_id: releaseId, ...updates });
+    }
+  }, [debouncedData]);
+
+  const handleFieldChange = (key: string, value: any) => {
+    setLocalData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleConfigToggle = (fieldKey: string, prop: 'visible' | 'editable') => {
+    setPitchConfig(prev => {
+      const current = prev[fieldKey] || { visible: true, editable: false };
+      const updated = { ...prev, [fieldKey]: { ...current, [prop]: !current[prop] } };
+      updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_config: updated });
+      return updated;
+    });
+  };
+
+  const copyLink = () => {
+    if (!pitch.pitch_token) return;
+    const url = `${window.location.origin}/release-form/${pitch.pitch_token}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success('Enlace copiado');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const updatePitchStatus = (status: string) => {
+    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_status: status });
+  };
+
+  const savePitchDeadline = () => {
+    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_deadline: pitchDeadline || null });
+  };
+
+  const savePitchName = () => {
+    if (pitchName.trim() && pitchName !== pitch.name) {
+      updatePitch.mutate({ id: pitch.id, release_id: releaseId, name: pitchName.trim() });
+    }
+  };
+
+  return (
+    <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={onBack}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
+          <Input
+            value={pitchName}
+            onChange={e => setPitchName(e.target.value)}
+            onBlur={savePitchName}
+            className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
+          />
+          <p className="text-sm text-muted-foreground">{release.title}</p>
+        </div>
+        <Badge className={PITCH_STATUS_COLORS[pitch.pitch_status]}>
+          {PITCH_STATUS_LABELS[pitch.pitch_status] || pitch.pitch_status}
         </Badge>
+        <Button variant="ghost" size="icon" onClick={onDuplicate} title="Duplicar pitch">
+          <CopyPlus className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="text-destructive" onClick={onDelete} title="Eliminar pitch">
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Link & Status */}
@@ -212,11 +355,11 @@ export default function ReleasePitch() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {pitchToken ? (
+          {pitch.pitch_token ? (
             <div className="flex items-center gap-2">
               <Input
                 readOnly
-                value={`${window.location.origin}/release-form/${pitchToken}`}
+                value={`${window.location.origin}/release-form/${pitch.pitch_token}`}
                 className="font-mono text-xs"
               />
               <Button variant="outline" size="icon" onClick={copyLink}>
@@ -224,10 +367,9 @@ export default function ReleasePitch() {
               </Button>
             </div>
           ) : (
-            <Button onClick={generateToken} disabled={generatingToken}>
-              {generatingToken ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-              Generar enlace de pitch
-            </Button>
+            <p className="text-sm text-muted-foreground">
+              El enlace se generó automáticamente al crear el pitch. Si no aparece, contacta soporte.
+            </p>
           )}
 
           <div className="flex flex-wrap gap-2">
@@ -235,7 +377,7 @@ export default function ReleasePitch() {
             {Object.entries(PITCH_STATUS_LABELS).map(([key, label]) => (
               <Button
                 key={key}
-                variant={pitchStatus === key ? 'default' : 'outline'}
+                variant={pitch.pitch_status === key ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => updatePitchStatus(key)}
               >
@@ -298,7 +440,7 @@ export default function ReleasePitch() {
         </CardContent>
       </Card>
 
-      {/* Pitch form fields (manager view) */}
+      {/* Pitch form fields */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del Pitch</CardTitle>
@@ -307,7 +449,6 @@ export default function ReleasePitch() {
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Info section - read-only from release */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Info Básica (del release)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -340,7 +481,6 @@ export default function ReleasePitch() {
 
           <Separator />
 
-          {/* Pitch-specific editable fields */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Contenido</h3>
             <div className="space-y-4">
