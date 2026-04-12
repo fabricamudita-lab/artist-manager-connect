@@ -3345,47 +3345,47 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     {isConcert ? (
                       <>
                         {/* CONCIERTO: CACHÉ | PRESUPUESTO | GASTOS REALES | TOTAL A FACTURAR | BENEFICIO | MARGEN */}
-                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-blue-500 border border-blue-500/10 bg-blue-500/5">
-                          <div className="text-[10px] font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
-                          <div className="text-lg font-bold font-mono text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-blue-400/60 mt-0.5">Fee del promotor</div>
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
+                          <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-blue-400/70 mt-0.5">Fee del promotor</div>
                         </div>
 
-                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-amber-500 border border-amber-500/10 bg-amber-500/5">
-                          <div className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
-                          <div className="text-lg font-bold font-mono text-amber-400">€{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-amber-400/60 mt-0.5">Gastos planif.</div>
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
+                          <div className="text-xl font-bold text-amber-400">€{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-amber-400/70 mt-0.5">Gastos planif.</div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${expenseBudget > 0 && totals.neto > expenseBudget ? 'border-l-destructive bg-destructive/5 border-destructive/10' : 'border-l-gray-400 bg-card/50 border-border/50'}`}>
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/60'}`}>GASTOS REALES</div>
-                          <div className={`text-lg font-bold font-mono ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'}`}>€{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${expenseBudget > 0 && totals.neto > expenseBudget ? 'bg-destructive/10 border-destructive/20' : 'bg-card/50 border-border'}`}>
+                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/70'}`}>GASTOS REALES</div>
+                          <div className={`text-xl font-bold ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'}`}>€{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           {expenseBudget > 0 && <div className={`text-[9px] mt-0.5 ${desviacion > 0 ? 'text-destructive' : 'text-green-600'}`}>{desviacion > 0 ? '+' : ''}{desviacionPct.toFixed(0)}% vs presup.</div>}
                         </div>
 
-                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-primary border border-primary/10 bg-primary/5">
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
                           <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
-                          <div className="text-lg font-bold font-mono text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-xl font-bold text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           <div className="flex items-center gap-2 text-[9px] mt-0.5">
                             <span className="text-green-600">+€{totals.iva.toFixed(0)} IVA</span>
                             <span className="text-red-600">-€{totals.irpf.toFixed(0)} IRPF</span>
                           </div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${budgetAmount === 0 ? 'border-l-gray-400 bg-muted/20 border-border/50' : beneficio >= 0 ? 'border-l-green-500 bg-green-500/5 border-green-500/10' : 'border-l-destructive bg-destructive/5 border-destructive/10'}`}>
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : beneficio >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
                           <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>BENEFICIO</div>
-                          <div className={`text-lg font-bold font-mono ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                             {budgetAmount === 0 ? '—' : `${beneficio < 0 ? '-' : ''}€${Math.abs(beneficio).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
                           </div>
-                          <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/60' : 'text-destructive/60'}`}>Caché - Gastos</div>
+                          <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>Caché - Gastos</div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${budgetAmount === 0 ? 'border-l-gray-400 bg-muted/20 border-border/50' : margen >= 0 ? 'border-l-green-500 bg-green-500/5 border-green-500/10' : 'border-l-destructive bg-destructive/5 border-destructive/10'}`}>
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : margen >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
                           <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>MARGEN</div>
-                          <div className={`text-lg font-bold font-mono ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                             {budgetAmount === 0 ? '—' : `${margen.toFixed(1)}%`}
                           </div>
-                          <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/60' : 'text-destructive/60'}`}>Rentabilidad</div>
+                          <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>Rentabilidad</div>
                         </div>
                       </>
                     ) : (
