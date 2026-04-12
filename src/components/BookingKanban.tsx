@@ -28,6 +28,7 @@ import { Check, Clock, Handshake } from 'lucide-react';
 import { useBookingBuddy } from '@/hooks/useBookingBuddy';
 import { BuddyPanel } from './booking-detail/BuddyPanel';
 import { BookingAlertBanners } from './booking-detail/BookingAlertBanners';
+import { KpiStatsBar } from './booking-detail/KpiStatsBar';
 
 /*
   BOOKING PHASE STATE MACHINE
