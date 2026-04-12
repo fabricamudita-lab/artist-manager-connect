@@ -4486,6 +4486,7 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string
+          future_planning: string | null
           general_strategy: string | null
           id: string
           instruments: string | null
@@ -4506,6 +4507,11 @@ export type Database = {
           synopsis: string | null
           track_id: string | null
           updated_at: string
+          vevo_brand_notes: string | null
+          vevo_content_type: string | null
+          vevo_is_new_edit: boolean | null
+          vevo_link: string | null
+          vevo_premiere_date: string | null
           video_link: string | null
         }
         Insert: {
@@ -4516,6 +4522,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by: string
+          future_planning?: string | null
           general_strategy?: string | null
           id?: string
           instruments?: string | null
@@ -4536,6 +4543,11 @@ export type Database = {
           synopsis?: string | null
           track_id?: string | null
           updated_at?: string
+          vevo_brand_notes?: string | null
+          vevo_content_type?: string | null
+          vevo_is_new_edit?: boolean | null
+          vevo_link?: string | null
+          vevo_premiere_date?: string | null
           video_link?: string | null
         }
         Update: {
@@ -4546,6 +4558,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string
+          future_planning?: string | null
           general_strategy?: string | null
           id?: string
           instruments?: string | null
@@ -4566,6 +4579,11 @@ export type Database = {
           synopsis?: string | null
           track_id?: string | null
           updated_at?: string
+          vevo_brand_notes?: string | null
+          vevo_content_type?: string | null
+          vevo_is_new_edit?: boolean | null
+          vevo_link?: string | null
+          vevo_premiere_date?: string | null
           video_link?: string | null
         }
         Relationships: [
