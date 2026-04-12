@@ -1,42 +1,28 @@
 
 
-## Completar: Multi-Pitch por Release
+## Fix: EPK no se puede guardar — RLS policy mismatch
 
-### Estado actual
-- Los campos de pitch (`synopsis`, `mood`, `pitch_token`, `pitch_config`, `pitch_status`, `pitch_deadline`, etc.) siguen viviendo en la tabla `releases`
-- `ReleasePitch.tsx` opera sobre un solo pitch por release
-- `PublicReleaseForm.tsx` busca por `pitch_token` en `releases`
-- No existe tabla `pitches`, ni hook `usePitches`, ni UI de listado
+### Problema
+La política RLS de INSERT en `epks` exige `creado_por = auth.uid()`. Pero el código en `useEPK.ts` (línea 254) asigna `creado_por: profile.id`, que es el UUID de la tabla `profiles`, no el UUID de `auth.users`. Son valores distintos, por eso falla.
 
-### Pasos a implementar
+### Solución
+Cambiar la línea 254 de `useEPK.ts`:
 
-**1. Migración SQL — crear tabla `pitches`**
-- Tabla con: `id`, `release_id` (FK), `created_by`, `name`, `synopsis`, `mood`, `country`, `spotify_strategy`, `spotify_monthly_listeners`, `spotify_followers`, `spotify_milestones`, `general_strategy`, `social_links`, `pitch_status`, `pitch_deadline`, `pitch_token` (unique), `pitch_config`
-- RLS: owner CRUD, anon read/update por token
-- Migrar datos existentes desde `releases` (un pitch por release que tenga datos de pitch)
+```typescript
+// Antes
+creado_por: profile.id,
 
-**2. Crear `src/hooks/usePitches.ts`**
-- `usePitchesByRelease(releaseId)` — lista
-- `useCreatePitch()` — crear con nombre y release_id
-- `useUpdatePitch()` — actualizar (con opción silent)
-- `useDeletePitch()` — eliminar
+// Después  
+creado_por: user.id,
+```
 
-**3. Refactorizar `ReleasePitch.tsx`**
-- Vista inicial: listado de pitches del release (nombre, estado, fecha)
-- Botón "Nuevo Pitch"
-- Al hacer clic: editor inline (mismo formulario actual)
-- Cada pitch tiene su propio token y enlace público
-- Opción de duplicar pitch existente
+Esto usa `user.id` (de `supabase.auth.getUser()`), que coincide con `auth.uid()` en la política RLS.
 
-**4. Refactorizar `PublicReleaseForm.tsx`**
-- Buscar en `pitches` por token en vez de en `releases`
-- Cargar datos del release asociado vía join
-- Guardar cambios en `pitches`
+Con este cambio, ya no se necesita ni siquiera la query a `profiles` para el INSERT (aunque puede mantenerse si se usa en otro sitio).
 
-### Archivos afectados
-- Nueva migración SQL
-- `src/hooks/usePitches.ts` (nuevo)
-- `src/pages/release-sections/ReleasePitch.tsx` — refactor completo
-- `src/pages/PublicReleaseForm.tsx` — cambiar queries
-- `src/integrations/supabase/types.ts` — se regenera automáticamente
+### Archivo afectado
+- `src/hooks/useEPK.ts` — línea 254: cambiar `profile.id` por `user.id`
+
+### Fix adicional (silencioso)
+- Corregir el error de runtime `Select.Item` con valor vacío (buscar en el EPK builder o componentes relacionados un `<SelectItem value="">` y asignarle un valor no vacío).
 
