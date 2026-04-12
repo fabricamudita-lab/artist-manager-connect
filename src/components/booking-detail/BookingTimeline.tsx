@@ -152,7 +152,7 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
     );
   }
 
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('timeline_collapsed') === 'true');
+  // moved to top of component
   const toggleCollapsed = () => {
     setCollapsed(prev => {
       localStorage.setItem('timeline_collapsed', String(!prev));
@@ -247,7 +247,7 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
             })}
           </div>
         </div>
-      </CardContent>
+      </CardContent>}
     </Card>
   );
 }
