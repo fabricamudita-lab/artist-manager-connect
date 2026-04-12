@@ -162,12 +162,32 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
 
 
 
+  const overdueCount = checkpoints.filter(c => c.status !== 'done' && c.due_date && c.due_date < today).length;
+  const pendingCount = checkpoints.filter(c => c.status === 'pending' && (!c.due_date || c.due_date >= today)).length;
+
   return (
     <Card>
       <CardHeader className="pb-2 cursor-pointer select-none" onClick={toggleCollapsed}>
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="text-sm flex items-center gap-2 w-full">
           <Clock className="h-4 w-4" />
           Timeline
+          {collapsed && (
+            <div className="flex items-center gap-2 ml-2">
+              {overdueCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive">
+                  {overdueCount} vencida{overdueCount > 1 ? 's' : ''}
+                </span>
+              )}
+              {pendingCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-500">
+                  {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+                </span>
+              )}
+              {overdueCount === 0 && pendingCount === 0 && checkpoints.length > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">✓ Al día</span>
+              )}
+            </div>
+          )}
           <ChevronDown className={`h-4 w-4 ml-auto text-muted-foreground transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
         </CardTitle>
       </CardHeader>
