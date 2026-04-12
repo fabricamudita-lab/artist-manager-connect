@@ -374,6 +374,7 @@ export default function PublicReleaseForm() {
   const title = releaseInfo?.title || pitch.name;
   const artistName = releaseInfo?.artist?.name;
   const coverUrl = releaseInfo?.cover_image_url;
+  const pitchTypeLabel = pitch.pitch_type === 'single' ? 'Single' : pitch.pitch_type === 'focus_track' ? 'Focus Track' : 'Album Completo';
 
   // Group visible fields by section
   const sectionGroups: Record<string, string[]> = {};
@@ -394,7 +395,7 @@ export default function PublicReleaseForm() {
           <div className="flex-1">
             <h1 className="text-lg font-bold">{title}</h1>
             <p className="text-xs text-muted-foreground">
-              {artistName && `${artistName} · `}Pitch de distribución
+              {artistName && `${artistName} · `}{pitchTypeLabel} · Pitch de distribución
             </p>
           </div>
           {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
