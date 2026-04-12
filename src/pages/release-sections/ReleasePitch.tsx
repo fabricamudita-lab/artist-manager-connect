@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { INTERPRETE_ROLES, getRoleLabel } from '@/lib/creditRoles';
-import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Loader2, Plus, Trash2, CopyPlus, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Loader2, Plus, Trash2, CopyPlus, ChevronLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -526,35 +526,18 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
           </p>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="grid grid-cols-[1fr_80px_80px] gap-2 text-xs font-medium text-muted-foreground px-1">
-              <span>Campo</span>
-              <span className="text-center">Visible</span>
-              <span className="text-center">Editable</span>
-            </div>
-            <Separator />
-            {PITCH_FIELDS.map(field => {
-              const config = pitchConfig[field.key] || { visible: true, editable: false };
-              return (
-                <div key={field.key} className="grid grid-cols-[1fr_80px_80px] gap-2 items-center py-1">
-                  <span className="text-sm">{field.label}</span>
-                  <div className="flex justify-center">
-                    <Switch
-                      checked={config.visible}
-                      onCheckedChange={() => handleConfigToggle(field.key, 'visible')}
-                    />
-                  </div>
-                  <div className="flex justify-center">
-                    <Switch
-                      checked={config.editable}
-                      onCheckedChange={() => handleConfigToggle(field.key, 'editable')}
-                      disabled={!config.visible}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <FieldConfigGrouped pitchConfig={pitchConfig} onToggle={handleConfigToggle} onBatchToggle={(keys, prop, value) => {
+            const updated = { ...pitchConfig };
+            keys.forEach(k => {
+              if (!updated[k]) updated[k] = { visible: true, editable: false };
+              updated[k] = { ...updated[k], [prop]: value };
+              if (prop === 'visible' && !value) updated[k].editable = false;
+            });
+            setPitchConfig(updated);
+            if (activePitch) {
+              updatePitch.mutate({ id: activePitch.id, updates: { field_config: updated } });
+            }
+          }} />
         </CardContent>
       </Card>
 
