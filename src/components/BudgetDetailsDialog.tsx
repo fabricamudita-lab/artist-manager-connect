@@ -3345,72 +3345,70 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     {isConcert ? (
                       <>
                         {/* CONCIERTO: CACHÉ | PRESUPUESTO | GASTOS REALES | TOTAL A FACTURAR | BENEFICIO | MARGEN */}
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
-                          <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-blue-400/70 mt-0.5">Fee del promotor</div>
+                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-blue-500 border border-blue-500/10 bg-blue-500/5">
+                          <div className="text-[10px] font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
+                          <div className="text-lg font-bold font-mono text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-blue-400/60 mt-0.5">Fee del promotor</div>
                         </div>
 
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
-                          <div className="text-xl font-bold text-amber-400">€{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-amber-400/70 mt-0.5">Gastos planif.</div>
+                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-amber-500 border border-amber-500/10 bg-amber-500/5">
+                          <div className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
+                          <div className="text-lg font-bold font-mono text-amber-400">€{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-amber-400/60 mt-0.5">Gastos planif.</div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${expenseBudget > 0 && totals.neto > expenseBudget ? 'bg-destructive/10 border-destructive/20' : 'bg-card/50 border-border'}`}>
-                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/70'}`}>GASTOS REALES</div>
-                          <div className={`text-xl font-bold ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'}`}>€{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${expenseBudget > 0 && totals.neto > expenseBudget ? 'border-l-destructive bg-destructive/5 border-destructive/10' : 'border-l-gray-400 bg-card/50 border-border/50'}`}>
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/60'}`}>GASTOS REALES</div>
+                          <div className={`text-lg font-bold font-mono ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'}`}>€{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           {expenseBudget > 0 && <div className={`text-[9px] mt-0.5 ${desviacion > 0 ? 'text-destructive' : 'text-green-600'}`}>{desviacion > 0 ? '+' : ''}{desviacionPct.toFixed(0)}% vs presup.</div>}
                         </div>
 
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-primary border border-primary/10 bg-primary/5">
                           <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
-                          <div className="text-xl font-bold text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-lg font-bold font-mono text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           <div className="flex items-center gap-2 text-[9px] mt-0.5">
                             <span className="text-green-600">+€{totals.iva.toFixed(0)} IVA</span>
                             <span className="text-red-600">-€{totals.irpf.toFixed(0)} IRPF</span>
                           </div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : beneficio >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
+                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${budgetAmount === 0 ? 'border-l-gray-400 bg-muted/20 border-border/50' : beneficio >= 0 ? 'border-l-green-500 bg-green-500/5 border-green-500/10' : 'border-l-destructive bg-destructive/5 border-destructive/10'}`}>
                           <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>BENEFICIO</div>
-                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          <div className={`text-lg font-bold font-mono ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                             {budgetAmount === 0 ? '—' : `${beneficio < 0 ? '-' : ''}€${Math.abs(beneficio).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
                           </div>
-                          <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>Caché - Gastos</div>
+                          <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/60' : 'text-destructive/60'}`}>Caché - Gastos</div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : margen >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
+                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${budgetAmount === 0 ? 'border-l-gray-400 bg-muted/20 border-border/50' : margen >= 0 ? 'border-l-green-500 bg-green-500/5 border-green-500/10' : 'border-l-destructive bg-destructive/5 border-destructive/10'}`}>
                           <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>MARGEN</div>
-                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          <div className={`text-lg font-bold font-mono ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                             {budgetAmount === 0 ? '—' : `${margen.toFixed(1)}%`}
                           </div>
-                          <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>Rentabilidad</div>
+                          <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/60' : 'text-destructive/60'}`}>Rentabilidad</div>
                         </div>
                       </>
                     ) : (
                       <>
                         {/* PRODUCCIÓN / CAMPAÑA / VIDEOCLIP — 4 métricas */}
                         {/* 1. CAPITAL */}
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
-                          <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="flex items-center gap-0.5 text-[9px] text-blue-400/70 mt-0.5">
-                            <span>Presupuesto total</span>
-                          </div>
+                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-blue-500 border border-blue-500/10 bg-blue-500/5">
+                          <div className="text-[10px] font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
+                          <div className="text-lg font-bold font-mono text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-blue-400/60 mt-0.5">Presupuesto total</div>
                         </div>
 
                         {/* 2. PAGADO */}
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                          <div className="text-xs font-semibold text-green-500 uppercase tracking-wide mb-1">PAGADO</div>
-                          <div className="text-xl font-bold text-green-500">€{pagado.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-green-500/70 mt-0.5">{facturasCobradas} factura{facturasCobradas !== 1 ? 's' : ''} cobrada{facturasCobradas !== 1 ? 's' : ''}</div>
+                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-green-500 border border-green-500/10 bg-green-500/5">
+                          <div className="text-[10px] font-semibold text-green-500 uppercase tracking-wide mb-1">PAGADO</div>
+                          <div className="text-lg font-bold font-mono text-green-500">€{pagado.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-green-500/60 mt-0.5">{facturasCobradas} factura{facturasCobradas !== 1 ? 's' : ''} cobrada{facturasCobradas !== 1 ? 's' : ''}</div>
                         </div>
 
                         {/* 3. COMPROMETIDO + popover fiscal */}
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                        <div className="flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border-l-amber-500 border border-amber-500/10 bg-amber-500/5">
                           <div className="flex items-center gap-1 mb-1">
-                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">COMPROMETIDO</span>
+                            <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">COMPROMETIDO</span>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <button className="text-amber-400/60 hover:text-amber-400 transition-colors">
@@ -3425,9 +3423,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               </PopoverContent>
                             </Popover>
                           </div>
-                          <div className="text-xl font-bold text-amber-400">€{(comprometido + provisionalTotal).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-lg font-bold font-mono text-amber-400">€{(comprometido + provisionalTotal).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           <div className="text-[9px] mt-0.5 flex items-center gap-1">
-                            <span className="text-amber-400/70">€{comprometido.toLocaleString('es-ES', { minimumFractionDigits: 0 })} confirmado</span>
+                            <span className="text-amber-400/60">€{comprometido.toLocaleString('es-ES', { minimumFractionDigits: 0 })} confirmado</span>
                             {provisionalTotal > 0 && (
                               <>
                                 <span className="text-amber-400/40">·</span>
@@ -3438,17 +3436,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </div>
 
                         {/* 4. DISPONIBLE — semáforo */}
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
-                          disponiblePct < 0 ? 'bg-destructive/10 border-destructive/20' :
-                          disponiblePct <= 15 ? 'bg-amber-500/10 border-amber-500/20' :
-                          'bg-green-500/10 border-green-500/20'
+                        <div className={`flex flex-col justify-center items-center h-[72px] p-3 rounded-lg border-l-[3px] border ${
+                          disponiblePct < 0 ? 'border-l-destructive bg-destructive/5 border-destructive/10' :
+                          disponiblePct <= 15 ? 'border-l-amber-500 bg-amber-500/5 border-amber-500/10' :
+                          'border-l-green-500 bg-green-500/5 border-green-500/10'
                         }`}>
-                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
                             disponiblePct < 0 ? 'text-destructive' :
                             disponiblePct <= 15 ? 'text-amber-400' :
                             'text-green-500'
                           }`}>DISPONIBLE</div>
-                          <div className={`text-xl font-bold ${
+                          <div className={`text-lg font-bold font-mono ${
                             disponiblePct < 0 ? 'text-destructive' :
                             disponiblePct <= 15 ? 'text-amber-400' :
                             'text-green-500'
@@ -3605,10 +3603,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     </div>
                   )}
                    {/* Category Management Header - Compact */}
-                  <div className="bg-black text-white p-3 border-b border-gray-700">
+                  <div className="bg-gray-900 text-white px-3 py-2 border-b border-gray-700">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-sm font-semibold tracking-wide">Gestión de Elementos</h2>
+                        <div className="w-px h-5 bg-gray-600" />
                         <div className="flex items-center gap-2 bg-white/10 rounded-md px-1 py-0.5">
                           <ToggleGroup type="single" value={displayMode} onValueChange={(v) => { if (v) setDisplayMode(v as any); }} className="gap-0">
                             <ToggleGroupItem value="neto" className="h-6 px-2.5 text-[11px] font-medium rounded-sm data-[state=on]:bg-white data-[state=on]:text-black text-white/60 hover:text-white">Neto</ToggleGroupItem>
@@ -4035,7 +4034,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         <div key={category.id} data-category-id={category.id} className="mb-6">
                           {/* Category Header */}
                           <div 
-                            className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700 cursor-pointer hover:bg-gray-900 transition-colors"
+                            className="bg-gray-50 border-b-2 border-b-gray-300 px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
                             onClick={() => {
                               setOpenCategories(prev => {
                                 const newSet = new Set(prev);
@@ -4048,13 +4047,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               });
                             }}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2.5">
                               <div className="transform transition-transform duration-200" style={{ transform: openCategories.has(category.id) ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                <ArrowRightLeft className="w-4 h-4 rotate-90" />
+                                <ArrowRightLeft className="w-3.5 h-3.5 text-gray-500 rotate-90" />
                               </div>
-                              <IconComponent className="w-5 h-5" />
-                              <h3 className="text-lg font-bold tracking-wider">{category.name.toUpperCase()}</h3>
-                              <span className="text-sm text-white/60">({categoryItems.length} elementos)</span>
+                              <IconComponent className="w-4 h-4 text-gray-600" />
+                              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{category.name}</h3>
+                              <span className="text-xs text-gray-400">({categoryItems.length})</span>
                             </div>
                             <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex gap-4 text-sm">
@@ -4089,12 +4088,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   return (
                                     <>
                                       <div className="text-right">
-                                        <div className="text-xs text-white/50 mb-1">{modeLabel}</div>
-                                        <div className="font-semibold">
+                                        <div className="text-[10px] text-gray-400 mb-0.5">{modeLabel}</div>
+                                        <div className="font-semibold font-mono text-sm text-gray-700">
                                           €{displayTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                                         </div>
                                         {displayMode === 'liquido' && totalRetention > 0 && (
-                                          <div className="text-[10px] text-white/40">+ €{totalRetention.toLocaleString('es-ES', { minimumFractionDigits: 2 })} ret.</div>
+                                          <div className="text-[10px] text-gray-400">+ €{totalRetention.toLocaleString('es-ES', { minimumFractionDigits: 2 })} ret.</div>
                                         )}
                                         {provisionalNeto > 0 && (
                                           <div className="text-[10px] text-amber-400">⏳ €{provisionalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} prov.</div>
@@ -4112,10 +4111,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 }}
                                 size="sm"
                                 variant="ghost"
-                                className="text-white/60 hover:text-white hover:bg-white/10"
+                                className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 h-7 w-7 p-0"
                                 title="Ocultar categoría"
                               >
-                                <EyeOff className="w-4 h-4" />
+                                <EyeOff className="w-3.5 h-3.5" />
                               </Button>
                               <Button
                                 onClick={(e) => {
@@ -4123,9 +4122,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   addNewItem(category.id);
                                 }}
                                 size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs"
                               >
-                                <Plus className="w-4 h-4 mr-1" />
+                                <Plus className="w-3.5 h-3.5 mr-1" />
                                 Agregar
                               </Button>
                             </div>
@@ -4133,7 +4132,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           
                           {/* Excel-style Table */}
                           {openCategories.has(category.id) && (
-                            <div className="bg-white border-b border-gray-300 overflow-x-auto">
+                            <div className="bg-white border-b border-gray-100 overflow-x-auto">
                               {categoryItems.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500 bg-white">
                                   <p>No hay elementos en esta categoría</p>
@@ -4149,8 +4148,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               ) : (
                               <Table>
                                  <TableHeader>
-                                    <TableRow className="bg-gray-100 hover:bg-gray-100">
-                                      <TableHead className="font-bold text-black w-[50px] text-center">
+                                    <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 border-b border-gray-100">
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[50px] text-center">
                                         <input
                                           type="checkbox"
                                           className="rounded"
@@ -4166,23 +4165,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           }}
                                         />
                                       </TableHead>
-                                      <TableHead className="font-bold text-black w-[200px]">Concepto</TableHead>
-                                      <TableHead className="font-bold text-black w-[130px] text-center">Contacto</TableHead>
-                                      <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
-                                      <TableHead className="font-bold text-black w-[200px] text-right">Precio / Comisión</TableHead>
-                                      <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
-                                      <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
-                                      <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
-                                      <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
-                                      <TableHead className="font-bold text-black w-[150px] text-center">Enlace Factura</TableHead>
-                                      <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[200px]">Concepto</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[130px] text-center">Contacto</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[130px] text-center">Fecha Emisión</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[200px] text-right">Precio / Comisión</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[80px] text-center">IVA (%)</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[80px] text-center">IRPF (%)</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[120px] text-right">Total (€)</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[150px] text-center">Estado</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[150px] text-center">Factura</TableHead>
+                                      <TableHead className="font-medium text-gray-500 text-xs uppercase w-[100px] text-center">Acciones</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                 <TableBody>
                                    {categoryItems.map((item, index) => (
                                      <TableRow 
                                         key={item.id} 
-                                        className={`${(item as any).is_provisional ? 'bg-amber-50/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
+                                        className={`${(item as any).is_provisional ? 'bg-amber-50/40' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')} hover:bg-blue-50/50 transition-colors border-b border-gray-100 ${
                                           selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
                                         } ${draggedElement === item.id ? 'opacity-50' : ''} ${
                                           dragOverElement === item.id 
