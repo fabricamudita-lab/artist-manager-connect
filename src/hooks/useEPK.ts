@@ -251,7 +251,7 @@ export const useEPK = (epkId?: string) => {
         // Create new EPK
         const insertData: EPKInsert = {
           ...dbData,
-          creado_por: profile.id,
+          creado_por: user.id,
           titulo: epk.titulo || '',
           artista_proyecto: epk.artista_proyecto || '',
           slug: epk.slug || ''
