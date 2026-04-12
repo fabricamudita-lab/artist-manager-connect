@@ -829,9 +829,9 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                   onChange={e => handleFieldChange('spotify_strategy', e.target.value)}
                   rows={3}
                   placeholder="Texto corto presentando la estrategia específica para dirigir al público a Spotify. Puede incluir o no presupuesto."
-                  maxLength={600}
+                  maxLength={1000}
                 />
-                <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_strategy || '').length}/600</p>
+                <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_strategy || '').length}/1000</p>
               </div>
 
               {/* 17. Hitos Spotify */}
@@ -842,9 +842,9 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                   onChange={e => handleFieldChange('spotify_milestones', e.target.value)}
                   rows={2}
                   placeholder="Picos de audiencia, incorporación en alguna playlist que haya tenido impacto. Escribir en tercera persona."
-                  maxLength={350}
+                  maxLength={600}
                 />
-                <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_milestones || '').length}/350</p>
+                <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_milestones || '').length}/600</p>
               </div>
 
               {/* 18. Fotos Spotify */}
