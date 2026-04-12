@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X, Link2 } from 'lucide-react';
+import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X, Link2, LayoutGrid, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
