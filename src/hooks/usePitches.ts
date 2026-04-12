@@ -60,7 +60,7 @@ export function useCreatePitch() {
           release_id: params.release_id,
           created_by: params.created_by,
           name: params.name || 'Nuevo Pitch',
-          pitch_type: params.pitch_type || 'full_album',
+          pitch_type: params.pitch_type || 'album',
           track_id: params.track_id || null,
         } as any)
         .select()
