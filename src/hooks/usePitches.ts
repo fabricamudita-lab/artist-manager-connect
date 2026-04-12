@@ -1,0 +1,140 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface Pitch {
+  id: string;
+  release_id: string;
+  created_by: string;
+  name: string;
+  synopsis: string | null;
+  mood: string | null;
+  country: string | null;
+  spotify_strategy: string | null;
+  spotify_monthly_listeners: number | null;
+  spotify_followers: number | null;
+  spotify_milestones: string | null;
+  general_strategy: string | null;
+  social_links: string | null;
+  pitch_status: string;
+  pitch_deadline: string | null;
+  pitch_token: string | null;
+  pitch_config: Record<string, { visible: boolean; editable: boolean }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export function usePitchesByRelease(releaseId: string | undefined) {
+  return useQuery({
+    queryKey: ['pitches', releaseId],
+    queryFn: async () => {
+      if (!releaseId) return [];
+      const { data, error } = await supabase
+        .from('pitches')
+        .select('*')
+        .eq('release_id', releaseId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as Pitch[];
+    },
+    enabled: !!releaseId,
+  });
+}
+
+export function useCreatePitch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { release_id: string; created_by: string; name?: string }) => {
+      const { data, error } = await supabase
+        .from('pitches')
+        .insert({
+          release_id: params.release_id,
+          created_by: params.created_by,
+          name: params.name || 'Nuevo Pitch',
+        } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as Pitch;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pitches', data.release_id] });
+      toast.success('Pitch creado');
+    },
+    onError: () => toast.error('Error al crear el pitch'),
+  });
+}
+
+export function useUpdatePitch(options?: { silent?: boolean }) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { id: string; release_id: string; [key: string]: any }) => {
+      const { id, release_id, ...updates } = params;
+      const { error } = await supabase
+        .from('pitches')
+        .update(updates as any)
+        .eq('id', id);
+      if (error) throw error;
+      return { id, release_id };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pitches', data.release_id] });
+    },
+    onError: () => {
+      if (!options?.silent) toast.error('Error al guardar el pitch');
+    },
+  });
+}
+
+export function useDeletePitch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { id: string; release_id: string }) => {
+      const { error } = await supabase
+        .from('pitches')
+        .delete()
+        .eq('id', params.id);
+      if (error) throw error;
+      return params;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pitches', data.release_id] });
+      toast.success('Pitch eliminado');
+    },
+    onError: () => toast.error('Error al eliminar el pitch'),
+  });
+}
+
+export function useDuplicatePitch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pitch: Pitch) => {
+      const { data, error } = await supabase
+        .from('pitches')
+        .insert({
+          release_id: pitch.release_id,
+          created_by: pitch.created_by,
+          name: `${pitch.name} (copia)`,
+          synopsis: pitch.synopsis,
+          mood: pitch.mood,
+          country: pitch.country,
+          spotify_strategy: pitch.spotify_strategy,
+          spotify_monthly_listeners: pitch.spotify_monthly_listeners,
+          spotify_followers: pitch.spotify_followers,
+          spotify_milestones: pitch.spotify_milestones,
+          general_strategy: pitch.general_strategy,
+          social_links: pitch.social_links,
+          pitch_config: pitch.pitch_config,
+        } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as Pitch;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pitches', data.release_id] });
+      toast.success('Pitch duplicado');
+    },
+    onError: () => toast.error('Error al duplicar el pitch'),
+  });
+}
