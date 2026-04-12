@@ -1,28 +1,32 @@
 
 
-## Fix: EPK no se puede guardar — RLS policy mismatch
+## Plan: Vincular EPK a artista del roster
 
 ### Problema
-La política RLS de INSERT en `epks` exige `creado_por = auth.uid()`. Pero el código en `useEPK.ts` (línea 254) asigna `creado_por: profile.id`, que es el UUID de la tabla `profiles`, no el UUID de `auth.users`. Son valores distintos, por eso falla.
+El campo "Artista/Proyecto" es texto libre. El usuario quiere seleccionar un artista de su roster (o colaborador) y que el EPK quede vinculado a su perfil.
 
-### Solución
-Cambiar la línea 254 de `useEPK.ts`:
+### Cambios
 
-```typescript
-// Antes
-creado_por: profile.id,
+**1. Migración SQL — añadir `artist_id` a `epks`**
+- Nueva columna `artist_id UUID REFERENCES artists(id) ON DELETE SET NULL`
+- Índice en `artist_id`
 
-// Después  
-creado_por: user.id,
-```
+**2. `src/components/epk/EPKForm.tsx` — reemplazar input por selector**
+- En `renderBasicForm()` (líneas 105-113), reemplazar el `<Input>` de "Artista/Proyecto" por el componente `SingleArtistSelector` existente
+- Al seleccionar un artista, auto-rellenar `artista_proyecto` con su nombre/stage_name y guardar `artist_id`
+- Mantener un input de texto debajo para permitir edición manual del nombre mostrado (por si quieren personalizarlo)
 
-Esto usa `user.id` (de `supabase.auth.getUser()`), que coincide con `auth.uid()` en la política RLS.
+**3. `src/hooks/useEPK.ts` — añadir `artist_id` al tipo y al save**
+- Añadir `artist_id?: string | null` a `EPKData`
+- Incluir `artist_id` en las operaciones de insert/update
 
-Con este cambio, ya no se necesita ni siquiera la query a `profiles` para el INSERT (aunque puede mantenerse si se usa en otro sitio).
+**4. Perfil del artista — mostrar EPKs vinculados**
+- En la vista 360 del artista, añadir una sección o tab que liste los EPKs donde `artist_id` coincida, con enlaces directos al builder y al EPK público
 
-### Archivo afectado
-- `src/hooks/useEPK.ts` — línea 254: cambiar `profile.id` por `user.id`
-
-### Fix adicional (silencioso)
-- Corregir el error de runtime `Select.Item` con valor vacío (buscar en el EPK builder o componentes relacionados un `<SelectItem value="">` y asignarle un valor no vacío).
+### Archivos afectados
+- Nueva migración SQL
+- `src/hooks/useEPK.ts` — tipo + save
+- `src/components/epk/EPKForm.tsx` — selector de artista
+- `src/integrations/supabase/types.ts` — se regenera
+- Componente del perfil del artista (a identificar) — listado de EPKs
 
