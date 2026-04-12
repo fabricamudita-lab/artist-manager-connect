@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Trash2, Plane, Train, Bus, Car, Pencil, MapPin, Clock, Briefcase, User } from 'lucide-react';
+import { Plus, Trash2, Plane, Train, Bus, Car, Pencil, MapPin, Clock, Briefcase, User, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,8 @@ export interface TravelTrip {
 interface TravelBlockData {
   trips?: TravelTrip[];
   luggagePolicy?: string;
+  selfArranged?: boolean;
+  selfArrangedNote?: string;
 }
 
 export interface TravelBlockProps {
