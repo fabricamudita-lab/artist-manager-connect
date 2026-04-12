@@ -1,26 +1,47 @@
 
 
-## Tarjeta KPI configurable con menú desplegable
+## KPI Cards configurables con menú desplegable
 
 ### Concepto
-Añadir una 6a tarjeta KPI en el hueco de CityZen que permite al usuario elegir qué métrica mostrar mediante un pequeño desplegable. La selección se guarda en `localStorage` para que persista entre sesiones.
+Extender el sistema del 6o KPI card a las 6 tarjetas. Cada una tendrá un desplegable para elegir qué métrica mostrar. Se guardan las 6 selecciones en `localStorage` y se restauran al volver.
 
-### Métricas disponibles
-1. **Próximos 30 días** -- cuenta de eventos confirmados en los próximos 30 días
-2. **Cobros Pendientes** -- eventos realizados con cobro pendiente (>7 días)
-3. **Tasa de Conversión** -- % de ofertas que llegan a confirmado/facturado/realizado
-4. **Fee Medio** -- fee promedio de los confirmados
+### Pool de métricas disponibles (10 opciones)
+Cada tarjeta puede mostrar cualquiera de estas:
+
+| Clave | Etiqueta | Valor | Color |
+|-------|----------|-------|-------|
+| `totalOfertas` | Total Ofertas | Conteo total | gris |
+| `confirmados` | Confirmados | Conteo fase confirmado | verde |
+| `negociacion` | En Negociación | Conteo fase negociación | ámbar |
+| `feeTotalConf` | Fee Total Confirmados | Suma fee confirmados+facturados | azul |
+| `internacionales` | Internacionales | Conteo `es_internacional` | púrpura |
+| `next30` | Próximos 30 días | Confirmados próximos 30 días | teal |
+| `cobrosPendientes` | Cobros Pendientes | Realizados >7 días sin cobrar | teal |
+| `conversion` | Tasa de Conversión | % ofertas → confirmado+ | teal |
+| `feeMedia` | Fee Medio | Promedio fee confirmados | teal |
+| `realizados` | Realizados | Conteo fase realizado | teal |
+
+### Diseño visual
+- Cada tarjeta mantiene su estilo visual actual por defecto (colores distintivos por métrica)
+- El título se reemplaza por un `<Select>` compacto (igual que el 6o card actual)
+- Al cambiar la métrica, el color del borde y fondo se adapta a la métrica seleccionada
+
+### Defaults y persistencia
+- **Valores por defecto** (idénticos al estado actual): Total Ofertas, Confirmados, En Negociación, Fee Total Confirmados, Internacionales, Próximos 30 días
+- Se guarda un array en `localStorage('booking_kpi_config')` con las 6 claves
+- Si no hay nada guardado, usa los defaults
+
+### Seguridad / Riesgos mitigados
+- Sin cambios en datos ni lógica de negocio, solo presentación
+- Si una clave guardada no existe (por actualización futura), se revierte al default de esa posición
+- Los cálculos son los mismos que ya existen, solo se extraen a una función reutilizable
 
 ### Cambio técnico (1 archivo)
 
 **`src/components/BookingKanban.tsx`**:
-- Añadir un estado `customKpiMetric` con 4 opciones, inicializado desde `localStorage`
-- Después de la tarjeta "Internacionales" (línea 820), insertar una nueva tarjeta con:
-  - Un `<Select>` pequeño en la cabecera (en lugar del título fijo)
-  - El valor calculado debajo según la métrica seleccionada
-  - Estilo con borde teal/cyan para diferenciarlo visualmente
-- Guardar la selección en `localStorage('booking_custom_kpi')`
-
-### Resultado visual
-Las 6 tarjetas quedan: Total Ofertas | Confirmados | En Negociación | Fee Total | Internacionales | **[Desplegable]**
+1. Crear un mapa `KPI_METRICS` con las 10 métricas: clave, label, función de cálculo, y estilos (color borde/fondo/texto)
+2. Reemplazar los 6 `<div>` hardcodeados por un `.map()` sobre un array de 6 slots
+3. Estado `kpiConfig` (array de 6 claves) inicializado desde `localStorage` con fallback a defaults
+4. Cada slot renderiza un `<Select>` + el valor calculado, usando los estilos de la métrica seleccionada
+5. Eliminar el estado `customKpiMetric` anterior (se absorbe en el nuevo sistema)
 
