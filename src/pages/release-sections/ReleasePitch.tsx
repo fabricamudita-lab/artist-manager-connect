@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,35 +51,39 @@ const PITCH_FIELDS = [
   { key: 'copyright', label: 'Copyright ©', section: 'info' },
 ];
 
+const PITCH_LOCAL_KEYS = [
+  'synopsis', 'mood', 'country', 'spotify_strategy',
+  'spotify_monthly_listeners', 'spotify_followers', 'spotify_milestones',
+  'general_strategy', 'social_links',
+];
+
+const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v));
+
 type PitchConfig = Record<string, { visible: boolean; editable: boolean }>;
 
 export default function ReleasePitch() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading } = useRelease(id);
-  const updateRelease = useUpdateRelease();
+  const updateRelease = useUpdateRelease({ silent: true });
   const [copied, setCopied] = useState(false);
   const [generatingToken, setGeneratingToken] = useState(false);
+  const hasInitialized = useRef(false);
 
   // Local form state for pitch-specific fields
   const [localData, setLocalData] = useState<Record<string, any>>({});
   const [pitchConfig, setPitchConfig] = useState<PitchConfig>({});
   const [pitchDeadline, setPitchDeadline] = useState('');
 
-  // Initialize from release
+  // Initialize from release — only once
   useEffect(() => {
-    if (release) {
-      setLocalData({
-        synopsis: release.synopsis || '',
-        mood: release.mood || '',
-        country: release.country || '',
-        spotify_strategy: release.spotify_strategy || '',
-        spotify_monthly_listeners: release.spotify_monthly_listeners || '',
-        spotify_followers: release.spotify_followers || '',
-        spotify_milestones: release.spotify_milestones || '',
-        general_strategy: release.general_strategy || '',
-        social_links: release.social_links || '',
+    if (release && !hasInitialized.current) {
+      hasInitialized.current = true;
+      const initial: Record<string, any> = {};
+      PITCH_LOCAL_KEYS.forEach(k => {
+        initial[k] = (release as any)[k] ?? '';
       });
+      setLocalData(initial);
       setPitchConfig((release.pitch_config as PitchConfig) || {});
       setPitchDeadline(release.pitch_deadline || '');
     }
@@ -87,22 +91,26 @@ export default function ReleasePitch() {
 
   const debouncedData = useDebounce(localData, 1500);
 
-  // Auto-save pitch fields
+  // Auto-save pitch fields — only real changes
   useEffect(() => {
-    if (!id || !release) return;
-    const hasChanges = Object.keys(debouncedData).some(
-      k => debouncedData[k] !== (release as any)[k]
-    );
-    if (hasChanges) {
-      const numericFields = ['spotify_monthly_listeners', 'spotify_followers'];
-      const updates: Record<string, any> = {};
-      for (const [k, v] of Object.entries(debouncedData)) {
+    if (!id || !release || !hasInitialized.current) return;
+
+    const numericFields = ['spotify_monthly_listeners', 'spotify_followers'];
+    const updates: Record<string, any> = {};
+
+    for (const k of PITCH_LOCAL_KEYS) {
+      const dbVal = normalize((release as any)[k]);
+      const localVal = normalize(debouncedData[k]);
+      if (localVal !== dbVal) {
         if (numericFields.includes(k)) {
-          updates[k] = v === '' ? null : Number(v);
+          updates[k] = debouncedData[k] === '' ? null : Number(debouncedData[k]);
         } else {
-          updates[k] = v || null;
+          updates[k] = debouncedData[k] || null;
         }
       }
+    }
+
+    if (Object.keys(updates).length > 0) {
       updateRelease.mutate({ id, ...updates });
     }
   }, [debouncedData]);

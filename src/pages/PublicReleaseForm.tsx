@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -93,6 +93,7 @@ export default function PublicReleaseForm() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const hasInitialized = useRef(false);
 
   // Fetch release by token
   useEffect(() => {
@@ -118,12 +119,15 @@ export default function PublicReleaseForm() {
         const releaseData = data as any as ReleaseData;
         setRelease(releaseData);
 
-        // Initialize form with current values
-        const initial: Record<string, any> = {};
-        Object.keys(FIELD_LABELS).forEach(key => {
-          initial[key] = (releaseData as any)[key] ?? '';
-        });
-        setFormData(initial);
+        // Initialize form with current values — only first load
+        if (!hasInitialized.current) {
+          hasInitialized.current = true;
+          const initial: Record<string, any> = {};
+          Object.keys(FIELD_LABELS).forEach(key => {
+            initial[key] = (releaseData as any)[key] ?? '';
+          });
+          setFormData(initial);
+        }
 
         if (releaseData.pitch_status === 'completed') {
           setSubmitted(true);
@@ -141,12 +145,11 @@ export default function PublicReleaseForm() {
   const debouncedForm = useDebounce(formData, 2000);
 
   useEffect(() => {
-    if (!release || submitted || loading) return;
+    if (!release || submitted || loading || !hasInitialized.current) return;
     
+    const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v));
     const hasChanges = Object.keys(debouncedForm).some(k => {
-      const current = (release as any)[k];
-      const newVal = debouncedForm[k];
-      return (current ?? '') !== (newVal ?? '');
+      return normalize((release as any)[k]) !== normalize(debouncedForm[k]);
     });
 
     if (hasChanges) {

@@ -285,8 +285,9 @@ export function useCreateRelease() {
 }
 
 // Update release
-export function useUpdateRelease() {
+export function useUpdateRelease(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
+  const silent = options?.silent ?? false;
 
   return useMutation({
     mutationFn: async ({ id, artist_ids, ...updates }: Partial<Release> & { id: string; artist_ids?: string[] }) => {
@@ -330,7 +331,9 @@ export function useUpdateRelease() {
       queryClient.invalidateQueries({ queryKey: ['release', data.id] });
       queryClient.invalidateQueries({ queryKey: ['release-artists', data.id] });
       queryClient.invalidateQueries({ queryKey: ['artist-releases'] });
-      toast.success('Lanzamiento actualizado');
+      if (!silent) {
+        toast.success('Lanzamiento actualizado');
+      }
     },
     onError: () => {
       toast.error('Error al actualizar');
