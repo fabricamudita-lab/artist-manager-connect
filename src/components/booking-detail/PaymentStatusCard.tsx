@@ -203,9 +203,34 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
           className={`transition-all ${highlighted ? 'ring-2 ring-primary/50 animate-pulse' : ''}`}
         >
           <CardHeader className="pb-3 cursor-pointer select-none" onClick={toggleCollapsed}>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-base flex items-center gap-2 w-full">
               <Banknote className="h-4 w-4 text-primary" />
               Estado de Pagos
+              {collapsed && (
+                <div className="flex items-center gap-2 ml-2" onClick={e => e.stopPropagation()}>
+                  {isCobradoCompleto && !hasFraccionado ? (
+                    <>
+                      <StatusBadge estado="cobrado" />
+                      <span className="text-sm font-medium text-muted-foreground">{fmt(booking.cobro_importe || fee)}</span>
+                    </>
+                  ) : hasFraccionado ? (
+                    <>
+                      <StatusBadge
+                        estado={booking.anticipo_estado === 'cobrado' && booking.liquidacion_estado === 'cobrado' ? 'cobrado' : booking.anticipo_estado}
+                        fechaEsperada={booking.anticipo_estado !== 'cobrado' ? booking.anticipo_fecha_esperada : booking.liquidacion_fecha_esperada}
+                      />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {fmt((booking.anticipo_estado === 'cobrado' ? (booking.anticipo_importe || 0) : 0) + (booking.liquidacion_estado === 'cobrado' ? (booking.liquidacion_importe || 0) : 0))} / {fmt(fee)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <StatusBadge estado="pendiente" />
+                      <span className="text-sm font-medium text-muted-foreground">{fmt(fee)}</span>
+                    </>
+                  )}
+                </div>
+              )}
               <ChevronDown className={`h-4 w-4 ml-auto text-muted-foreground transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
             </CardTitle>
           </CardHeader>
