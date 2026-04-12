@@ -249,7 +249,7 @@ interface PitchEditorProps {
   pitch: Pitch;
   release: any;
   releaseId: string;
-  tracks: Array<{ id: string; title: string; track_number: number | null; isrc: string | null }>;
+  tracks: Array<{ id: string; title: string; track_number: number | null; isrc: string | null; release_date: string | null }>;
   onBack: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -686,10 +686,14 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
             </div>
           )}
 
-          {/* 8. Fecha de lanzamiento (read-only) */}
+          {/* 8. Fecha de lanzamiento (read-only, dinámica según tipo) */}
           <div>
             <Label className="text-xs text-muted-foreground">Fecha de lanzamiento *</Label>
-            <p className="text-sm font-medium">{release.release_date || '—'}</p>
+            <p className="text-sm font-medium">
+              {pitchType === 'single' && trackId
+                ? (tracks.find(t => t.id === trackId)?.release_date || release.release_date || '—')
+                : (release.release_date || '—')}
+            </p>
           </div>
 
           {/* 9. Género (read-only) */}
