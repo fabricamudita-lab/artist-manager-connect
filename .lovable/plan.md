@@ -1,25 +1,48 @@
 
 
-## Plan: Instrumentos dinámicos según tipo de pitch y track seleccionado
+## Plan: Agrupar campos por sección con toggle por grupo y colapsar
 
-### Cambio
+### Problema
+La configuración de campos muestra 28+ campos en una lista plana. Es lento configurar uno por uno. Los campos ya tienen una propiedad `section` (`info`, `content`, `spotify`, `strategy`, `vevo`) pero no se usa en la UI.
 
-Actualmente la sugerencia de instrumentos consulta **todos** los tracks del release. Debe ser contextual:
+### Solución
 
-- **Single**: solo los créditos del track seleccionado (`trackId`)
-- **EP / Album**: todos los tracks del release (comportamiento actual)
+**Archivo: `src/pages/release-sections/ReleasePitch.tsx`**
 
-### Implementación
+1. **Definir grupos de secciones** con labels en español:
+   - `info` → "Información Básica"
+   - `content` → "Archivos y Contenido"
+   - `spotify` → "Datos Spotify"
+   - `strategy` → "Estrategia y RRSS"
+   - `vevo` → "Vevo (opcional)"
 
-**Archivo: `src/pages/release-sections/ReleasePitch.tsx`** (~líneas 308-331)
+2. **Reemplazar la lista plana** (líneas 529-557) por secciones colapsables:
+   - Cada grupo tiene un header clickable con chevron para expandir/colapsar
+   - El header muestra: nombre del grupo + conteo de campos + toggle maestro (visible/editable)
+   - Toggle maestro de grupo: al activar/desactivar, cambia todos los campos del grupo de golpe
+   - Estado colapsado por defecto para secciones opcionales (vevo)
 
-1. Modificar la consulta de `track_credits` en el `useEffect` de sugerencias:
-   - Si `pitchType === 'single'` y hay `trackId` → consultar solo `.eq('track_id', trackId)`
-   - Si no → consultar `.in('track_id', trackIds)` (todos los tracks, como ahora)
+3. **Toggle maestro por grupo**:
+   - Switch "Visible" en el header → activa/desactiva visibilidad de todos los campos del grupo
+   - Switch "Editable" en el header → activa/desactiva editable de todos los campos del grupo
+   - Estado "indeterminate" (dash) cuando algunos campos están on y otros off dentro del grupo
 
-2. Agregar `trackId` y `pitchType` (derivado de `localData.pitch_type`) a las dependencias del `useEffect`
+4. **Campos individuales** dentro de cada grupo expandido mantienen los switches individuales actuales
 
-3. Quitar la condición `if (!localData.instruments)` para que al cambiar de track/tipo se recalcule la sugerencia (solo si el usuario no ha editado manualmente el campo — se puede usar un flag o simplemente re-sugerir siempre que cambie el track)
+5. **Estado de colapso** guardado en un `useState` local (no persiste, se reinicia al abrir)
+
+### Detalle técnico
+
+```text
+┌─ Información Básica (7)          [Visible ◉] [Editable ◉]  ▼
+│  ├─ País                         [  ◉  ]     [  ◉  ]
+│  ├─ Descripción                  [  ◉  ]     [  ○  ]
+│  └─ ...
+├─ Archivos y Contenido (5)        [Visible ◉] [Editable ◉]  ▶ (collapsed)
+├─ Datos Spotify (5)               [Visible ◉] [Editable ◉]  ▶
+├─ Estrategia y RRSS (4)          [Visible ◉] [Editable ◉]  ▶
+└─ Vevo (opcional) (5)            [Visible ○] [Editable ○]  ▶
+```
 
 ### Un archivo afectado
 - `src/pages/release-sections/ReleasePitch.tsx`
