@@ -150,7 +150,7 @@ export default function ReleasePitch() {
         pitch={selectedPitch}
         release={release}
         releaseId={id!}
-        tracks={tracks}
+        tracks={tracks as any}
         onBack={() => setSelectedPitchId(null)}
         onDelete={() => {
           deletePitch.mutate({ id: selectedPitch.id, release_id: id! });
