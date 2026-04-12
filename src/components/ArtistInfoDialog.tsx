@@ -378,8 +378,8 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Nombre" field="name" />
-                <Field label="Nombre artístico" field="stage_name" placeholder="Nombre artístico" />
+                {renderField("Nombre", "name")}
+                {renderField("Nombre artístico", "stage_name", undefined, "Nombre artístico")}
               </div>
               <div className="space-y-2">
                 <Label>Género musical</Label>
@@ -389,7 +389,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                   <Input value={artistData.genre || 'No especificado'} disabled />
                 )}
               </div>
-              <TextareaField label="Descripción / Bio" field="description" placeholder="Biografía del artista" />
+              {renderTextareaField("Descripción / Bio", "description", "Biografía del artista")}
             </CardContent>
           </Card>
 
@@ -400,10 +400,10 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Email" field="email" icon={<Mail className="h-4 w-4" />} placeholder="email@ejemplo.com" />
-                <Field label="Teléfono" field="phone" icon={<Phone className="h-4 w-4" />} placeholder="+34 600 000 000" />
+                {renderField("Email", "email", <Mail className="h-4 w-4" />, "email@ejemplo.com")}
+                {renderField("Teléfono", "phone", <Phone className="h-4 w-4" />, "+34 600 000 000")}
               </div>
-              <Field label="Dirección" field="address" icon={<MapPin className="h-4 w-4" />} placeholder="Dirección completa" />
+              {renderField("Dirección", "address", <MapPin className="h-4 w-4" />, "Dirección completa")}
             </CardContent>
           </Card>
 
@@ -413,9 +413,9 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Redes Sociales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Instagram" field="instagram_url" icon={<Instagram className="h-4 w-4" />} placeholder="https://instagram.com/..." />
-              <Field label="Spotify" field="spotify_url" placeholder="https://open.spotify.com/..." />
-              <Field label="TikTok" field="tiktok_url" placeholder="https://tiktok.com/..." />
+              {renderField("Instagram", "instagram_url", <Instagram className="h-4 w-4" />, "https://instagram.com/...")}
+              {renderField("Spotify", "spotify_url", undefined, "https://open.spotify.com/...")}
+              {renderField("TikTok", "tiktok_url", undefined, "https://tiktok.com/...")}
             </CardContent>
           </Card>
 
@@ -426,8 +426,8 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Talla de ropa" field="clothing_size" placeholder="M, L, XL..." />
-                <Field label="Talla de calzado" field="shoe_size" placeholder="42, 43..." />
+                {renderField("Talla de ropa", "clothing_size", undefined, "M, L, XL...")}
+                {renderField("Talla de calzado", "shoe_size", undefined, "42, 43...")}
               </div>
             </CardContent>
           </Card>
@@ -438,8 +438,8 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               <CardTitle className="flex items-center gap-2"><Heart className="h-5 w-5" />Salud y Necesidades</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <TextareaField label="Alergias" field="allergies" placeholder="Alergias alimentarias, medicamentos..." rows={2} />
-              <TextareaField label="Necesidades especiales" field="special_needs" placeholder="Requisitos especiales..." rows={2} />
+              {renderTextareaField("Alergias", "allergies", "Alergias alimentarias, medicamentos...", 2)}
+              {renderTextareaField("Necesidades especiales", "special_needs", "Requisitos especiales...", 2)}
             </CardContent>
           </Card>
 
@@ -451,10 +451,10 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Empresa" field="company_name" placeholder="Nombre de empresa" />
-                  <Field label="Nombre legal" field="legal_name" placeholder="Nombre legal" />
+                  {renderField("Empresa", "company_name", undefined, "Nombre de empresa")}
+                  {renderField("Nombre legal", "legal_name", undefined, "Nombre legal")}
                 </div>
-                <Field label="CIF / NIF" field="tax_id" placeholder="CIF o NIF" />
+                {renderField("CIF / NIF", "tax_id", undefined, "CIF o NIF")}
               </CardContent>
             </Card>
           )}
@@ -551,7 +551,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                     })()}
 
                     {/* NIF */}
-                    <Field label="NIF / NIE" field="nif" placeholder="12345678A" />
+                    {renderField("NIF / NIE", "nif", undefined, "12345678A")}
 
                     {/* Tipo de entidad */}
                     <div className="space-y-2">
@@ -598,9 +598,9 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                 <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5" />Datos Bancarios</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Field label="Banco" field="bank_name" placeholder="Nombre del banco" />
-                <Field label="IBAN" field="iban" placeholder="ES00 0000 0000 0000 0000 0000" />
-                <Field label="Código SWIFT" field="swift_code" placeholder="BBVAESMMXXX" />
+                {renderField("Banco", "bank_name", undefined, "Nombre del banco")}
+                {renderField("IBAN", "iban", undefined, "ES00 0000 0000 0000 0000 0000")}
+                {renderField("Código SWIFT", "swift_code", undefined, "BBVAESMMXXX")}
               </CardContent>
             </Card>
           )}
@@ -611,7 +611,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               <CardTitle className="flex items-center gap-2"><StickyNote className="h-5 w-5" />Observaciones</CardTitle>
             </CardHeader>
             <CardContent>
-              <TextareaField label="Notas" field="notes" placeholder="Notas adicionales sobre el artista..." rows={3} />
+              {renderTextareaField("Notas", "notes", "Notas adicionales sobre el artista...", 3)}
             </CardContent>
           </Card>
 
