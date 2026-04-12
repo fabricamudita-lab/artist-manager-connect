@@ -1,34 +1,32 @@
 
 
-## Plan: Sugerencias automáticas y cambio de opciones de tipo
+## Plan: UPC/ISRC dinámico según tipo y canción seleccionada
 
-### 3 cambios solicitados
+### Qué cambia
 
-**1. País — sugerir desde el artista**
-El campo `artists` tiene `address` (texto libre). Al abrir el editor de pitch, si `country` está vacío, consultar el artista principal del release (vía `release_artists`) y extraer su `address` para pre-rellenar el campo país. Como `address` es texto libre y no hay campo `country` explícito en artistas, se usará el valor completo de `address` como sugerencia inicial (el usuario puede editarlo).
+El campo UPC actualmente muestra siempre el UPC del release (nivel álbum). Según el tipo de lanzamiento seleccionado, debe mostrar información diferente:
 
-**2. Tipo — cambiar opciones a Single / EP / Album**
-Reemplazar las opciones actuales `single`, `focus_track`, `full_album` por `single`, `ep`, `album`:
-- Actualizar `PITCH_TYPE_LABELS` con las nuevas claves
-- Cambiar los `SelectItem` en el editor
-- Ajustar la lógica existente: donde dice `full_album` pasa a `album`, donde dice `focus_track` pasa a `ep`
-- Mantener la lógica de auto-nombre: `album` y `ep` usan título del release, `single` usa título del track
-- Si hay 1 sola canción, sigue siendo `single` por defecto
-- Si hay varias, mostrar las 3 opciones
+- **Single**: mostrar el **ISRC** del track seleccionado (no el UPC del release)
+- **EP / Album**: mostrar el **UPC** del release
 
-**3. Instrumentos — sugerir desde créditos**
-Consultar `track_credits` de los tracks del release. Filtrar los roles de categoría `interprete` (guitarra, bajo, voz, etc.) y mapearlos a sus labels usando `INTERPRETE_ROLES` de `creditRoles.ts`. Incluir también `custom_instruments` si existen (campo `notes` en créditos con rol `otro_instrumento`). Pre-rellenar el campo `instruments` con la lista deduplicada separada por comas, solo si el campo está vacío.
+Esto refleja cómo funciona la industria: los singles se identifican por ISRC, los álbumes/EPs por UPC.
 
-### Archivos afectados
+### Cambios técnicos
 
-- `src/pages/release-sections/ReleasePitch.tsx` — los 3 cambios
-- `src/lib/creditRoles.ts` — solo importar, sin modificar
+**Archivo: `src/pages/release-sections/ReleasePitch.tsx`**
 
-### Detalle técnico
+1. **Ampliar el tipo de `tracks` en `PitchEditorProps`** para incluir `isrc`:
+   ```
+   tracks: Array<{ id: string; title: string; track_number: number | null; isrc: string | null }>
+   ```
 
-En `PitchEditor`, añadir un `useEffect` que al montar (cuando `pitch.id` cambia):
-1. Consulta `release_artists` → `artists.address` del artista principal → si `localData.country` vacío, lo rellena
-2. Consulta `track_credits` con los `track_id` del release → filtra roles de `INTERPRETE_ROLES` → mapea a labels → si `localData.instruments` vacío, lo rellena
+2. **Hacer el bloque UPC dinámico** (líneas ~580-585): en vez de mostrar siempre `release.upc`, aplicar esta lógica:
+   - Si `pitchType === 'single'` y hay un `trackId` seleccionado → buscar el track y mostrar su ISRC con label "ISRC"
+   - Si `pitchType === 'single'` sin track seleccionado → mostrar "Selecciona una canción para ver el ISRC"
+   - Si `pitchType === 'ep'` o `'album'` → mostrar `release.upc` con label "UPC" (comportamiento actual)
 
-Para el tipo, cambio directo de constantes y valores.
+3. **Actualizar también la lista principal** (línea ~135-155) para pasar `isrc` en el prop `tracks` — ya se pasa `tracks` directamente del hook `useTracks` que devuelve `Track[]` con `isrc`, solo hay que actualizar el tipo.
+
+### Un archivo afectado
+- `src/pages/release-sections/ReleasePitch.tsx`
 
