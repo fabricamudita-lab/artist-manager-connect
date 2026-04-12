@@ -334,7 +334,7 @@ export default function RoadmapDetail() {
       case 'hospitality':
         return <HospitalityBlock {...props} artistId={roadmap.artist_id} bookingId={firstBooking?.id} />;
       case 'production':
-        return <ProductionBlock {...props} linkedBookings={linkedBookings} />;
+        return <ProductionBlock {...props} linkedBookings={linkedBookings} artistId={roadmap.artist_id} />;
       case 'contacts':
         return <ContactsBlock {...props} />;
       default:
