@@ -166,6 +166,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [pendingConfirmOffer, setPendingConfirmOffer] = useState<string | null>(null);
   const [cobradoBooking, setCobradoBooking] = useState<BookingOffer | null>(null);
+  const [customKpiMetric, setCustomKpiMetric] = useState<'next30' | 'cobrosPendientes' | 'conversion' | 'feeMedia'>(
+    () => (localStorage.getItem('booking_custom_kpi') as any) || 'next30'
+  );
   const [buddyOpen, setBuddyOpen] = useState(() => {
     try { return localStorage.getItem('buddy-panel-open') === 'true'; } catch { return false; }
   });
