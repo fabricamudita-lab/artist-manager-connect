@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { INTERPRETE_ROLES, getRoleLabel } from '@/lib/creditRoles';
-import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Loader2, Plus, Trash2, CopyPlus, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Loader2, Plus, Trash2, CopyPlus, ChevronLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -239,6 +239,110 @@ export default function ReleasePitch() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Field Config Grouped ────────────────────────────────────
+
+const SECTION_GROUPS = [
+  { id: 'info', label: 'Información Básica', icon: '📌', defaultOpen: true },
+  { id: 'content', label: 'Archivos y Contenido', icon: '📁', defaultOpen: false },
+  { id: 'spotify', label: 'Datos Spotify', icon: '📊', defaultOpen: false },
+  { id: 'strategy', label: 'Estrategia y RRSS', icon: '🎯', defaultOpen: false },
+  { id: 'vevo', label: 'Vevo (opcional)', icon: '🎬', defaultOpen: false },
+];
+
+
+function FieldConfigGrouped({ pitchConfig, onToggle, onBatchToggle }: {
+  pitchConfig: PitchConfig;
+  onToggle: (key: string, prop: 'visible' | 'editable') => void;
+  onBatchToggle: (keys: string[], prop: 'visible' | 'editable', value: boolean) => void;
+}) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(SECTION_GROUPS.map(s => [s.id, s.defaultOpen]))
+  );
+
+  const toggleSection = (id: string) => setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const fieldsBySection = SECTION_GROUPS.map(group => ({
+    ...group,
+    fields: PITCH_FIELDS.filter(f => f.section === group.id),
+  }));
+
+  return (
+    <div className="space-y-1">
+      <div className="grid grid-cols-[1fr_64px_64px] gap-2 text-xs font-medium text-muted-foreground px-1 mb-2">
+        <span>Sección / Campo</span>
+        <span className="text-center">Visible</span>
+        <span className="text-center">Editable</span>
+      </div>
+      {fieldsBySection.map(group => {
+        const isOpen = openSections[group.id] ?? false;
+        const configs = group.fields.map(f => pitchConfig[f.key] || { visible: true, editable: false });
+        const allVisible = configs.every(c => c.visible);
+        const noneVisible = configs.every(c => !c.visible);
+        const allEditable = configs.every(c => c.editable);
+        const noneEditable = configs.every(c => !c.editable);
+
+        return (
+          <div key={group.id} className="border rounded-lg overflow-hidden">
+            <div
+              className="flex items-center gap-2 px-3 py-2 bg-muted/50 cursor-pointer select-none"
+              onClick={() => toggleSection(group.id)}
+            >
+              {isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+              <span className="text-sm font-medium flex-1">
+                {group.icon} {group.label} ({group.fields.length})
+              </span>
+              <div className="flex items-center gap-4" onClick={e => e.stopPropagation()}>
+                <Checkbox
+                  checked={allVisible ? true : noneVisible ? false : 'indeterminate'}
+                  onCheckedChange={(checked) => {
+                    onBatchToggle(group.fields.map(f => f.key), 'visible', !!checked);
+                  }}
+                  className="h-4 w-4"
+                />
+                <Checkbox
+                  checked={allEditable ? true : noneEditable ? false : 'indeterminate'}
+                  onCheckedChange={(checked) => {
+                    onBatchToggle(group.fields.map(f => f.key), 'editable', !!checked);
+                  }}
+                  disabled={noneVisible}
+                  className="h-4 w-4"
+                />
+              </div>
+            </div>
+            {isOpen && (
+              <div className="px-3 py-1 space-y-0.5">
+                {group.fields.map(field => {
+                  const config = pitchConfig[field.key] || { visible: true, editable: false };
+                  return (
+                    <div key={field.key} className="grid grid-cols-[1fr_64px_64px] gap-2 items-center py-1.5">
+                      <span className="text-sm pl-5">{field.label}</span>
+                      <div className="flex justify-center">
+                        <Switch
+                          checked={config.visible}
+                          onCheckedChange={() => onToggle(field.key, 'visible')}
+                          className="scale-90"
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <Switch
+                          checked={config.editable}
+                          onCheckedChange={() => onToggle(field.key, 'editable')}
+                          disabled={!config.visible}
+                          className="scale-90"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -526,35 +630,16 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
           </p>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="grid grid-cols-[1fr_80px_80px] gap-2 text-xs font-medium text-muted-foreground px-1">
-              <span>Campo</span>
-              <span className="text-center">Visible</span>
-              <span className="text-center">Editable</span>
-            </div>
-            <Separator />
-            {PITCH_FIELDS.map(field => {
-              const config = pitchConfig[field.key] || { visible: true, editable: false };
-              return (
-                <div key={field.key} className="grid grid-cols-[1fr_80px_80px] gap-2 items-center py-1">
-                  <span className="text-sm">{field.label}</span>
-                  <div className="flex justify-center">
-                    <Switch
-                      checked={config.visible}
-                      onCheckedChange={() => handleConfigToggle(field.key, 'visible')}
-                    />
-                  </div>
-                  <div className="flex justify-center">
-                    <Switch
-                      checked={config.editable}
-                      onCheckedChange={() => handleConfigToggle(field.key, 'editable')}
-                      disabled={!config.visible}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <FieldConfigGrouped pitchConfig={pitchConfig} onToggle={handleConfigToggle} onBatchToggle={(keys, prop, value) => {
+            const updated = { ...pitchConfig };
+            keys.forEach(k => {
+              if (!updated[k]) updated[k] = { visible: true, editable: false };
+              updated[k] = { ...updated[k], [prop]: value };
+              if (prop === 'visible' && !value) updated[k].editable = false;
+            });
+            setPitchConfig(updated);
+            updatePitch.mutate({ id: pitch.id, release_id: releaseId, updates: { field_config: updated } });
+          }} />
         </CardContent>
       </Card>
 
