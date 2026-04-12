@@ -255,6 +255,74 @@ export default function Roadmaps() {
           ))}
         </div>
       ) : filteredRoadmaps && filteredRoadmaps.length > 0 ? (
+        viewMode === 'list' ? (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Artista</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fechas</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRoadmaps.map((roadmap) => (
+                  <TableRow
+                    key={roadmap.id}
+                    className="cursor-pointer group"
+                    onClick={() => navigate(`/roadmaps/${roadmap.id}`)}
+                  >
+                    <TableCell className="font-medium">{roadmap.name}</TableCell>
+                    <TableCell>
+                      {roadmap.artist ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={roadmap.artist.avatar_url || undefined} />
+                            <AvatarFallback><User className="w-3 h-3" /></AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-muted-foreground">{roadmap.artist.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[roadmap.status].variant}>
+                        {statusConfig[roadmap.status].label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDateRange(roadmap.start_date, roadmap.end_date)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteRoadmap.mutate(roadmap.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredRoadmaps.map((roadmap) => (
             <Card
@@ -307,6 +375,7 @@ export default function Roadmaps() {
             </Card>
           ))}
         </div>
+        )
       ) : (
         <Card className="p-12 text-center">
           <div className="flex flex-col items-center gap-4">
