@@ -62,11 +62,18 @@ const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : 
 
 type PitchConfig = Record<string, { visible: boolean; editable: boolean }>;
 
+const PITCH_TYPE_LABELS: Record<string, string> = {
+  single: 'Single',
+  focus_track: 'Focus Track',
+  full_album: 'Album Completo',
+};
+
 export default function ReleasePitch() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading: releaseLoading } = useRelease(id);
   const { data: pitches = [], isLoading: pitchesLoading } = usePitchesByRelease(id);
+  const { data: tracks = [] } = useTracks(id);
   const createPitch = useCreatePitch();
   const updatePitch = useUpdatePitch({ silent: true });
   const deletePitch = useDeletePitch();
@@ -90,7 +97,17 @@ export default function ReleasePitch() {
     if (!id) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    createPitch.mutate({ release_id: id, created_by: user.id });
+    // If only 1 track, auto-assign as single
+    if (tracks.length === 1) {
+      createPitch.mutate({ release_id: id, created_by: user.id, pitch_type: 'single', track_id: tracks[0].id });
+    } else {
+      createPitch.mutate({ release_id: id, created_by: user.id });
+    }
+  };
+
+  const getTrackName = (trackId: string | null) => {
+    if (!trackId) return null;
+    return tracks.find(t => t.id === trackId)?.title || null;
   };
 
   if (isLoading) {
