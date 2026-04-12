@@ -4479,11 +4479,16 @@ export type Database = {
       }
       pitches: {
         Row: {
+          additional_info: string | null
+          artist_bio: string | null
+          artist_photos_link: string | null
+          audio_link: string | null
           country: string | null
           created_at: string
           created_by: string
           general_strategy: string | null
           id: string
+          instruments: string | null
           mood: string | null
           name: string
           pitch_config: Json | null
@@ -4496,17 +4501,24 @@ export type Database = {
           spotify_followers: number | null
           spotify_milestones: string | null
           spotify_monthly_listeners: number | null
+          spotify_photos_link: string | null
           spotify_strategy: string | null
           synopsis: string | null
           track_id: string | null
           updated_at: string
+          video_link: string | null
         }
         Insert: {
+          additional_info?: string | null
+          artist_bio?: string | null
+          artist_photos_link?: string | null
+          audio_link?: string | null
           country?: string | null
           created_at?: string
           created_by: string
           general_strategy?: string | null
           id?: string
+          instruments?: string | null
           mood?: string | null
           name?: string
           pitch_config?: Json | null
@@ -4519,17 +4531,24 @@ export type Database = {
           spotify_followers?: number | null
           spotify_milestones?: string | null
           spotify_monthly_listeners?: number | null
+          spotify_photos_link?: string | null
           spotify_strategy?: string | null
           synopsis?: string | null
           track_id?: string | null
           updated_at?: string
+          video_link?: string | null
         }
         Update: {
+          additional_info?: string | null
+          artist_bio?: string | null
+          artist_photos_link?: string | null
+          audio_link?: string | null
           country?: string | null
           created_at?: string
           created_by?: string
           general_strategy?: string | null
           id?: string
+          instruments?: string | null
           mood?: string | null
           name?: string
           pitch_config?: Json | null
@@ -4542,10 +4561,12 @@ export type Database = {
           spotify_followers?: number | null
           spotify_milestones?: string | null
           spotify_monthly_listeners?: number | null
+          spotify_photos_link?: string | null
           spotify_strategy?: string | null
           synopsis?: string | null
           track_id?: string | null
           updated_at?: string
+          video_link?: string | null
         }
         Relationships: [
           {
