@@ -383,7 +383,27 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
             Añadir Desplazamiento
           </Button>
         </>
-      )
+      )}
+
+      {/* Edit Self-Arranged Note Dialog */}
+      <Dialog open={showSelfArrangedEdit} onOpenChange={setShowSelfArrangedEdit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nota de transporte individual</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={localSelfArrangedNote}
+              onChange={(e) => setLocalSelfArrangedNote(e.target.value)}
+              placeholder="Instrucciones para el equipo sobre cómo llegar al venue..."
+              className="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowSelfArrangedEdit(false)}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Luggage Dialog */}
       <Dialog open={showLuggageEdit} onOpenChange={setShowLuggageEdit}>
