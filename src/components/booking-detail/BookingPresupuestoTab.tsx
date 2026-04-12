@@ -136,7 +136,7 @@ export function BookingPresupuestoTab({
       // Fetch items for all budgets
       const { data: allItems } = await supabase
         .from('budget_items')
-        .select('budget_id, unit_price, quantity, iva_percentage, irpf_percentage, billing_status, is_provisional, category')
+        .select('budget_id, unit_price, quantity, iva_percentage, irpf_percentage, billing_status, is_provisional, category, category_id, budget_categories(name)')
         .in('budget_id', combined.map(b => b.id));
 
       const itemsByBudget = (allItems || []).reduce((acc, item) => {
@@ -293,7 +293,7 @@ export function BookingPresupuestoTab({
         const kpi = calcKPIs(budget);
         const categoryCounts: Record<string, { total: number; count: number }> = {};
         budget.items.forEach(item => {
-          const cat = item.category || 'Sin categoría';
+          const cat = (item as any).budget_categories?.name || item.category || 'Sin categoría';
           if (!categoryCounts[cat]) categoryCounts[cat] = { total: 0, count: 0 };
           categoryCounts[cat].total += (item.unit_price || 0) * (item.quantity || 1);
           categoryCounts[cat].count += 1;
