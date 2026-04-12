@@ -50,7 +50,7 @@ interface ReleaseData {
 
 const FIELD_LABELS: Record<string, string> = {
   synopsis: 'Sinopsis (max 500 caracteres)',
-  mood: 'Mood / Estilo',
+  mood: 'Mood / Estado de ánimo',
   country: 'País',
   description: 'Descripción',
   genre: 'Género principal',
@@ -68,7 +68,9 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const TEXTAREA_FIELDS = ['synopsis', 'description', 'spotify_strategy', 'spotify_milestones', 'general_strategy', 'social_links'];
-const NUMBER_FIELDS = ['spotify_monthly_listeners', 'spotify_followers'];
+const SELECT_FIELDS: Record<string, string[]> = {
+  mood: ['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Romantic', 'Sad', 'Sexy', 'None of these'],
+};
 
 const SECTION_MAP: Record<string, { title: string; icon: string }> = {
   info: { title: 'Información básica', icon: '📋' },
