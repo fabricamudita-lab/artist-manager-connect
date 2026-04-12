@@ -17,6 +17,7 @@ import {
   Edit,
   FolderOpen,
   Link as LinkIcon,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -112,6 +113,14 @@ const SECTIONS = [
     icon: FileText,
     color: 'from-cyan-500/20 to-cyan-500/5',
     iconColor: 'text-cyan-500',
+  },
+  {
+    id: 'pitch',
+    title: 'Pitch Distribución',
+    description: 'Formulario de pitch para distribuidoras',
+    icon: Send,
+    color: 'from-indigo-500/20 to-indigo-500/5',
+    iconColor: 'text-indigo-500',
   },
 ];
 
