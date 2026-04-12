@@ -1,28 +1,35 @@
 
 
-## Vincular Proveedor a Contactos en Producción Técnica
+## Añadir vista de filas (lista) en Hojas de Ruta
 
-### Problema
-El campo "Proveedor" en el bloque de Producción Técnica es texto libre. El usuario quiere que funcione como selector de contactos (igual que en presupuestos, créditos, etc.) para poder reutilizar y automatizar.
+### Cambio
+Añadir un toggle de vista (cuadrícula / lista) junto al botón "Nueva Hoja de Ruta". La vista lista muestra cada roadmap como una fila horizontal compacta en una tabla, similar al patrón ya usado en la sección Economía del Drive.
 
-### Cambios
+### Archivo: `src/pages/Roadmaps.tsx`
 
-**1. Actualizar interfaz `BacklineItem` en `ProductionBlock.tsx`**
-- Añadir campo `provider_contact_id?: string` junto al `provider` existente
-- Cuando se selecciona un contacto, guardar su `id` en `provider_contact_id` y su nombre en `provider` (para visualización rápida)
+**1. Estado y toggle**
+- Añadir estado `viewMode: 'grid' | 'list'` con persistencia en `localStorage('roadmaps_view_mode')`
+- Añadir iconos `LayoutGrid` y `List` de lucide como botones toggle junto al header
 
-**2. Reemplazar `InlineEditCell` de proveedor por `ContactSelector`**
-- Usar el componente `ContactSelector` existente (el mismo que usa Booking y Solicitudes)
-- Modo compacto (`compact={true}`) para encajar en la tabla inline
-- Al seleccionar un contacto, resolver su nombre y guardarlo en ambos campos
+**2. Vista lista**
+- Cuando `viewMode === 'list'`, renderizar una tabla/div con filas en lugar del grid de cards
+- Cada fila muestra en columnas: Nombre | Artista (avatar + nombre) | Estado (badge) | Fechas | Acciones (menú ...)
+- Filas clickables con `cursor-pointer` y hover
+- Misma lógica de navegación y dropdown de eliminar
 
-**3. Pasar `artistId` al componente (opcional)**
-- Si `ProductionBlock` recibe `artistId` como prop, pasarlo al `ContactSelector` para filtrar contactos del artista
-- Si no, mostrar todos los contactos del workspace
+**3. Vista grid**
+- Sin cambios, es la vista actual
 
-### Resultado
-- Cada proveedor queda vinculado a un contacto real de la agenda
-- Se pueden crear contactos nuevos directamente desde el selector
-- Facilita futuras automatizaciones (facturación, comunicación, etc.)
-- Los proveedores existentes (texto libre) seguirán mostrándose como fallback
+### Resultado visual (lista)
+
+```text
+┌──────────────────────┬──────────────┬───────────┬─────────────────────┬────┐
+│ Nombre               │ Artista      │ Estado    │ Fechas              │ ⋮  │
+├──────────────────────┼──────────────┼───────────┼─────────────────────┼────┤
+│ 03.10.2026...        │ 🎵 Klaus S.  │ Borrador  │ 3 oct - 3 oct 2026  │ ⋮  │
+│ 19.02.2026...        │ 🎵 Klaus S.  │ Borrador  │ 19 feb - 19 feb     │ ⋮  │
+└──────────────────────┴──────────────┴───────────┴─────────────────────┴────┘
+```
+
+Cambio localizado solo en `Roadmaps.tsx`.
 
