@@ -35,6 +35,8 @@ interface PitchData {
   pitch_deadline: string | null;
   pitch_token: string;
   pitch_config: PitchConfig;
+  pitch_type?: string;
+  track_id?: string | null;
 }
 
 interface ReleaseInfo {
