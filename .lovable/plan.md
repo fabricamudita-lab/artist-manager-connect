@@ -1,32 +1,40 @@
 
 
-## Plan: Vincular EPK a artista del roster
+## Plan: Tipo de Pitch (Single / Focus Track / Album Completo)
 
-### Problema
-El campo "Artista/Proyecto" es texto libre. El usuario quiere seleccionar un artista de su roster (o colaborador) y que el EPK quede vinculado a su perfil.
+### Concepto
+Cada pitch podrá tener un **tipo** (`single`, `focus_track`, `full_album`) y opcionalmente estar vinculado a una **canción específica** del release. Se permiten múltiples pitches para la misma canción o el mismo álbum.
+
+### Reglas de negocio
+- Si el release tiene **1 sola canción**: solo se ofrece "Single" (sin selector de canción, se vincula automáticamente)
+- Si tiene **2+ canciones**: se ofrecen las 3 opciones
+  - **Single**: requiere seleccionar una canción del release
+  - **Focus Track**: requiere seleccionar una canción del release
+  - **Album Completo**: no requiere seleccionar canción (`track_id = null`)
 
 ### Cambios
 
-**1. Migración SQL — añadir `artist_id` a `epks`**
-- Nueva columna `artist_id UUID REFERENCES artists(id) ON DELETE SET NULL`
-- Índice en `artist_id`
+**1. Migración SQL — añadir columnas a `pitches`**
+- `pitch_type TEXT DEFAULT 'full_album'` — valores: `single`, `focus_track`, `full_album`
+- `track_id UUID REFERENCES release_tracks(id) ON DELETE SET NULL` — canción asociada (nullable)
 
-**2. `src/components/epk/EPKForm.tsx` — reemplazar input por selector**
-- En `renderBasicForm()` (líneas 105-113), reemplazar el `<Input>` de "Artista/Proyecto" por el componente `SingleArtistSelector` existente
-- Al seleccionar un artista, auto-rellenar `artista_proyecto` con su nombre/stage_name y guardar `artist_id`
-- Mantener un input de texto debajo para permitir edición manual del nombre mostrado (por si quieren personalizarlo)
+**2. `src/hooks/usePitches.ts`**
+- Añadir `pitch_type` y `track_id` al interface `Pitch`
+- Incluir ambos campos en `useCreatePitch` y `useDuplicatePitch`
 
-**3. `src/hooks/useEPK.ts` — añadir `artist_id` al tipo y al save**
-- Añadir `artist_id?: string | null` a `EPKData`
-- Incluir `artist_id` en las operaciones de insert/update
+**3. `src/pages/release-sections/ReleasePitch.tsx`**
+- Cargar las canciones del release (ya disponibles vía `useReleaseTracks`)
+- En el **PitchEditor**: añadir selector de tipo + selector de canción (condicional)
+- En la **lista de pitches**: mostrar el tipo y nombre de la canción junto al nombre del pitch (ej. "Pitch principal — Single: Mi Canción")
+- Al crear un pitch nuevo: si solo hay 1 track, asignar `pitch_type: 'single'` y `track_id` automáticamente
 
-**4. Perfil del artista — mostrar EPKs vinculados**
-- En la vista 360 del artista, añadir una sección o tab que liste los EPKs donde `artist_id` coincida, con enlaces directos al builder y al EPK público
+**4. Formulario público (`PublicReleaseForm.tsx`)**
+- Mostrar el tipo de pitch y la canción seleccionada en la info del formulario público
+- Filtrar los datos mostrados según el tipo (ej. si es single, mostrar solo créditos de esa canción)
 
 ### Archivos afectados
 - Nueva migración SQL
-- `src/hooks/useEPK.ts` — tipo + save
-- `src/components/epk/EPKForm.tsx` — selector de artista
-- `src/integrations/supabase/types.ts` — se regenera
-- Componente del perfil del artista (a identificar) — listado de EPKs
+- `src/hooks/usePitches.ts` — tipo + track_id
+- `src/pages/release-sections/ReleasePitch.tsx` — UI del selector
+- `src/pages/PublicReleaseForm.tsx` — mostrar info del tipo
 
