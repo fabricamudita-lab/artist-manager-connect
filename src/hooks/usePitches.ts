@@ -22,6 +22,13 @@ export interface Pitch {
   pitch_config: Record<string, { visible: boolean; editable: boolean }>;
   pitch_type: string;
   track_id: string | null;
+  audio_link: string | null;
+  instruments: string | null;
+  artist_photos_link: string | null;
+  video_link: string | null;
+  spotify_photos_link: string | null;
+  additional_info: string | null;
+  artist_bio: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -131,6 +138,13 @@ export function useDuplicatePitch() {
           pitch_config: pitch.pitch_config,
           pitch_type: pitch.pitch_type,
           track_id: pitch.track_id,
+          audio_link: pitch.audio_link,
+          instruments: pitch.instruments,
+          artist_photos_link: pitch.artist_photos_link,
+          video_link: pitch.video_link,
+          spotify_photos_link: pitch.spotify_photos_link,
+          additional_info: pitch.additional_info,
+          artist_bio: pitch.artist_bio,
         } as any)
         .select()
         .single();

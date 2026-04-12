@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useRelease, useTracks } from '@/hooks/useReleases';
 import { usePitchesByRelease, useCreatePitch, useUpdatePitch, useDeletePitch, useDuplicatePitch, Pitch } from '@/hooks/usePitches';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,16 +34,25 @@ const PITCH_STATUS_COLORS: Record<string, string> = {
   reviewed: 'bg-purple-500/20 text-purple-600',
 };
 
+const MOOD_OPTIONS = ['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Romantic', 'Sad', 'Sexy', 'None of these'];
+
 const PITCH_FIELDS = [
+  { key: 'country', label: 'País', section: 'info' },
   { key: 'synopsis', label: 'Sinopsis', section: 'content' },
   { key: 'mood', label: 'Mood / Estilo', section: 'content' },
-  { key: 'country', label: 'País', section: 'info' },
+  { key: 'instruments', label: 'Instrumentos', section: 'content' },
+  { key: 'audio_link', label: 'Link Audio MP3', section: 'content' },
+  { key: 'artist_photos_link', label: 'Fotos del artista', section: 'content' },
+  { key: 'video_link', label: 'Video', section: 'content' },
   { key: 'spotify_strategy', label: 'Estrategia Spotify', section: 'spotify' },
+  { key: 'spotify_milestones', label: 'Hitos Spotify', section: 'spotify' },
+  { key: 'spotify_photos_link', label: 'Fotos Spotify', section: 'spotify' },
   { key: 'spotify_monthly_listeners', label: 'Oyentes mensuales', section: 'spotify' },
   { key: 'spotify_followers', label: 'Seguidores Spotify', section: 'spotify' },
-  { key: 'spotify_milestones', label: 'Hitos Spotify', section: 'spotify' },
   { key: 'general_strategy', label: 'Estrategia general', section: 'strategy' },
   { key: 'social_links', label: 'Redes sociales', section: 'strategy' },
+  { key: 'additional_info', label: 'Otros datos', section: 'strategy' },
+  { key: 'artist_bio', label: 'Biografía artista', section: 'strategy' },
   { key: 'description', label: 'Descripción', section: 'info' },
   { key: 'genre', label: 'Género principal', section: 'info' },
   { key: 'secondary_genre', label: 'Género secundario', section: 'info' },
@@ -56,6 +66,8 @@ const PITCH_LOCAL_KEYS = [
   'synopsis', 'mood', 'country', 'spotify_strategy',
   'spotify_monthly_listeners', 'spotify_followers', 'spotify_milestones',
   'general_strategy', 'social_links',
+  'audio_link', 'instruments', 'artist_photos_link', 'video_link',
+  'spotify_photos_link', 'additional_info', 'artist_bio',
 ];
 
 const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v));
@@ -83,7 +95,6 @@ export default function ReleasePitch() {
 
   const isLoading = releaseLoading || pitchesLoading;
 
-  // Auto-select first pitch or clear if deleted
   useEffect(() => {
     if (pitches.length > 0 && !selectedPitchId) {
       // Don't auto-navigate into editor
@@ -97,7 +108,6 @@ export default function ReleasePitch() {
     if (!id) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // If only 1 track, auto-assign as single
     if (tracks.length === 1) {
       createPitch.mutate({ release_id: id, created_by: user.id, pitch_type: 'single', track_id: tracks[0].id });
     } else {
@@ -142,7 +152,6 @@ export default function ReleasePitch() {
     );
   }
 
-  // List view
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4">
@@ -250,21 +259,6 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
   const [trackId, setTrackId] = useState<string | null>(pitch.track_id || null);
 
   useEffect(() => {
-    if (pitch && !hasInitialized.current) {
-      hasInitialized.current = true;
-      const initial: Record<string, any> = {};
-      PITCH_LOCAL_KEYS.forEach(k => {
-        initial[k] = (pitch as any)[k] ?? '';
-      });
-      setLocalData(initial);
-      setPitchConfig((pitch.pitch_config as PitchConfig) || {});
-      setPitchDeadline(pitch.pitch_deadline || '');
-      setPitchName(pitch.name);
-    }
-  }, [pitch]);
-
-  // Reset on pitch change
-  useEffect(() => {
     hasInitialized.current = false;
   }, [pitch.id]);
 
@@ -310,6 +304,18 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
 
   const handleFieldChange = (key: string, value: any) => {
     setLocalData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleMoodToggle = (mood: string) => {
+    const current = (localData.mood || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+    const updated = current.includes(mood)
+      ? current.filter((m: string) => m !== mood)
+      : [...current, mood];
+    handleFieldChange('mood', updated.join(', '));
+  };
+
+  const getMoodList = (): string[] => {
+    return (localData.mood || '').split(',').map((s: string) => s.trim()).filter(Boolean);
   };
 
   const handleConfigToggle = (fieldKey: string, prop: 'visible' | 'editable') => {
@@ -535,6 +541,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Info Básica (del release) */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Info Básica (del release)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -567,9 +574,36 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
 
           <Separator />
 
+          {/* País */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">País</h3>
+            <div>
+              <Label>País en que reside el artista</Label>
+              <Input
+                value={localData.country || ''}
+                onChange={e => handleFieldChange('country', e.target.value)}
+                placeholder="Ej: España"
+                maxLength={20}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Contenido */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Contenido</h3>
             <div className="space-y-4">
+              <div>
+                <Label>Link Audio MP3 (link de Drive)</Label>
+                <Input
+                  value={localData.audio_link || ''}
+                  onChange={e => handleFieldChange('audio_link', e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  maxLength={80}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Enlace de descarga del audio en formato MP3</p>
+              </div>
               <div>
                 <Label>Sinopsis (max 500 caracteres)</Label>
                 <Textarea
@@ -577,29 +611,52 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                   onChange={e => handleFieldChange('synopsis', e.target.value.slice(0, 500))}
                   maxLength={500}
                   rows={3}
-                  placeholder="Breve descripción del lanzamiento..."
+                  placeholder="Escribe una sinopsis del lanzamiento explicando la temática, inspiración, concepto... Ej: 'Este single marca el inicio de una nueva etapa para el artista, explorando sonidos electrónicos con influencias latinas.'"
                 />
                 <p className="text-xs text-muted-foreground mt-1">{(localData.synopsis || '').length}/500</p>
               </div>
               <div>
-                <Label>Mood / Estado de ánimo</Label>
-                <Select value={localData.mood || ''} onValueChange={v => handleFieldChange('mood', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un mood..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Romantic', 'Sad', 'Sexy', 'None of these'].map(m => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Mood / Estado de ánimo (selección múltiple)</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  {MOOD_OPTIONS.map(mood => (
+                    <label key={mood} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={getMoodList().includes(mood)}
+                        onCheckedChange={() => handleMoodToggle(mood)}
+                      />
+                      {mood}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div>
-                <Label>País</Label>
+                <Label>Instrumentos involucrados</Label>
                 <Input
-                  value={localData.country || ''}
-                  onChange={e => handleFieldChange('country', e.target.value)}
-                  placeholder="País de origen"
+                  value={localData.instruments || ''}
+                  onChange={e => handleFieldChange('instruments', e.target.value)}
+                  placeholder="Ej: Guitarra, bajo, sintetizador, batería, voz"
+                  maxLength={60}
+                />
+              </div>
+              <div>
+                <Label>Fotos del artista (link de Drive)</Label>
+                <Input
+                  value={localData.artist_photos_link || ''}
+                  onChange={e => handleFieldChange('artist_photos_link', e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  maxLength={80}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mínimo 3000x3000px. Sin logos, sin close-ups extremos, sin texto superpuesto. Fondo limpio.
+                </p>
+              </div>
+              <div>
+                <Label>Video (link YouTube/Drive)</Label>
+                <Input
+                  value={localData.video_link || ''}
+                  onChange={e => handleFieldChange('video_link', e.target.value)}
+                  placeholder="https://youtube.com/... o https://drive.google.com/..."
+                  maxLength={80}
                 />
               </div>
             </div>
@@ -607,70 +664,115 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
 
           <Separator />
 
+          {/* Spotify */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Spotify</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <Label>Oyentes mensuales</Label>
-                <Input
-                  type="number"
-                  value={localData.spotify_monthly_listeners || ''}
-                  onChange={e => handleFieldChange('spotify_monthly_listeners', e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label>Seguidores</Label>
-                <Input
-                  type="number"
-                  value={localData.spotify_followers || ''}
-                  onChange={e => handleFieldChange('spotify_followers', e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label>Hitos destacados</Label>
-                <Textarea
-                  value={localData.spotify_milestones || ''}
-                  onChange={e => handleFieldChange('spotify_milestones', e.target.value)}
-                  rows={2}
-                  placeholder="Ej: 1M streams en primer single, Top 50 Viral..."
-                />
-              </div>
-              <div className="md:col-span-2">
                 <Label>Estrategia Spotify</Label>
                 <Textarea
                   value={localData.spotify_strategy || ''}
                   onChange={e => handleFieldChange('spotify_strategy', e.target.value)}
                   rows={3}
-                  placeholder="Playlists objetivo, plan de lanzamiento..."
+                  placeholder="¿A qué playlists editoriales aspiras? ¿Tienes playlists propias o de terceros confirmadas? Describe tu plan de lanzamiento en Spotify."
+                  maxLength={600}
                 />
+                <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_strategy || '').length}/600</p>
+              </div>
+              <div>
+                <Label>Hitos destacados en Spotify</Label>
+                <Textarea
+                  value={localData.spotify_milestones || ''}
+                  onChange={e => handleFieldChange('spotify_milestones', e.target.value)}
+                  rows={2}
+                  placeholder="Ej: 1M streams en primer single, Top 50 Viral España, inclusión en Radar de Novedades..."
+                  maxLength={350}
+                />
+                <p className="text-xs text-muted-foreground mt-1">{(localData.spotify_milestones || '').length}/350</p>
+              </div>
+              <div>
+                <Label>Fotos exclusivas para Spotify (link Drive)</Label>
+                <Input
+                  value={localData.spotify_photos_link || ''}
+                  onChange={e => handleFieldChange('spotify_photos_link', e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  maxLength={80}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Fotos específicas para canvas, header y perfil de Spotify. Mínimo 2660x1140px para header.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Oyentes mensuales</Label>
+                  <Input
+                    type="number"
+                    value={localData.spotify_monthly_listeners || ''}
+                    onChange={e => handleFieldChange('spotify_monthly_listeners', e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label>Seguidores</Label>
+                  <Input
+                    type="number"
+                    value={localData.spotify_followers || ''}
+                    onChange={e => handleFieldChange('spotify_followers', e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
           <Separator />
 
+          {/* Estrategia & RRSS */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Estrategia & RRSS</h3>
             <div className="space-y-4">
               <div>
-                <Label>Estrategia general</Label>
+                <Label>Estrategia general de lanzamiento</Label>
                 <Textarea
                   value={localData.general_strategy || ''}
                   onChange={e => handleFieldChange('general_strategy', e.target.value)}
-                  rows={3}
-                  placeholder="Plan de marketing, PR, contenido..."
+                  rows={4}
+                  placeholder="Describe tu plan completo: PR, marketing, contenido en redes, colaboraciones, eventos, radio... Ej: 'Campaña de pre-save 2 semanas antes. Estreno de videoclip en YouTube el día del lanzamiento. Entrevistas confirmadas en...'"
+                  maxLength={1000}
                 />
+                <p className="text-xs text-muted-foreground mt-1">{(localData.general_strategy || '').length}/1000</p>
               </div>
               <div>
-                <Label>Redes sociales</Label>
+                <Label>Redes sociales (links)</Label>
                 <Textarea
                   value={localData.social_links || ''}
                   onChange={e => handleFieldChange('social_links', e.target.value)}
                   rows={2}
-                  placeholder="Links de redes sociales, una por línea..."
+                  placeholder="Instagram, TikTok, YouTube, Twitter... Un link por línea"
+                  maxLength={100}
                 />
+              </div>
+              <div>
+                <Label>Otros datos relevantes</Label>
+                <Textarea
+                  value={localData.additional_info || ''}
+                  onChange={e => handleFieldChange('additional_info', e.target.value)}
+                  rows={2}
+                  placeholder="Cualquier información adicional relevante para la distribuidora..."
+                  maxLength={200}
+                />
+                <p className="text-xs text-muted-foreground mt-1">{(localData.additional_info || '').length}/200</p>
+              </div>
+              <div>
+                <Label>Biografía del artista</Label>
+                <Textarea
+                  value={localData.artist_bio || ''}
+                  onChange={e => handleFieldChange('artist_bio', e.target.value)}
+                  rows={3}
+                  placeholder="Biografía breve pero poderosa del artista. Incluye trayectoria, logros y estilo."
+                  maxLength={300}
+                />
+                <p className="text-xs text-muted-foreground mt-1">{(localData.artist_bio || '').length}/300</p>
               </div>
             </div>
           </div>
