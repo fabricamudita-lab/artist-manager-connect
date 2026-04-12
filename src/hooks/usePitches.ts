@@ -29,6 +29,12 @@ export interface Pitch {
   spotify_photos_link: string | null;
   additional_info: string | null;
   artist_bio: string | null;
+  future_planning: string | null;
+  vevo_content_type: string | null;
+  vevo_premiere_date: string | null;
+  vevo_is_new_edit: boolean | null;
+  vevo_brand_notes: string | null;
+  vevo_link: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -145,6 +151,12 @@ export function useDuplicatePitch() {
           spotify_photos_link: pitch.spotify_photos_link,
           additional_info: pitch.additional_info,
           artist_bio: pitch.artist_bio,
+          future_planning: pitch.future_planning,
+          vevo_content_type: pitch.vevo_content_type,
+          vevo_premiere_date: pitch.vevo_premiere_date,
+          vevo_is_new_edit: pitch.vevo_is_new_edit,
+          vevo_brand_notes: pitch.vevo_brand_notes,
+          vevo_link: pitch.vevo_link,
         } as any)
         .select()
         .single();
