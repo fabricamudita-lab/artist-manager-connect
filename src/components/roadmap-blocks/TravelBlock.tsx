@@ -79,9 +79,11 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
   const [showSelfArrangedEdit, setShowSelfArrangedEdit] = useState(false);
   const [passengerNames, setPassengerNames] = useState<Record<string, string>>({});
 
-  const lastSyncedRef = useRef<string>(JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy }));
+  const lastSyncedRef = useRef<string>(JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy, selfArranged: incomingSelfArranged, selfArrangedNote: incomingSelfArrangedNote }));
   const debouncedTrips = useDebounce(localTrips, 500);
   const debouncedLuggagePolicy = useDebounce(localLuggagePolicy, 500);
+  const debouncedSelfArranged = useDebounce(localSelfArranged, 300);
+  const debouncedSelfArrangedNote = useDebounce(localSelfArrangedNote, 500);
 
   const getDefaultDate = (): string => {
     if (tourDates && tourDates.length > 0) return [...tourDates].sort()[0];
@@ -136,21 +138,23 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
   }, [allPassengerIds]);
 
   useEffect(() => {
-    const next = JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy });
+    const next = JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy, selfArranged: incomingSelfArranged, selfArrangedNote: incomingSelfArrangedNote });
     if (next !== lastSyncedRef.current) {
       lastSyncedRef.current = next;
       setLocalTrips(incomingTrips);
       setLocalLuggagePolicy(incomingLuggagePolicy);
+      setLocalSelfArranged(incomingSelfArranged);
+      setLocalSelfArrangedNote(incomingSelfArrangedNote);
     }
-  }, [incomingTrips, incomingLuggagePolicy]);
+  }, [incomingTrips, incomingLuggagePolicy, incomingSelfArranged, incomingSelfArrangedNote]);
 
   useEffect(() => {
-    const next = JSON.stringify({ trips: debouncedTrips, luggagePolicy: debouncedLuggagePolicy });
+    const next = JSON.stringify({ trips: debouncedTrips, luggagePolicy: debouncedLuggagePolicy, selfArranged: debouncedSelfArranged, selfArrangedNote: debouncedSelfArrangedNote });
     if (next !== lastSyncedRef.current) {
       lastSyncedRef.current = next;
-      onChange({ ...data, trips: debouncedTrips, luggagePolicy: debouncedLuggagePolicy });
+      onChange({ ...data, trips: debouncedTrips, luggagePolicy: debouncedLuggagePolicy, selfArranged: debouncedSelfArranged, selfArrangedNote: debouncedSelfArrangedNote });
     }
-  }, [debouncedTrips, debouncedLuggagePolicy]);
+  }, [debouncedTrips, debouncedLuggagePolicy, debouncedSelfArranged, debouncedSelfArrangedNote]);
 
   const sortTripsByDate = (trips: TravelTrip[]): TravelTrip[] => {
     return [...trips].sort((a, b) => {
