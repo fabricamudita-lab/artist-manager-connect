@@ -188,19 +188,28 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
     const anticipoPending = !booking.anticipo_estado || booking.anticipo_estado === 'pendiente';
     const liquidacionLocked = hasFraccionado && anticipoPending;
 
+    const [collapsed, setCollapsed] = useState(() => localStorage.getItem('payment_status_collapsed') === 'true');
+    const toggleCollapsed = () => {
+      setCollapsed(prev => {
+        localStorage.setItem('payment_status_collapsed', String(!prev));
+        return !prev;
+      });
+    };
+
     return (
       <>
         <Card
           ref={ref}
           className={`transition-all ${highlighted ? 'ring-2 ring-primary/50 animate-pulse' : ''}`}
         >
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 cursor-pointer select-none" onClick={toggleCollapsed}>
             <CardTitle className="text-base flex items-center gap-2">
               <Banknote className="h-4 w-4 text-primary" />
               Estado de Pagos
+              <ChevronDown className={`h-4 w-4 ml-auto text-muted-foreground transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          {!collapsed && <CardContent className="space-y-4">
             {/* NO PAYMENTS */}
             {!hasPayments && !hasFraccionado && (
               <div className="text-center py-4 space-y-3">
