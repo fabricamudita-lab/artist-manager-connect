@@ -68,6 +68,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const TEXTAREA_FIELDS = ['synopsis', 'description', 'spotify_strategy', 'spotify_milestones', 'general_strategy', 'social_links'];
+const NUMBER_FIELDS = ['spotify_monthly_listeners', 'spotify_followers'];
 const SELECT_FIELDS: Record<string, string[]> = {
   mood: ['Chill', 'Energetic', 'Happy', 'Fierce', 'Meditative', 'Romantic', 'Sad', 'Sexy', 'None of these'],
 };
@@ -378,6 +379,24 @@ export default function PublicReleaseForm() {
                         {key === 'synopsis' && isEditable && (
                           <p className="text-xs text-muted-foreground mt-1">{String(value).length}/500</p>
                         )}
+                      </div>
+                    );
+                  }
+
+                  if (SELECT_FIELDS[key]) {
+                    return (
+                      <div key={key}>
+                        <Label>{label}</Label>
+                        <Select value={value || ''} onValueChange={v => handleChange(key, v)} disabled={!isEditable}>
+                          <SelectTrigger className={!isEditable ? 'opacity-60' : ''}>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SELECT_FIELDS[key].map(opt => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     );
                   }
