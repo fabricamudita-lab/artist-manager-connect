@@ -455,7 +455,7 @@ export default function PublicReleaseForm() {
   const title = releaseInfo?.title || pitch.name;
   const artistName = releaseInfo?.artist?.name;
   const coverUrl = releaseInfo?.cover_image_url;
-  const pitchTypeLabel = pitch.pitch_type === 'single' ? 'Single' : pitch.pitch_type === 'focus_track' ? 'Focus Track' : 'Album Completo';
+  const pitchTypeLabel = pitch.pitch_type === 'single' ? 'Single' : pitch.pitch_type === 'ep' ? 'EP' : 'Album';
 
   return (
     <div className="min-h-screen bg-background">

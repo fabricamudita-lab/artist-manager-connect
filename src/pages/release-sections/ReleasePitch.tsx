@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { INTERPRETE_ROLES, getRoleLabel } from '@/lib/creditRoles';
 import { ArrowLeft, Send, Copy, Check, Link as LinkIcon, Loader2, Plus, Trash2, CopyPlus, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,8 +77,8 @@ type PitchConfig = Record<string, { visible: boolean; editable: boolean }>;
 
 const PITCH_TYPE_LABELS: Record<string, string> = {
   single: 'Single',
-  focus_track: 'Focus Track',
-  full_album: 'Album Completo',
+  ep: 'EP',
+  album: 'Album',
 };
 
 export default function ReleasePitch() {
@@ -201,7 +202,7 @@ export default function ReleasePitch() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {PITCH_TYPE_LABELS[pitch.pitch_type] || 'Album Completo'}
+                    {PITCH_TYPE_LABELS[pitch.pitch_type] || 'Album'}
                     {pitch.track_id && getTrackName(pitch.track_id) ? `: ${getTrackName(pitch.track_id)}` : ''}
                     {' · '}Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
                     {pitch.pitch_deadline && ` · Límite: ${new Date(pitch.pitch_deadline).toLocaleDateString('es-ES')}`}
@@ -255,7 +256,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
   const [pitchConfig, setPitchConfig] = useState<PitchConfig>({});
   const [pitchDeadline, setPitchDeadline] = useState('');
   const [pitchName, setPitchName] = useState('');
-  const [pitchType, setPitchType] = useState(pitch.pitch_type || 'full_album');
+  const [pitchType, setPitchType] = useState(pitch.pitch_type || 'album');
   const [trackId, setTrackId] = useState<string | null>(pitch.track_id || null);
 
   useEffect(() => {
@@ -273,10 +274,58 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
       setPitchConfig((pitch.pitch_config as PitchConfig) || {});
       setPitchDeadline(pitch.pitch_deadline || '');
       setPitchName(pitch.name);
-      setPitchType(pitch.pitch_type || 'full_album');
+      setPitchType(pitch.pitch_type || 'album');
       setTrackId(pitch.track_id || null);
     }
   }, [pitch.id]);
+
+  // Auto-suggest country from artist and instruments from credits
+  useEffect(() => {
+    if (!pitch.id || !releaseId) return;
+
+    const suggestFields = async () => {
+      // 1. Country from artist address
+      if (!localData.country) {
+        const { data: releaseArtists } = await supabase
+          .from('release_artists')
+          .select('artist_id, artists(address)')
+          .eq('release_id', releaseId)
+          .limit(1);
+        const artistAddress = (releaseArtists?.[0] as any)?.artists?.address;
+        if (artistAddress) {
+          setLocalData(prev => prev.country ? prev : { ...prev, country: artistAddress });
+        }
+      }
+
+      // 2. Instruments from track credits
+      if (!localData.instruments) {
+        const trackIds = tracks.map(t => t.id);
+        if (trackIds.length === 0) return;
+        const { data: credits } = await supabase
+          .from('track_credits')
+          .select('role, notes')
+          .in('track_id', trackIds);
+        if (credits && credits.length > 0) {
+          const interpreteValues = new Set(INTERPRETE_ROLES.map(r => r.value));
+          const instrumentSet = new Set<string>();
+          credits.forEach(c => {
+            if (interpreteValues.has(c.role)) {
+              instrumentSet.add(getRoleLabel(c.role));
+            }
+            if (c.role === 'otro_instrumento' && c.notes) {
+              instrumentSet.add(c.notes);
+            }
+          });
+          if (instrumentSet.size > 0) {
+            const instrumentStr = Array.from(instrumentSet).join(', ');
+            setLocalData(prev => prev.instruments ? prev : { ...prev, instruments: instrumentStr });
+          }
+        }
+      }
+    };
+
+    suggestFields();
+  }, [pitch.id, releaseId, tracks.length]);
 
   const debouncedData = useDebounce(localData, 1500);
 
@@ -435,7 +484,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
         <CardHeader>
           <CardTitle className="text-base">Tipo de Pitch</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Define si el pitch es para un single, focus track o el álbum completo
+            Define si el pitch es para un Single, EP o Album
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -448,8 +497,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                 value={pitchType}
                 onValueChange={(v) => {
                   setPitchType(v);
-                  const newTrackId = v === 'full_album' ? null : trackId;
-                  if (v === 'full_album') {
+                  if (v === 'album' || v === 'ep') {
                     setTrackId(null);
                     const newName = release?.title || pitchName;
                     setPitchName(newName);
@@ -458,7 +506,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                     const selectedTrack = trackId ? tracks.find(t => t.id === trackId) : null;
                     const newName = selectedTrack ? selectedTrack.title : pitchName;
                     setPitchName(newName);
-                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: newTrackId, name: newName });
+                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: trackId, name: newName });
                   }
                 }}
               >
@@ -467,14 +515,14 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="focus_track">Focus Track</SelectItem>
-                  <SelectItem value="full_album">Album Completo</SelectItem>
+                  <SelectItem value="ep">EP</SelectItem>
+                  <SelectItem value="album">Album</SelectItem>
                 </SelectContent>
               </Select>
             )}
           </div>
 
-          {pitchType !== 'full_album' && tracks.length > 1 && (
+          {pitchType === 'single' && tracks.length > 1 && (
             <div>
               <Label>Canción</Label>
               <Select
