@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -103,13 +105,39 @@ export const EPKForm: React.FC<EPKFormProps> = ({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="artista_proyecto">Artista/Proyecto *</Label>
+          <Label>Artista del roster</Label>
+          <SingleArtistSelector
+            value={epk.artist_id || null}
+            onValueChange={async (artistId) => {
+              if (artistId) {
+                const { data } = await supabase
+                  .from('artists')
+                  .select('name, stage_name')
+                  .eq('id', artistId)
+                  .single();
+                onUpdate({ 
+                  artist_id: artistId, 
+                  artista_proyecto: data?.stage_name || data?.name || '' 
+                });
+              } else {
+                onUpdate({ artist_id: null });
+              }
+            }}
+            placeholder="Seleccionar artista del roster..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="artista_proyecto">Nombre mostrado *</Label>
           <Input
             id="artista_proyecto"
             value={epk.artista_proyecto || ''}
             onChange={(e) => onUpdate({ artista_proyecto: e.target.value })}
             placeholder="Nombre del artista o proyecto"
           />
+          <p className="text-xs text-muted-foreground">
+            Se auto-rellena al seleccionar artista. Puedes personalizarlo.
+          </p>
         </div>
 
         <div className="space-y-2">

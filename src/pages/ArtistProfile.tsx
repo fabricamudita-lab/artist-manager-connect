@@ -23,6 +23,7 @@ import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
+import { ArtistEPKsList } from '@/components/artist/ArtistEPKsList';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
@@ -520,6 +521,7 @@ export default function ArtistProfile() {
           <TabsTrigger value="team">Formatos</TabsTrigger>
           <TabsTrigger value="projects">Proyectos</TabsTrigger>
           <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
+          <TabsTrigger value="epks">EPKs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="bookings" className="space-y-4">
@@ -817,6 +819,16 @@ export default function ArtistProfile() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="epks" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">EPKs vinculados a este artista</p>
+            <Button variant="outline" onClick={() => navigate('/epk')}>
+              Ver todos
+            </Button>
+          </div>
+          <ArtistEPKsList artistId={id!} />
         </TabsContent>
       </Tabs>
 

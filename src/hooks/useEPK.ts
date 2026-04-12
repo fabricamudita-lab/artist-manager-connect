@@ -31,6 +31,7 @@ export interface EPKData {
   creado_por: string;
   creado_en: string;
   actualizado_en: string;
+  artist_id?: string | null;
   tour_manager: ContactInfo;
   tour_production: ContactInfo;
   coordinadora_booking: ContactInfo;
@@ -229,7 +230,8 @@ export const useEPK = (epkId?: string) => {
         rastrear_analiticas: epk.rastrear_analiticas,
         presupuesto_id: epk.presupuesto_id,
         proyecto_id: epk.proyecto_id,
-        etiquetas: epk.etiquetas
+        etiquetas: epk.etiquetas,
+        artist_id: epk.artist_id || null
       };
 
       if (epkId) {
