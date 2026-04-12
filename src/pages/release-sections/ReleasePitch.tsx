@@ -534,9 +534,7 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
               if (prop === 'visible' && !value) updated[k].editable = false;
             });
             setPitchConfig(updated);
-            if (activePitch) {
-              updatePitch.mutate({ id: activePitch.id, updates: { field_config: updated } });
-            }
+            updatePitch.mutate({ id: pitch.id, release_id: releaseId, updates: { field_config: updated } });
           }} />
         </CardContent>
       </Card>
