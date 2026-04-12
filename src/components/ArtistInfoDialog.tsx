@@ -260,7 +260,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const set = (key: typeof FORM_FIELDS[number]) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setFormData(prev => ({ ...prev, [key]: e.target.value }));
 
-  const renderField = (label: string, field: typeof FORM_FIELDS[number], icon?: React.ReactNode, placeholder?: string, forceDisabled?: boolean) => (
+  const renderField = (label: string, field: typeof FORM_FIELDS[number], icon?: React.ReactNode, placeholder?: string, forceDisabled?: boolean): React.ReactNode => (
     <div className="space-y-2" key={field}>
       <Label className={icon ? "flex items-center gap-2" : ""}>{icon}{label}</Label>
       {editing && !forceDisabled ? (
