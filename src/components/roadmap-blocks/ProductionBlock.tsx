@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDebounce } from '@/hooks/useDebounce';
-import { InlineEditCell, InlineSelectCell, InlineCheckboxCell } from '@/components/ui/inline-edit';
+import { InlineEditCell, InlineSelectCell } from '@/components/ui/inline-edit';
+import { BudgetContactSelector } from '@/components/BudgetContactSelector';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BacklineItem {
   id: string;
@@ -12,6 +14,7 @@ interface BacklineItem {
   instrument: string;
   model: string;
   provider: string;
+  provider_contact_id?: string;
   confirmed: boolean;
 }
 
@@ -29,6 +32,7 @@ interface ProductionBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   linkedBookings?: Array<{ id: string; lugar: string | null; ciudad: string | null }>;
+  artistId?: string;
 }
 
 const categories = [
@@ -41,7 +45,7 @@ const categories = [
 
 const getCategoryConfig = (cat: string) => categories.find(c => c.value === cat) || categories[categories.length - 1];
 
-export function ProductionBlock({ data, onChange, linkedBookings }: ProductionBlockProps) {
+export function ProductionBlock({ data, onChange, linkedBookings, artistId }: ProductionBlockProps) {
   const blockData = data as ProductionBlockData;
   const incomingVenues = blockData.venues || [];
 
@@ -113,6 +117,7 @@ export function ProductionBlock({ data, onChange, linkedBookings }: ProductionBl
       instrument: '', 
       model: '', 
       provider: '', 
+      provider_contact_id: undefined,
       confirmed: false 
     };
     setLocalVenues((prev) => 
@@ -129,6 +134,35 @@ export function ProductionBlock({ data, onChange, linkedBookings }: ProductionBl
           items: v.items.map((item) => 
             item.id === itemId ? { ...item, [field]: value } : item
           )
+        };
+      })
+    );
+  };
+
+  const handleProviderContactChange = async (venueId: string, itemId: string, contactId: string | null) => {
+    if (!contactId) {
+      updateItem(venueId, itemId, 'provider_contact_id', undefined);
+      updateItem(venueId, itemId, 'provider', '');
+      return;
+    }
+
+    // Resolve contact name
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('name')
+      .eq('id', contactId)
+      .single();
+
+    setLocalVenues((prev) =>
+      prev.map((v) => {
+        if (v.id !== venueId) return v;
+        return {
+          ...v,
+          items: v.items.map((item) =>
+            item.id === itemId
+              ? { ...item, provider_contact_id: contactId, provider: contact?.name || '' }
+              : item
+          ),
         };
       })
     );
@@ -208,11 +242,11 @@ export function ProductionBlock({ data, onChange, linkedBookings }: ProductionBl
                               placeholder="Modelo"
                               className="text-muted-foreground"
                             />
-                            <InlineEditCell
-                              value={item.provider}
-                              onChange={(v) => updateItem(venue.id, item.id, 'provider', v)}
-                              placeholder="Proveedor"
-                              className="text-muted-foreground"
+                            <BudgetContactSelector
+                              value={item.provider_contact_id || undefined}
+                              onValueChange={(contactId) => handleProviderContactChange(venue.id, item.id, contactId)}
+                              compact={true}
+                              className="text-xs"
                             />
                             <div 
                               className="cursor-pointer"
