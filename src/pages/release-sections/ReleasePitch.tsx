@@ -487,77 +487,8 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
         </CardContent>
       </Card>
 
-      {/* Pitch Type & Track */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tipo de Pitch</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Define si el pitch es para un Single, EP o Album
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Tipo</Label>
-            {tracks.length <= 1 ? (
-              <p className="text-sm font-medium mt-1">Single{tracks.length === 1 ? `: ${tracks[0].title}` : ''}</p>
-            ) : (
-              <Select
-                value={pitchType}
-                onValueChange={(v) => {
-                  setPitchType(v);
-                  if (v === 'album' || v === 'ep') {
-                    setTrackId(null);
-                    const newName = release?.title || pitchName;
-                    setPitchName(newName);
-                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: null, name: newName });
-                  } else {
-                    const selectedTrack = trackId ? tracks.find(t => t.id === trackId) : null;
-                    const newName = selectedTrack ? selectedTrack.title : pitchName;
-                    setPitchName(newName);
-                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: trackId, name: newName });
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="ep">EP</SelectItem>
-                  <SelectItem value="album">Album</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
 
-          {pitchType === 'single' && tracks.length > 1 && (
-            <div>
-              <Label>Canción</Label>
-              <Select
-                value={trackId || ''}
-                onValueChange={(v) => {
-                  setTrackId(v);
-                  const selectedTrack = tracks.find(t => t.id === v);
-                  const newName = selectedTrack ? selectedTrack.title : pitchName;
-                  setPitchName(newName);
-                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v, name: newName });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una canción..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tracks.map(t => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.track_number ? `${t.track_number}. ` : ''}{t.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
 
       {/* Field visibility config */}
       <Card>
