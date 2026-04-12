@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Clock, Circle, AlertCircle } from 'lucide-react';
+import { Check, Clock, Circle, AlertCircle, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -25,6 +25,13 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
   const [history, setHistory] = useState<any[]>([]);
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('timeline_collapsed') === 'true');
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      localStorage.setItem('timeline_collapsed', String(!prev));
+      return !prev;
+    });
+  };
 
   useEffect(() => {
     fetchData();
@@ -152,15 +159,19 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
     );
   }
 
+
+
+
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 cursor-pointer select-none" onClick={toggleCollapsed}>
         <CardTitle className="text-sm flex items-center gap-2">
           <Clock className="h-4 w-4" />
           Timeline
+          <ChevronDown className={`h-4 w-4 ml-auto text-muted-foreground transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      {!collapsed && <CardContent>
         <div className="relative">
           {/* Vertical line */}
           <div className="absolute left-3 top-0 bottom-0 w-px bg-border" />
@@ -238,7 +249,7 @@ export function BookingTimeline({ bookingId, bookingPhase, eventDate }: BookingT
             })}
           </div>
         </div>
-      </CardContent>
+      </CardContent>}
     </Card>
   );
 }
