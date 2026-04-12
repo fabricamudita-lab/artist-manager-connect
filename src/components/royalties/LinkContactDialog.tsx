@@ -71,7 +71,7 @@ export function LinkContactDialog({ split }: LinkContactDialogProps) {
                 <SelectValue placeholder="Selecciona un contacto" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sin vincular</SelectItem>
+                <SelectItem value="__none__">Sin vincular</SelectItem>
                 {contacts.map(contact => (
                   <SelectItem key={contact.id} value={contact.id}>
                     {contact.name} {contact.email && `(${contact.email})`}
