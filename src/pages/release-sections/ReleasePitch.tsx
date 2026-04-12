@@ -305,14 +305,16 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
         }
       }
 
-      // 2. Instruments from track credits
-      if (!localData.instruments) {
-        const trackIds = tracks.map(t => t.id);
-        if (trackIds.length === 0) return;
+      // 2. Instruments from track credits (scoped by pitch type)
+      const pitchType = localData.pitch_type;
+      const selectedTrackId = localData.track_id;
+      
+      if (pitchType === 'single' && selectedTrackId) {
+        // Single: only credits from the selected track
         const { data: credits } = await supabase
           .from('track_credits')
           .select('role, notes')
-          .in('track_id', trackIds);
+          .eq('track_id', selectedTrackId);
         if (credits && credits.length > 0) {
           const interpreteValues = new Set(INTERPRETE_ROLES.map(r => r.value));
           const instrumentSet = new Set<string>();
@@ -326,14 +328,39 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
           });
           if (instrumentSet.size > 0) {
             const instrumentStr = Array.from(instrumentSet).join(', ');
-            setLocalData(prev => prev.instruments ? prev : { ...prev, instruments: instrumentStr });
+            setLocalData(prev => ({ ...prev, instruments: instrumentStr }));
+          }
+        }
+      } else {
+        // EP/Album: all tracks
+        const trackIds = tracks.map(t => t.id);
+        if (trackIds.length > 0) {
+          const { data: credits } = await supabase
+            .from('track_credits')
+            .select('role, notes')
+            .in('track_id', trackIds);
+          if (credits && credits.length > 0) {
+            const interpreteValues = new Set(INTERPRETE_ROLES.map(r => r.value));
+            const instrumentSet = new Set<string>();
+            credits.forEach(c => {
+              if (interpreteValues.has(c.role)) {
+                instrumentSet.add(getRoleLabel(c.role));
+              }
+              if (c.role === 'otro_instrumento' && c.notes) {
+                instrumentSet.add(c.notes);
+              }
+            });
+            if (instrumentSet.size > 0) {
+              const instrumentStr = Array.from(instrumentSet).join(', ');
+              setLocalData(prev => prev.instruments ? prev : { ...prev, instruments: instrumentStr });
+            }
           }
         }
       }
     };
 
     suggestFields();
-  }, [pitch.id, releaseId, tracks.length]);
+  }, [pitch.id, releaseId, tracks.length, localData.pitch_type, localData.track_id]);
 
   const debouncedData = useDebounce(localData, 1500);
 
