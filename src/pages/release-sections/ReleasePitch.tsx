@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRelease } from '@/hooks/useReleases';
+import { useRelease, useTracks } from '@/hooks/useReleases';
 import { usePitchesByRelease, useCreatePitch, useUpdatePitch, useDeletePitch, useDuplicatePitch, Pitch } from '@/hooks/usePitches';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
