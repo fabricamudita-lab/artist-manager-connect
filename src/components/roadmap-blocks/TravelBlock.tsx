@@ -67,11 +67,16 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
   const blockData = data as TravelBlockData;
   const incomingTrips = blockData.trips || [];
   const incomingLuggagePolicy = blockData.luggagePolicy || '';
+  const incomingSelfArranged = blockData.selfArranged || false;
+  const incomingSelfArrangedNote = blockData.selfArrangedNote || 'Cada miembro del equipo debe llegar al venue por sus propios medios. Si alguien necesita transporte adicional, contactar directamente con el equipo para valorar opciones.';
 
   const [localTrips, setLocalTrips] = useState<TravelTrip[]>(incomingTrips);
   const [localLuggagePolicy, setLocalLuggagePolicy] = useState(incomingLuggagePolicy);
+  const [localSelfArranged, setLocalSelfArranged] = useState(incomingSelfArranged);
+  const [localSelfArrangedNote, setLocalSelfArrangedNote] = useState(incomingSelfArrangedNote);
   const [editingTrip, setEditingTrip] = useState<TravelTrip | null>(null);
   const [showLuggageEdit, setShowLuggageEdit] = useState(false);
+  const [showSelfArrangedEdit, setShowSelfArrangedEdit] = useState(false);
   const [passengerNames, setPassengerNames] = useState<Record<string, string>>({});
 
   const lastSyncedRef = useRef<string>(JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy }));
