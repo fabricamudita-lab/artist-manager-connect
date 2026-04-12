@@ -231,12 +231,13 @@ interface PitchEditorProps {
   pitch: Pitch;
   release: any;
   releaseId: string;
+  tracks: Array<{ id: string; title: string; track_number: number | null }>;
   onBack: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
 }
 
-function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate }: PitchEditorProps) {
+function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDuplicate }: PitchEditorProps) {
   const updatePitch = useUpdatePitch({ silent: true });
   const [copied, setCopied] = useState(false);
   const hasInitialized = useRef(false);
@@ -245,6 +246,8 @@ function PitchEditor({ pitch, release, releaseId, onBack, onDelete, onDuplicate 
   const [pitchConfig, setPitchConfig] = useState<PitchConfig>({});
   const [pitchDeadline, setPitchDeadline] = useState('');
   const [pitchName, setPitchName] = useState('');
+  const [pitchType, setPitchType] = useState(pitch.pitch_type || 'full_album');
+  const [trackId, setTrackId] = useState<string | null>(pitch.track_id || null);
 
   useEffect(() => {
     if (pitch && !hasInitialized.current) {
