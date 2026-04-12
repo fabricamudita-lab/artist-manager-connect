@@ -37,6 +37,20 @@ export interface Release {
   secondary_genre: string | null;
   language: string | null;
   production_year: number | null;
+  // Pitch fields
+  pitch_status: string | null;
+  pitch_deadline: string | null;
+  pitch_token: string | null;
+  pitch_config: Record<string, any> | null;
+  country: string | null;
+  mood: string | null;
+  synopsis: string | null;
+  spotify_strategy: string | null;
+  spotify_monthly_listeners: number | null;
+  spotify_followers: number | null;
+  spotify_milestones: string | null;
+  general_strategy: string | null;
+  social_links: string | null;
   artist?: {
     id: string;
     name: string;

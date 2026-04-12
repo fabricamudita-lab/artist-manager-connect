@@ -45,6 +45,7 @@ import SharedFile from "./pages/SharedFile";
 import SharedRelease from "./pages/SharedRelease";
 import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
 import PublicArtistForm from "./pages/PublicArtistForm";
+import PublicReleaseForm from "./pages/PublicReleaseForm";
 
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
@@ -54,6 +55,7 @@ import ReleaseImagenVideo from "./pages/release-sections/ReleaseImagenVideo";
 import ReleaseCreditos from "./pages/release-sections/ReleaseCreditos";
 import ReleaseAudio from "./pages/release-sections/ReleaseAudio";
 import ReleaseEPF from "./pages/release-sections/ReleaseEPF";
+import ReleasePitch from "./pages/release-sections/ReleasePitch";
 
 // Roadmaps pages
 import Roadmaps from "./pages/Roadmaps";
@@ -381,6 +383,13 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
+              <Route path="/releases/:id/pitch" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleasePitch />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
               {/* Roadmaps Routes */}
               <Route path="/roadmaps" element={
                 <ProtectedRoute>
@@ -418,6 +427,8 @@ const App = () => (
               <Route path="/sync-request/:token" element={<PublicSyncRequestForm />} />
               {/* Public Artist Form */}
               <Route path="/artist-form/:token" element={<PublicArtistForm />} />
+              {/* Public Release Pitch Form */}
+              <Route path="/release-form/:token" element={<PublicReleaseForm />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
