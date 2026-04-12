@@ -109,9 +109,9 @@ export default function ReleasePitch() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     if (tracks.length === 1) {
-      createPitch.mutate({ release_id: id, created_by: user.id, pitch_type: 'single', track_id: tracks[0].id });
+      createPitch.mutate({ release_id: id, created_by: user.id, pitch_type: 'single', track_id: tracks[0].id, name: tracks[0].title });
     } else {
-      createPitch.mutate({ release_id: id, created_by: user.id });
+      createPitch.mutate({ release_id: id, created_by: user.id, name: release?.title || 'Nuevo Pitch' });
     }
   };
 
@@ -449,8 +449,17 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                 onValueChange={(v) => {
                   setPitchType(v);
                   const newTrackId = v === 'full_album' ? null : trackId;
-                  if (v === 'full_album') setTrackId(null);
-                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: newTrackId });
+                  if (v === 'full_album') {
+                    setTrackId(null);
+                    const newName = release?.title || pitchName;
+                    setPitchName(newName);
+                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: null, name: newName });
+                  } else {
+                    const selectedTrack = trackId ? tracks.find(t => t.id === trackId) : null;
+                    const newName = selectedTrack ? selectedTrack.title : pitchName;
+                    setPitchName(newName);
+                    updatePitch.mutate({ id: pitch.id, release_id: releaseId, pitch_type: v, track_id: newTrackId, name: newName });
+                  }
                 }}
               >
                 <SelectTrigger>
@@ -472,7 +481,10 @@ function PitchEditor({ pitch, release, releaseId, tracks, onBack, onDelete, onDu
                 value={trackId || ''}
                 onValueChange={(v) => {
                   setTrackId(v);
-                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v });
+                  const selectedTrack = tracks.find(t => t.id === v);
+                  const newName = selectedTrack ? selectedTrack.title : pitchName;
+                  setPitchName(newName);
+                  updatePitch.mutate({ id: pitch.id, release_id: releaseId, track_id: v, name: newName });
                 }}
               >
                 <SelectTrigger>
