@@ -202,7 +202,7 @@ export default function ReleasePitch() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {PITCH_TYPE_LABELS[pitch.pitch_type] || 'Album Completo'}
+                    {PITCH_TYPE_LABELS[pitch.pitch_type] || 'Album'}
                     {pitch.track_id && getTrackName(pitch.track_id) ? `: ${getTrackName(pitch.track_id)}` : ''}
                     {' · '}Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
                     {pitch.pitch_deadline && ` · Límite: ${new Date(pitch.pitch_deadline).toLocaleDateString('es-ES')}`}
