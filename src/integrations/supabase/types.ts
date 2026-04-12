@@ -7460,6 +7460,7 @@ export type Database = {
           p_production_year: number | null
           popularity: number | null
           preview_url: string | null
+          release_date: string | null
           release_id: string
           spotify_id: string | null
           spotify_url: string | null
@@ -7484,6 +7485,7 @@ export type Database = {
           p_production_year?: number | null
           popularity?: number | null
           preview_url?: string | null
+          release_date?: string | null
           release_id: string
           spotify_id?: string | null
           spotify_url?: string | null
@@ -7508,6 +7510,7 @@ export type Database = {
           p_production_year?: number | null
           popularity?: number | null
           preview_url?: string | null
+          release_date?: string | null
           release_id?: string
           spotify_id?: string | null
           spotify_url?: string | null
