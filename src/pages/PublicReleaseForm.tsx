@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,7 +18,26 @@ interface PitchConfig {
   [key: string]: { visible: boolean; editable: boolean };
 }
 
-interface ReleaseData {
+interface PitchData {
+  id: string;
+  release_id: string;
+  name: string;
+  synopsis: string | null;
+  mood: string | null;
+  country: string | null;
+  spotify_strategy: string | null;
+  spotify_monthly_listeners: number | null;
+  spotify_followers: number | null;
+  spotify_milestones: string | null;
+  general_strategy: string | null;
+  social_links: string | null;
+  pitch_status: string;
+  pitch_deadline: string | null;
+  pitch_token: string;
+  pitch_config: PitchConfig;
+}
+
+interface ReleaseInfo {
   id: string;
   title: string;
   type: string;
@@ -32,19 +51,6 @@ interface ReleaseData {
   language: string | null;
   production_year: number | null;
   description: string | null;
-  pitch_status: string;
-  pitch_deadline: string | null;
-  pitch_config: PitchConfig;
-  pitch_token: string;
-  country: string | null;
-  mood: string | null;
-  synopsis: string | null;
-  spotify_strategy: string | null;
-  spotify_monthly_listeners: number | null;
-  spotify_followers: number | null;
-  spotify_milestones: string | null;
-  general_strategy: string | null;
-  social_links: string | null;
   artist?: { name: string; avatar_url: string | null } | null;
 }
 
@@ -66,6 +72,17 @@ const FIELD_LABELS: Record<string, string> = {
   general_strategy: 'Estrategia general',
   social_links: 'Redes sociales',
 };
+
+// Fields that live on the pitch vs read-only from release
+const PITCH_OWNED_FIELDS = [
+  'synopsis', 'mood', 'country', 'spotify_strategy',
+  'spotify_monthly_listeners', 'spotify_followers', 'spotify_milestones',
+  'general_strategy', 'social_links',
+];
+
+const RELEASE_READONLY_FIELDS = [
+  'description', 'genre', 'secondary_genre', 'language', 'label', 'upc', 'copyright',
+];
 
 const TEXTAREA_FIELDS = ['synopsis', 'description', 'spotify_strategy', 'spotify_milestones', 'general_strategy', 'social_links'];
 const NUMBER_FIELDS = ['spotify_monthly_listeners', 'spotify_followers'];
@@ -93,67 +110,128 @@ export default function PublicReleaseForm() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [release, setRelease] = useState<ReleaseData | null>(null);
+  const [pitch, setPitch] = useState<PitchData | null>(null);
+  const [releaseInfo, setReleaseInfo] = useState<ReleaseInfo | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const hasInitialized = useRef(false);
 
-  // Fetch release by token
+  // Fetch pitch by token, then load associated release info
   useEffect(() => {
-    async function fetchRelease() {
+    async function fetchData() {
       if (!token) {
         setError('Token no válido');
         setLoading(false);
         return;
       }
       try {
-        const { data, error: fetchErr } = await supabase
-          .from('releases')
-          .select('*, artist:artists!releases_artist_id_fkey(name, avatar_url)')
+        // First try pitches table
+        const { data: pitchData, error: pitchErr } = await supabase
+          .from('pitches')
+          .select('*')
           .eq('pitch_token', token)
           .single();
 
-        if (fetchErr || !data) {
-          setError('Formulario no encontrado o enlace inválido');
+        if (pitchErr || !pitchData) {
+          // Fallback: try legacy releases table for old tokens
+          const { data: releaseData, error: releaseErr } = await supabase
+            .from('releases')
+            .select('*, artist:artists!releases_artist_id_fkey(name, avatar_url)')
+            .eq('pitch_token', token)
+            .single();
+
+          if (releaseErr || !releaseData) {
+            setError('Formulario no encontrado o enlace inválido');
+            setLoading(false);
+            return;
+          }
+
+          // Legacy mode: treat release as both pitch and release
+          const rd = releaseData as any;
+          setReleaseInfo(rd);
+          const legacyPitch: PitchData = {
+            id: rd.id,
+            release_id: rd.id,
+            name: 'Pitch principal',
+            synopsis: rd.synopsis,
+            mood: rd.mood,
+            country: rd.country,
+            spotify_strategy: rd.spotify_strategy,
+            spotify_monthly_listeners: rd.spotify_monthly_listeners,
+            spotify_followers: rd.spotify_followers,
+            spotify_milestones: rd.spotify_milestones,
+            general_strategy: rd.general_strategy,
+            social_links: rd.social_links,
+            pitch_status: rd.pitch_status || 'draft',
+            pitch_deadline: rd.pitch_deadline,
+            pitch_token: rd.pitch_token,
+            pitch_config: rd.pitch_config || {},
+          };
+          setPitch(legacyPitch);
+
+          if (!hasInitialized.current) {
+            hasInitialized.current = true;
+            const initial: Record<string, any> = {};
+            Object.keys(FIELD_LABELS).forEach(key => {
+              initial[key] = rd[key] ?? '';
+            });
+            setFormData(initial);
+          }
+
+          if (rd.pitch_status === 'completed') setSubmitted(true);
           setLoading(false);
           return;
         }
 
-        const releaseData = data as any as ReleaseData;
-        setRelease(releaseData);
+        // New pitches table flow
+        const pd = pitchData as any as PitchData;
+        setPitch(pd);
 
-        // Initialize form with current values — only first load
+        // Load release info
+        const { data: relData } = await supabase
+          .from('releases')
+          .select('*, artist:artists!releases_artist_id_fkey(name, avatar_url)')
+          .eq('id', pd.release_id)
+          .single();
+
+        if (relData) {
+          setReleaseInfo(relData as any);
+        }
+
         if (!hasInitialized.current) {
           hasInitialized.current = true;
           const initial: Record<string, any> = {};
-          Object.keys(FIELD_LABELS).forEach(key => {
-            initial[key] = (releaseData as any)[key] ?? '';
+          // Pitch-owned fields from pitch
+          PITCH_OWNED_FIELDS.forEach(key => {
+            initial[key] = (pd as any)[key] ?? '';
+          });
+          // Release read-only fields from release
+          RELEASE_READONLY_FIELDS.forEach(key => {
+            initial[key] = relData ? (relData as any)[key] ?? '' : '';
           });
           setFormData(initial);
         }
 
-        if (releaseData.pitch_status === 'completed') {
-          setSubmitted(true);
-        }
+        if (pd.pitch_status === 'completed') setSubmitted(true);
       } catch {
         setError('Error al cargar el formulario');
       } finally {
         setLoading(false);
       }
     }
-    fetchRelease();
+    fetchData();
   }, [token]);
 
   // Auto-save with debounce
   const debouncedForm = useDebounce(formData, 2000);
 
   useEffect(() => {
-    if (!release || submitted || loading || !hasInitialized.current) return;
-    
+    if (!pitch || submitted || loading || !hasInitialized.current) return;
+
     const normalize = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v));
-    const hasChanges = Object.keys(debouncedForm).some(k => {
-      return normalize((release as any)[k]) !== normalize(debouncedForm[k]);
+    const hasChanges = PITCH_OWNED_FIELDS.some(k => {
+      return normalize((pitch as any)[k]) !== normalize(debouncedForm[k]);
     });
 
     if (hasChanges) {
@@ -162,15 +240,14 @@ export default function PublicReleaseForm() {
   }, [debouncedForm]);
 
   const autoSave = async (data: Record<string, any>) => {
-    if (!release) return;
+    if (!pitch) return;
     setSaving(true);
     try {
       const updates: Record<string, any> = {};
-      const config = release.pitch_config || {};
+      const config = pitch.pitch_config || {};
 
-      Object.keys(data).forEach(key => {
+      PITCH_OWNED_FIELDS.forEach(key => {
         const fieldConfig = config[key];
-        // Only save fields that are editable
         if (fieldConfig?.editable) {
           if (NUMBER_FIELDS.includes(key)) {
             updates[key] = data[key] === '' ? null : Number(data[key]);
@@ -183,8 +260,8 @@ export default function PublicReleaseForm() {
       if (Object.keys(updates).length > 0) {
         updates.pitch_status = 'in_progress';
         const { error } = await supabase
-          .from('releases')
-          .update(updates)
+          .from('pitches')
+          .update(updates as any)
           .eq('pitch_token', token);
         if (error) console.error('Auto-save error:', error);
       }
@@ -194,13 +271,13 @@ export default function PublicReleaseForm() {
   };
 
   const handleSubmit = async () => {
-    if (!release) return;
+    if (!pitch) return;
     setSaving(true);
     try {
       const updates: Record<string, any> = { pitch_status: 'completed' };
-      const config = release.pitch_config || {};
+      const config = pitch.pitch_config || {};
 
-      Object.keys(formData).forEach(key => {
+      PITCH_OWNED_FIELDS.forEach(key => {
         const fieldConfig = config[key];
         if (fieldConfig?.editable) {
           if (NUMBER_FIELDS.includes(key)) {
@@ -212,8 +289,8 @@ export default function PublicReleaseForm() {
       });
 
       const { error } = await supabase
-        .from('releases')
-        .update(updates)
+        .from('pitches')
+        .update(updates as any)
         .eq('pitch_token', token);
 
       if (error) throw error;
@@ -232,10 +309,9 @@ export default function PublicReleaseForm() {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  // Calculate completion
   const getCompletion = () => {
-    if (!release) return 0;
-    const config = release.pitch_config || {};
+    if (!pitch) return 0;
+    const config = pitch.pitch_config || {};
     const visibleFields = Object.keys(FIELD_LABELS).filter(k => {
       const c = config[k];
       return c?.visible !== false;
@@ -259,7 +335,7 @@ export default function PublicReleaseForm() {
     );
   }
 
-  if (error || !release) {
+  if (error || !pitch) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md mx-4">
@@ -291,8 +367,11 @@ export default function PublicReleaseForm() {
     );
   }
 
-  const config = release.pitch_config || {};
+  const config = pitch.pitch_config || {};
   const completion = getCompletion();
+  const title = releaseInfo?.title || pitch.name;
+  const artistName = releaseInfo?.artist?.name;
+  const coverUrl = releaseInfo?.cover_image_url;
 
   // Group visible fields by section
   const sectionGroups: Record<string, string[]> = {};
@@ -311,9 +390,9 @@ export default function PublicReleaseForm() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
           <img src={mooditaLogo} alt="Moodita" className="h-8 w-8" />
           <div className="flex-1">
-            <h1 className="text-lg font-bold">{release.title}</h1>
+            <h1 className="text-lg font-bold">{title}</h1>
             <p className="text-xs text-muted-foreground">
-              {release.artist?.name} · Pitch de distribución
+              {artistName && `${artistName} · `}Pitch de distribución
             </p>
           </div>
           {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -328,19 +407,19 @@ export default function PublicReleaseForm() {
           <span className="text-sm font-medium">{completion}%</span>
         </div>
         <Progress value={completion} className="h-2" />
-        {release.pitch_deadline && (
+        {pitch.pitch_deadline && (
           <p className="text-xs text-muted-foreground mt-1">
-            Fecha límite: {new Date(release.pitch_deadline).toLocaleDateString('es-ES')}
+            Fecha límite: {new Date(pitch.pitch_deadline).toLocaleDateString('es-ES')}
           </p>
         )}
       </div>
 
       {/* Cover image */}
-      {release.cover_image_url && (
+      {coverUrl && (
         <div className="max-w-2xl mx-auto px-4 pb-4">
           <img
-            src={release.cover_image_url}
-            alt={release.title}
+            src={coverUrl}
+            alt={title}
             className="w-32 h-32 object-cover rounded-lg shadow"
           />
         </div>
@@ -361,7 +440,7 @@ export default function PublicReleaseForm() {
               <CardContent className="space-y-4">
                 {fields.map(key => {
                   const fieldConfig = config[key] || { visible: true, editable: false };
-                  const isEditable = fieldConfig.editable;
+                  const isEditable = fieldConfig.editable && PITCH_OWNED_FIELDS.includes(key);
                   const label = FIELD_LABELS[key];
                   const value = formData[key] ?? '';
 
