@@ -131,6 +131,7 @@ export default function ReleasePitch() {
         pitch={selectedPitch}
         release={release}
         releaseId={id!}
+        tracks={tracks}
         onBack={() => setSelectedPitchId(null)}
         onDelete={() => {
           deletePitch.mutate({ id: selectedPitch.id, release_id: id! });
@@ -191,7 +192,9 @@ export default function ReleasePitch() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
+                    {PITCH_TYPE_LABELS[pitch.pitch_type] || 'Album Completo'}
+                    {pitch.track_id && getTrackName(pitch.track_id) ? `: ${getTrackName(pitch.track_id)}` : ''}
+                    {' · '}Creado {new Date(pitch.created_at).toLocaleDateString('es-ES')}
                     {pitch.pitch_deadline && ` · Límite: ${new Date(pitch.pitch_deadline).toLocaleDateString('es-ES')}`}
                   </p>
                 </div>
