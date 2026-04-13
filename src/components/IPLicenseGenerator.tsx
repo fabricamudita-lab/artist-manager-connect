@@ -585,6 +585,31 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Grabación y Derechos</h3>
+            {!externalReleaseId && (
+              <div>
+                <Label>Lanzamiento</Label>
+                <Select
+                  value={selectedReleaseId || ''}
+                  onValueChange={(v) => {
+                    setSelectedReleaseId(v === '__none__' ? undefined : v);
+                    setManualTrack(false);
+                    update('grabacion_titulo', '');
+                    update('titulo_sencillo', '');
+                    update('grabacion_duracion', '');
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecciona un lanzamiento (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin lanzamiento</SelectItem>
+                    {releases.map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.title} ({r.type === 'album' ? 'Álbum' : r.type === 'ep' ? 'EP' : 'Single'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div><Label>Título de la Grabación</Label>
               {tracks.length > 0 && !manualTrack ? (
                 <Select
