@@ -12,6 +12,7 @@ import {
   FileText,
   Disc3,
   Album,
+  FileSignature,
   MoreHorizontal,
   Trash2,
   Edit,
@@ -121,6 +122,14 @@ const SECTIONS = [
     icon: Send,
     color: 'from-indigo-500/20 to-indigo-500/5',
     iconColor: 'text-indigo-500',
+  },
+  {
+    id: 'contratos',
+    title: 'Contratos',
+    description: 'Contratos de royalties, cesión de derechos y licencias',
+    icon: FileSignature,
+    color: 'from-amber-500/20 to-amber-500/5',
+    iconColor: 'text-amber-500',
   },
 ];
 
