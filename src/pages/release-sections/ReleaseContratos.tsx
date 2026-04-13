@@ -194,7 +194,7 @@ export default function ReleaseContratos() {
             Subir documento
           </Button>
         </div>
-
+      </div>
       {/* Document list */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Cargando...</div>
