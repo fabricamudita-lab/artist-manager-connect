@@ -90,10 +90,21 @@ function generatePDF(d: FormData): jsPDF {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pw = pdf.internal.pageSize.getWidth();
   const ph = pdf.internal.pageSize.getHeight();
-  const ml = 25, mr = 25, mt = 20, mb = 25;
+  // Margins: 85pts = 30mm
+  const ml = 30, mr = 30, mb = 25;
   const cw = pw - ml - mr;
-  let y = mt;
+  let y = 0;
   let pageNum = 1;
+
+  // Spacing constants (pts → mm)
+  const interline = 4.9;     // 13.9pts
+  const subItemSpace = 7.7;  // 21.9pts
+  const sectionSpace = 15.5; // 43.8pts
+  const indent1 = 6.3;       // 103pts - 85pts = 18pts = 6.3mm
+  const indent2 = 12.7;      // 121pts - 85pts = 36pts = 12.7mm
+  const indentSub = 12.5;    // 120.5pts - 85pts = 35.5pts ≈ 12.5mm
+
+  const fontSize = 11;
 
   const addFooter = () => {
     pdf.setFontSize(9);
@@ -101,303 +112,339 @@ function generatePDF(d: FormData): jsPDF {
     pdf.text(String(pageNum), pw / 2, ph - 15, { align: 'center' });
   };
 
-  const checkPage = (needed: number = 12) => {
+  const checkPage = (needed: number = 10) => {
     if (y + needed > ph - mb) {
       addFooter();
       pdf.addPage();
       pageNum++;
-      y = mt;
+      y = 20;
     }
   };
 
-  const addTitle = (text: string, size: number = 12) => {
-    checkPage(20);
-    pdf.setFont('times', 'bold');
-    pdf.setFontSize(size);
-    const lines = pdf.splitTextToSize(text, cw);
+  // Render multi-line text with justified alignment
+  const renderLines = (text: string, xLeft: number, maxW: number) => {
+    pdf.setFontSize(fontSize);
+    const lines = pdf.splitTextToSize(text, maxW);
     lines.forEach((line: string) => {
       checkPage();
-      pdf.text(line, pw / 2, y, { align: 'center' });
-      y += size * 0.45;
+      pdf.text(line, xLeft, y, { maxWidth: maxW, align: 'justify' });
+      y += interline;
     });
-    y += 6;
   };
 
-  const addSection = (text: string) => {
-    checkPage(16);
-    y += 8;
-    pdf.setFont('times', 'bold');
-    pdf.setFontSize(12);
-    pdf.text(text, ml, y);
-    y += 10;
-  };
-
-  const addClauseTitle = (num: string, text: string) => {
-    checkPage(16);
-    y += 6;
-    pdf.setFont('times', 'bold');
-    pdf.setFontSize(12);
-    pdf.text(`${num}. ${text}`, ml, y);
-    y += 8;
-  };
-
-  const addParagraph = (text: string, indent: number = 0) => {
-    pdf.setFont('times', 'normal');
-    pdf.setFontSize(12);
-    const effectiveWidth = cw - indent;
-    const lines = pdf.splitTextToSize(text, effectiveWidth);
-    lines.forEach((line: string) => {
-      checkPage();
-      pdf.text(line, ml + indent, y, { maxWidth: effectiveWidth, align: 'justify' });
-      y += 5.5;
-    });
-    y += 2;
-  };
-
-  // Hanging indent: label at left margin, continuation lines indented
-  const addHangingParagraph = (label: string, text: string, hangIndent: number = 10) => {
+  // Bold label + normal text, both starting at xLeft
+  const addHangingParagraph = (label: string, text: string) => {
     checkPage();
-    pdf.setFontSize(12);
-    pdf.setFont('times', 'bold');
-    const labelWidth = pdf.getTextWidth(label + ' ');
-    const fullText = label + ' ' + text;
-    
-    // First line: render label bold, then normal text on same line
-    pdf.text(label, ml, y);
-    pdf.setFont('times', 'normal');
-    
-    const firstLineAvail = cw - labelWidth;
-    const restLines = pdf.splitTextToSize(text, firstLineAvail);
-    
-    if (restLines.length > 0) {
-      pdf.text(restLines[0], ml + labelWidth, y);
-      y += 5.5;
-      
-      // Continuation lines with hanging indent
-      if (restLines.length > 1) {
-        const continuationText = restLines.slice(1).join(' ');
-        const indentedLines = pdf.splitTextToSize(continuationText, cw - hangIndent);
-        indentedLines.forEach((line: string) => {
-          checkPage();
-          pdf.text(line, ml + hangIndent, y, { maxWidth: cw - hangIndent, align: 'justify' });
-          y += 5.5;
-        });
-      }
-    } else {
-      y += 5.5;
-    }
-    y += 2;
-  };
-
-  // Hanging indent for numbered items (I, II, III, IV)
-  const addNumberedHanging = (label: string, text: string) => {
-    checkPage();
-    pdf.setFontSize(12);
-    pdf.setFont('times', 'normal');
-    const hangIndent = 10;
-    
-    const labelWidth = pdf.getTextWidth(label + ' ');
-    const firstLineAvail = cw - labelWidth;
-    const restLines = pdf.splitTextToSize(text, firstLineAvail);
-    
-    pdf.text(label, ml, y);
-    
-    if (restLines.length > 0) {
-      pdf.text(restLines[0], ml + labelWidth, y);
-      y += 5.5;
-      
-      if (restLines.length > 1) {
-        const continuationText = restLines.slice(1).join(' ');
-        const indentedLines = pdf.splitTextToSize(continuationText, cw - hangIndent);
-        indentedLines.forEach((line: string) => {
-          checkPage();
-          pdf.text(line, ml + hangIndent, y, { maxWidth: cw - hangIndent, align: 'justify' });
-          y += 5.5;
-        });
-      }
-    } else {
-      y += 5.5;
-    }
-    y += 3;
-  };
-
-  const addBoldInline = (boldPart: string, normalPart: string, indent: number = 0) => {
-    checkPage();
-    pdf.setFontSize(12);
-    pdf.setFont('times', 'bold');
-    const bw = pdf.getTextWidth(boldPart + ' ');
-    const effectiveWidth = cw - indent;
-    // If it all fits on one line
-    if (bw + pdf.getTextWidth(normalPart.substring(0, 30)) < effectiveWidth) {
-      pdf.text(boldPart, ml + indent, y);
-      pdf.setFont('times', 'normal');
-      const remaining = pdf.splitTextToSize(normalPart, effectiveWidth - bw);
-      if (remaining.length > 0) {
-        pdf.text(remaining[0], ml + indent + bw, y);
-        y += 5.5;
-        for (let i = 1; i < remaining.length; i++) {
-          checkPage();
-          pdf.text(remaining[i], ml + indent, y, { maxWidth: effectiveWidth, align: 'justify' });
-          y += 5.5;
-        }
-      } else {
-        y += 5.5;
-      }
-    } else {
-      pdf.text(boldPart, ml + indent, y);
-      y += 5.5;
-      pdf.setFont('times', 'normal');
-      addParagraph(normalPart, indent);
-    }
-    y += 1;
-  };
-
-  const addSubItem = (label: string, value: string) => {
-    checkPage();
-    pdf.setFontSize(12);
+    pdf.setFontSize(fontSize);
     pdf.setFont('times', 'bold');
     const labelW = pdf.getTextWidth(label + ' ');
-    pdf.text(label, ml + 15, y);
+    pdf.text(label, ml, y);
     pdf.setFont('times', 'normal');
-    pdf.text(value, ml + 15 + labelW, y);
-    y += 8;
+
+    const firstLineW = cw - labelW;
+    const restLines = pdf.splitTextToSize(text, firstLineW);
+
+    if (restLines.length > 0) {
+      pdf.text(restLines[0], ml + labelW, y);
+      y += interline;
+      if (restLines.length > 1) {
+        const cont = restLines.slice(1).join(' ');
+        renderLines(cont, ml, cw);
+      }
+    } else {
+      y += interline;
+    }
   };
 
-  // === PAGE 1: Title & REUNIDOS ===
-  y = mt + 10;
-  addTitle('LICENCIA DE CESIÓN DE DERECHOS DE PROPIEDAD INTELECTUAL');
-  y += 10;
+  // Numbered hanging: number at indent1, text at indent2
+  const addNumberedHanging = (label: string, text: string) => {
+    checkPage();
+    pdf.setFontSize(fontSize);
+    pdf.setFont('times', 'normal');
+    const xNum = ml + indent1;
+    const xText = ml + indent2;
+    const textW = cw - indent2;
 
+    pdf.text(label, xNum, y);
+    const labelW = pdf.getTextWidth(label + ' ');
+    const firstW = textW - (labelW - indent1 + indent2 > 0 ? 0 : 0);
+    // First line next to label
+    const firstLineAvail = cw - (indent1 + labelW);
+    const allLines = pdf.splitTextToSize(text, Math.min(firstLineAvail, textW));
+
+    if (allLines.length > 0) {
+      pdf.text(allLines[0], xNum + labelW, y);
+      y += interline;
+      if (allLines.length > 1) {
+        const cont = allLines.slice(1).join(' ');
+        const contLines = pdf.splitTextToSize(cont, textW);
+        contLines.forEach((line: string) => {
+          checkPage();
+          pdf.text(line, xText, y, { maxWidth: textW, align: 'justify' });
+          y += interline;
+        });
+      }
+    } else {
+      y += interline;
+    }
+  };
+
+  // Paragraph at a given indent
+  const addParagraph = (text: string, indent: number = 0) => {
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(fontSize);
+    renderLines(text, ml + indent, cw - indent);
+  };
+
+  // Sub-item: "a. " normal + "Title:" bold + value normal, at indentSub
+  const addSubItem = (letter: string, title: string, value: string) => {
+    checkPage();
+    pdf.setFontSize(fontSize);
+    const x = ml + indentSub;
+    pdf.setFont('times', 'normal');
+    const letterW = pdf.getTextWidth(letter);
+    pdf.text(letter, x, y);
+    pdf.setFont('times', 'bold');
+    const titleW = pdf.getTextWidth(title + ' ');
+    pdf.text(title, x + letterW, y);
+    pdf.setFont('times', 'normal');
+    const valX = x + letterW + titleW;
+    const remaining = cw - indentSub - letterW - titleW;
+    if (remaining > 0 && pdf.getTextWidth(value) <= remaining) {
+      pdf.text(value, valX, y);
+      y += subItemSpace;
+    } else {
+      y += interline;
+      renderLines(value, x, cw - indentSub);
+      y += subItemSpace - interline;
+    }
+  };
+
+  // Bold inline: "a. PERIODO:" all bold + normal value, at indent2
+  const addBoldInline = (boldPart: string, normalPart: string) => {
+    checkPage();
+    pdf.setFontSize(fontSize);
+    const x = ml + indent2;
+    const maxW = cw - indent2;
+    pdf.setFont('times', 'bold');
+    const bw = pdf.getTextWidth(boldPart + ' ');
+    pdf.text(boldPart, x, y);
+    pdf.setFont('times', 'normal');
+    const valLines = pdf.splitTextToSize(normalPart, maxW - bw);
+    if (valLines.length > 0) {
+      pdf.text(valLines[0], x + bw, y);
+      y += interline;
+      for (let i = 1; i < valLines.length; i++) {
+        checkPage();
+        pdf.text(valLines[i], x, y, { maxWidth: maxW, align: 'justify' });
+        y += interline;
+      }
+    } else {
+      y += interline;
+    }
+  };
+
+  // Centered bold section header
+  const addCenteredSection = (text: string) => {
+    checkPage();
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(fontSize);
+    pdf.text(text, pw / 2, y, { align: 'center' });
+  };
+
+  // Clause title: "1. OBJETO" bold at ml
+  const addClauseTitle = (num: string, text: string) => {
+    checkPage(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(fontSize);
+    pdf.text(`${num}. ${text}`, ml, y);
+  };
+
+  // === PAGE 1 ===
+
+  // 1. TÍTULO - y=71.8pts = 25.3mm
+  y = 25.3;
+  addCenteredSection('LICENCIA DE CESIÓN DE DERECHOS DE PROPIEDAD INTELECTUAL');
+
+  // 2. FECHA - y=137.5pts = 48.5mm (title + 23.2mm)
+  y = 48.5;
   pdf.setFont('times', 'normal');
-  pdf.setFontSize(12);
+  pdf.setFontSize(fontSize);
   pdf.text(`En Barcelona, a ${s(d.fecha_dia)} de ${s(d.fecha_mes)} de ${s(d.fecha_anio)}`, ml, y);
-  y += 12;
 
-  addSection('REUNIDOS');
+  // 3. REUNIDOS - y=181.3pts = 64.0mm (fecha + 15.5mm)
+  y = 64.0;
+  addCenteredSection('REUNIDOS');
 
+  // 4. DE UNA PARTE - after REUNIDOS + 15.5mm
+  y += sectionSpace;
   addHangingParagraph('DE UNA PARTE,',
-    `${s(d.productora_nombre)}, mayor de edad, con ${s(d.productora_doc_tipo)} ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara la PRODUCTORA.`, 10);
+    `${s(d.productora_nombre)}, mayor de edad, con ${s(d.productora_doc_tipo)} ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará la PRODUCTORA.`);
 
-  y += 4;
-
+  // 5. DE OTRA PARTE - one interline gap
+  y += interline;
   addHangingParagraph('DE OTRA PARTE,',
-    `${s(d.colaboradora_nombre)}, mayor de edad, con ${s(d.colaboradora_doc_tipo)} ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara el COLABORADOR o la COLABORADORA indistintamente.`, 10);
+    `${s(d.colaboradora_nombre)}, mayor de edad, con ${s(d.colaboradora_doc_tipo)} ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará el COLABORADOR o la COLABORADORA indistintamente.`);
 
-  addParagraph('En adelante, ambas partes, seran denominadas conjuntamente como las Partes.');
-  addParagraph('Las Partes se reconocen reciprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,');
+  // 6. "En adelante..." paragraph
+  y += subItemSpace;
+  addParagraph('En adelante, ambas partes, serán denominadas conjuntamente como las Partes.');
 
-  addSection('MANIFIESTAN');
+  // 7. "Las Partes se reconocen..."
+  y += subItemSpace;
+  addParagraph('Las Partes se reconocen recíprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,');
 
-  addNumberedHanging('I)', `Que la PRODUCTORA, es una compositora, interprete y productora fonografica que, en su calidad de productora fonografica, esta produciendo un sencillo fonografico titulado tentativamente "${s(d.titulo_sencillo)}" (el Album) que sera explotado comercialmente bajo su nombre artistico "${s(d.productora_nombre_artistico)}", por si o por terceros.`);
+  // 8. MANIFIESTAN
+  y += subItemSpace;
+  addCenteredSection('MANIFIESTAN');
 
-  addNumberedHanging('II)', 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de musica interprete y/o ejecutante en una o mas obras musicales (la/s Grabacion/es), las cuales se detallaran, o para su explotacion en forma de sencillo fonografico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.');
+  // 9. PUNTOS I), II), III), IV) - after MANIFIESTAN + sectionSpace
+  y += sectionSpace;
+  addNumberedHanging('I)', `Que la PRODUCTORA, es una compositora, intérprete y productora fonográfica que, en su calidad de productora fonográfica, está produciendo un sencillo fonográfico titulado tentativamente "${s(d.grabacion_titulo)}" (el Sencillo) que será explotado comercialmente bajo su nombre artístico "${s(d.productora_nombre_artistico)}", por sí o por terceros.`);
 
-  addNumberedHanging('III)', `Que la COLABORADORA, conocida artisticamente como "${s(d.colaboradora_nombre_artistico)}", es una interprete musical independiente, facultada para aceptar la propuesta de colaboracion de la PRODUCTORA, en los terminos que se diran, que no esta sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptacion y posterior cesion de derechos de propiedad intelectual sobre sus interpretaciones musicales.`);
+  y += sectionSpace;
+  addNumberedHanging('II)', 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en una o más obras musicales (la/s Grabación/es), las cuales se detallarán, o para su explotación en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.');
 
-  addNumberedHanging('IV)', 'Que la PRODUCTORA ha llevado a cabo la fijacion de las interpretaciones de la COLABORADORA en la/s Grabacion/es a satisfaccion de las Partes.');
+  y += sectionSpace;
+  addNumberedHanging('III)', `Que la COLABORADORA, conocida artísticamente como "${s(d.colaboradora_nombre_artistico)}", es una intérprete musical independiente, facultada para aceptar la propuesta de colaboración de la PRODUCTORA, en los términos que se dirán, que no está sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptación y posterior cesión de derechos de propiedad intelectual sobre sus interpretaciones musicales.`);
 
-  addParagraph('Con la finalidad de acordar los terminos y condiciones de la colaboracion entre las Partes y formalizar la cesion de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes');
+  y += sectionSpace;
+  addNumberedHanging('IV)', 'Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en la/s Grabación/es a satisfacción de las Partes.');
+
+  // Transition paragraph
+  y += sectionSpace;
+  addParagraph('Con la finalidad de acordar los términos y condiciones de la colaboración entre las Partes y formalizar la cesión de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes', indent1);
 
   // CLÁUSULAS
-  y += 4;
-  addTitle('CLAUSULAS', 13);
+  y += sectionSpace;
+  addCenteredSection('CLÁUSULAS');
 
-  // 1. OBJETO
+  // 1. OBJETO - after CLÁUSULAS + 7.7mm
+  y += subItemSpace;
   addClauseTitle('1', 'OBJETO');
 
-  addParagraph('1.1. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesion a terceros todos los derechos de propiedad intelectual que recaen sobre su interpretacion musical, fijada en la Grabacion que se detalla a continuacion:');
+  // 1.1. - after title + sectionSpace
+  y += sectionSpace;
+  addParagraph('1.1. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos de propiedad intelectual que recaen sobre su interpretación musical, fijada en la Grabación que se detalla a continuación:', indent1);
 
-  addSubItem('a. Titulo de la obra Grabacion:', s(d.grabacion_titulo));
-  addSubItem('b. Calidad en que interviene la COLABORADORA:', s(d.grabacion_calidad));
-  addSubItem('c. Duracion de la Grabacion:', s(d.grabacion_duracion));
-  addSubItem('d. Participacion (Si/No) en videoclip de la Grabacion:', s(d.grabacion_videoclip));
-  addSubItem('e. Fecha de la fijacion:', s(d.grabacion_fecha_fijacion));
+  y += subItemSpace;
+  addSubItem('a. ', 'Título de la obra Grabación:', s(d.grabacion_titulo));
+  addSubItem('b. ', 'Calidad en que interviene la COLABORADORA:', s(d.grabacion_calidad));
+  addSubItem('c. ', 'Duración de la Grabación:', s(d.grabacion_duracion));
+  addSubItem('d. ', 'Participación (Sí/No) en videoclip de la Grabación:', s(d.grabacion_videoclip));
+  addSubItem('e. ', 'Fecha de la fijación:', s(d.grabacion_fecha_fijacion));
+  addSubItem('f. ', 'Carácter de la intervención:', s(d.grabacion_caracter));
 
-  addBoldInline('f. Caracter de la intervencion:', ` ${s(d.grabacion_caracter)}`, 15);
-
-  addParagraph('1.2. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesion a terceros todos los derechos que recaen sobre su imagen personal, incluyendo nombre civil o artistico, con proposito de mencion e informacion relacionada con la Grabacion, y, en especial los relativos a su imagen personal vinculada a su interpretacion en el caso de que exista una grabacion audiovisual (en la forma de un videoclip o similar) vinculada a la Grabacion.');
+  // 1.2.
+  y += sectionSpace;
+  addParagraph('1.2. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos que recaen sobre su imagen personal, incluyendo nombre civil o artístico, con propósito de mención e información relacionada con la Grabación, y, en especial los relativos a su imagen personal vinculada a su interpretación en el caso de que exista una grabación audiovisual (en la forma de un videoclip o similar) vinculada a la Grabación.', indent1);
 
   // 2. ALCANCE
-  addClauseTitle('2', 'ALCANCE DE LA CESION DE DERECHOS');
+  y += sectionSpace;
+  addClauseTitle('2', 'ALCANCE DE LA CESIÓN DE DERECHOS');
 
-  addParagraph('2.1. El alcance de las cesiones de derechos de la COLABORADORA a favor de la PRODUCTORA que son objeto de este contrato, se conceden con la mayor amplitud y de forma ilimitada con la finalidad de que la PRODUCTORA pueda explotar la Grabacion, el Album, el videoclip y/o cualquier material promocional, publicitario y/o informativo que acompane a los mismos, en todos los formatos y sistemas de explotacion de musica y audiovisuales, a traves de todos los medios de explotacion que existan durante la vigencia de la presente cesion de derechos y sin mas limitaciones que las establecidas en el presente contrato.');
+  y += sectionSpace;
+  addParagraph('2.1. El alcance de las cesiones de derechos de la COLABORADORA a favor de la PRODUCTORA que son objeto de este contrato, se conceden con la mayor amplitud y de forma ilimitada con la finalidad de que la PRODUCTORA pueda explotar la Grabación, el Sencillo, el videoclip y/o cualquier material promocional, publicitario y/o informativo que acompañe a los mismos, en todos los formatos y sistemas de explotación de música y audiovisuales, a través de todos los medios de explotación que existan durante la vigencia de la presente cesión de derechos y sin más limitaciones que las establecidas en el presente contrato.', indent1);
 
-  addBoldInline('a. PERIODO:', 'A perpetuidad.', 15);
-  addBoldInline('b. TERRITORIO:', 'El Universo.', 15);
-  addBoldInline('c. MEDIOS:', 'Todos los medios existentes durante la vigencia de este contrato.', 15);
+  y += interline;
+  addBoldInline('a. PERIODO:', 'A perpetuidad.');
+  addBoldInline('b. TERRITORIO:', 'El Universo.');
+  addBoldInline('c. MEDIOS:', 'Todos los medios existentes durante la vigencia de este contrato.');
 
-  addParagraph('2.2. La COLABORADORA cede a la PRODUCTORA, a titulo enunciativo, pero sin caracter limitativo, el derecho de reproduccion, distribucion, comunicacion publica y transformacion necesarios para la pacifica explotacion de la Grabacion y, en su caso, de los audiovisuales que la acompanen, quedando facultada la PRODUCTORA para contratar con terceros la explotacion de los mismos, transfiriendo a dichos terceros los mismos derechos y obligaciones que adquiere la PRODUCTORA en este contrato.');
+  y += subItemSpace;
+  addParagraph('2.2. La COLABORADORA cede a la PRODUCTORA, a título enunciativo, pero sin carácter limitativo, el derecho de reproducción, distribución, comunicación pública y transformación necesarios para la pacífica explotación de la Grabación y, en su caso, de los audiovisuales que la acompañen, quedando facultada la PRODUCTORA para contratar con terceros la explotación de los mismos, transfiriendo a dichos terceros los mismos derechos y obligaciones que adquiere la PRODUCTORA en este contrato.', indent1);
 
-  addParagraph('2.3. La PRODUCTORA se compromete a acreditar a la COLABORADORA de la siguiente forma, siguiendo los usos y costumbres del sector y segun las posibilidades de cada uno de los medios y sistemas de explotacion de la Grabacion, del Album y, en su caso, del videoclip:');
+  y += subItemSpace;
+  addParagraph('2.3. La PRODUCTORA se compromete a acreditar a la COLABORADORA de la siguiente forma, siguiendo los usos y costumbres del sector y según las posibilidades de cada uno de los medios y sistemas de explotación de la Grabación, del Sencillo y, en su caso, del videoclip:', indent1);
 
-  addSubItem('a. Nombre artistico:', s(d.acreditacion_nombre));
-  addSubItem('b. Caracter de la intervencion:', s(d.acreditacion_caracter));
+  y += subItemSpace;
+  addSubItem('a. ', 'Nombre artístico:', s(d.acreditacion_nombre));
+  addSubItem('b. ', 'Carácter de la intervención:', s(d.acreditacion_caracter));
 
-  addParagraph(`2.4. Sin perjuicio de la cesion de derechos otorgada en este documento, la COLABORADORA podra acreditar su participacion en las entidades de gestion de derechos de propiedad intelectual de los artistas interpretes y ejecutantes, con relacion a la Grabacion y, en su caso, al videoclip, en calidad de (${s(d.calidad_entidad)}).`);
+  y += subItemSpace;
+  addParagraph(`2.4. Sin perjuicio de la cesión de derechos otorgada en este documento, la COLABORADORA podrá acreditar su participación en las entidades de gestión de derechos de propiedad intelectual de los artistas intérpretes y ejecutantes, con relación a la Grabación y, en su caso, al videoclip, en calidad de (${s(d.calidad_entidad)}).`, indent1);
 
-  addParagraph(`2.5. Queda expresamente acordado que la PRODUCTORA, por si o por terceros, podra explotar la Grabacion en forma de sencillo discografico o single; en forma de videoclip incluyendo o no la imagen de la COLABORADORA; en forma de fragmentos para su uso en teasers, trailers, piezas promocionales de la Grabacion, el videoclip o la carrera profesional de ${s(d.productora_nombre_artistico)}, y, con caracter general, de forma amplia siempre y cuando la interpretacion de la COLABORADORA forme parte de la Grabacion y no se utilice de forma independiente a esta y este relacionada con la explotacion, publicidad, promocion y/o comunicacion de la carrera y productos de ${s(d.productora_nombre_artistico)} y/o la PRODUCTORA.`);
+  y += subItemSpace;
+  addParagraph(`2.5. Queda expresamente acordado que la PRODUCTORA, por sí o por terceros, podrá explotar la Grabación en forma de sencillo discográfico o single; en forma de videoclip incluyendo o no la imagen de la COLABORADORA; en forma de fragmentos para su uso en teasers, trailers, piezas promocionales de la Grabación, el videoclip o la carrera profesional de ${s(d.productora_nombre_artistico)}, y, con carácter general, de forma amplia siempre y cuando la interpretación de la COLABORADORA forme parte de la Grabación y no se utilice de forma independiente a esta y esté relacionada con la explotación, publicidad, promoción y/o comunicación de la carrera y productos de ${s(d.productora_nombre_artistico)} y/o la PRODUCTORA.`, indent1);
 
   // 3. CONTRAPRESTACIÓN
-  addClauseTitle('3', 'CONTRAPRESTACION');
+  y += sectionSpace;
+  addClauseTitle('3', 'CONTRAPRESTACIÓN');
 
   const royaltyNum = parseInt(d.royalty_porcentaje) || 0;
   const royaltyText = numberToSpanishText(royaltyNum) || s('');
 
-  addParagraph(`3.1. En contraprestacion por la cesion de derechos que es objeto de este contrato y como remuneracion total por la participacion de la COLABORADORA en la Grabacion y, en su caso, el videoclip, la PRODUCTORA abonara a la COLABORADORA, por si o por terceros, un royalty de artista equivalente al ${royaltyText} POR CIENTO (${s(d.royalty_porcentaje)}%) de los ingresos que la PRODUCTORA obtenga por la explotacion de la Grabacion y, en su caso, del videoclip, independientemente de su procedencia. A estos efectos se considerara explotacion de la Grabacion todo acto de comercializacion que sea remunerado, incluyendo, para mayor claridad, los ingresos por venta de la Grabacion en formato digital y en formato fisico; los ingresos recibidos por el streaming de la Grabacion; los ingresos recibidos por el streaming del videoclip si lo hubiera; los ingresos recibidos de la explotacion en forma de sincronizacion de la Grabacion y, en general, todo acto de comercializacion de la Grabacion en el Territorio y durante el Periodo.`);
+  y += sectionSpace;
+  addParagraph(`3.1. En contraprestación por la cesión de derechos que es objeto de este contrato y como remuneración total por la participación de la COLABORADORA en la Grabación y, en su caso, el videoclip, la PRODUCTORA abonará a la COLABORADORA, por sí o por terceros, un royalty de artista equivalente al ${royaltyText} POR CIENTO (${s(d.royalty_porcentaje)}%) de los ingresos que la PRODUCTORA obtenga por la explotación de la Grabación y, en su caso, del videoclip, independientemente de su procedencia. A estos efectos se considerará explotación de la Grabación todo acto de comercialización que sea remunerado, incluyendo, para mayor claridad, los ingresos por venta de la Grabación en formato digital y en formato físico; los ingresos recibidos por el streaming de la Grabación; los ingresos recibidos por el streaming del videoclip si lo hubiera; los ingresos recibidos de la explotación en forma de sincronización de la Grabación y, en general, todo acto de comercialización de la Grabación en el Territorio y durante el Periodo.`, indent1);
 
-  addParagraph('3.2. En el caso de que posteriormente la Grabacion se incorpore a un album u otra compilacion, y los ingresos de la PRODUCTORA provengan de la explotacion de dicho album o compilacion, dichos ingresos seran repartidos entre el numero de grabaciones integrantes del mismo para calcular los ingresos correspondientes a la Grabacion y abonar el royalty de artista en consecuencia. La forma de calculo del royalty, en este caso, sera, por tanto, la de prorrata tituli (o partes iguales para cada uno de los titulos).');
+  y += subItemSpace;
+  addParagraph('3.2. En el caso de que posteriormente la Grabación se incorpore a un álbum u otra compilación, y los ingresos de la PRODUCTORA provengan de la explotación de dicho álbum o compilación, dichos ingresos serán repartidos entre el número de grabaciones integrantes del mismo para calcular los ingresos correspondientes a la Grabación y abonar el royalty de artista en consecuencia. La forma de cálculo del royalty, en este caso, será, por tanto, la de prorrata tituli (o partes iguales para cada uno de los títulos).', indent1);
 
-  addParagraph('3.3. La PRODUCTORA sera la responsable del pago del royalty de artista a la COLABORADORA, si bien la PRODUCTORA podra encargar dicho pago a terceros a los que licencie la comercializacion y/o distribucion de la Grabacion, de forma temporal o permanente.');
+  y += subItemSpace;
+  addParagraph('3.3. La PRODUCTORA será la responsable del pago del royalty de artista a la COLABORADORA, si bien la PRODUCTORA podrá encargar dicho pago a terceros a los que licencie la comercialización y/o distribución de la Grabación, de forma temporal o permanente.', indent1);
 
-  addParagraph('3.4. La frecuencia del pago del royalty de artista sera semestral, coincidiendo con los pagos que reciba la PRODUCTORA por parte de los terceros a quien licencie la comercializacion y/o distribucion del Album y la Grabacion y no se aplicaran descuentos por parte de la PRODUCTORA.');
+  y += subItemSpace;
+  addParagraph('3.4. La frecuencia del pago del royalty de artista será semestral, coincidiendo con los pagos que reciba la PRODUCTORA por parte de los terceros a quien licencie la comercialización y/o distribución del Sencillo y la Grabación y no se aplicarán descuentos por parte de la PRODUCTORA.', indent1);
 
-  addParagraph('3.5. La PRODUCTORA emitira una liquidacion a favor de la COLABORADORA, que podria incluir importes negativos en el caso de que existieran devoluciones, y solicitara una factura a la COLABORADORA con la periodicidad detallada. Una vez la COLABORADORA haya emitido dicha factura, la PRODUCTORA la abonara en el transcurso de treinta (30) dias, a traves de transferencia bancaria a la cuenta de titularidad de la COLABORADORA que esta le indique.');
+  y += subItemSpace;
+  addParagraph('3.5. La PRODUCTORA emitirá una liquidación a favor de la COLABORADORA, que podría incluir importes negativos en el caso de que existieran devoluciones, y solicitará una factura a la COLABORADORA con la periodicidad detallada. Una vez la COLABORADORA haya emitido dicha factura, la PRODUCTORA la abonará en el transcurso de treinta (30) días, a través de transferencia bancaria a la cuenta de titularidad de la COLABORADORA que esta le indique.', indent1);
 
   // 4. NOTIFICACIONES
+  y += sectionSpace;
   addClauseTitle('4', 'NOTIFICACIONES');
 
-  addParagraph('4.1. Las Partes han establecido como medio valido para el envio de cualquier comunicacion relacionada con el contenido de este contrato el envio de correos electronicos a las siguientes direcciones:');
+  y += sectionSpace;
+  addParagraph('4.1. Las Partes han establecido como medio válido para el envío de cualquier comunicación relacionada con el contenido de este contrato el envío de correos electrónicos a las siguientes direcciones:', indent1);
 
-  addSubItem('a. De la PRODUCTORA:', s(d.productora_email));
-  addSubItem('b. De la COLABORADORA:', s(d.colaboradora_email));
+  y += subItemSpace;
+  addSubItem('a. ', 'De la PRODUCTORA:', s(d.productora_email));
+  addSubItem('b. ', 'De la COLABORADORA:', s(d.colaboradora_email));
 
   // 5. CONFIDENCIALIDAD
-  addClauseTitle('5', 'CONFIDENCIALIDAD Y PROTECCION DE DATOS');
+  y += sectionSpace;
+  addClauseTitle('5', 'CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS');
 
-  addParagraph('5.1. Las Partes se comprometen a mantener en la mas estricta confidencialidad toda la informacion, tanto oral como escrita, que se haya puesto a disposicion de la otra parte, tanto con caracter previo a la firma de esta Licencia como mientras esta este vigente. Para ello, las Partes se comprometen a no hablar ni de forma directa ni indirecta de la informacion confidencial en ningun espacio publico o abierto al publico, ni a traves de terceros sin el consentimiento previo de la otra parte. No obstante, las Partes podran compartir la informacion confidencial que sea necesaria con asesores externos, abogados o contables, los cuales deberan tener suscrito un deber de confidencialidad que tenga por lo menos el alcance de esta clausula. La obligacion de mantener la informacion confidencial se establece sin ninguna limitacion temporal.');
+  y += sectionSpace;
+  addParagraph('5.1. Las Partes se comprometen a mantener en la más estricta confidencialidad toda la información, tanto oral como escrita, que se haya puesto a disposición de la otra parte, tanto con carácter previo a la firma de esta Licencia como mientras esta esté vigente. Para ello, las Partes se comprometen a no hablar ni de forma directa ni indirecta de la información confidencial en ningún espacio público o abierto al público, ni a través de terceros sin el consentimiento previo de la otra parte. No obstante, las Partes podrán compartir la información confidencial que sea necesaria con asesores externos, abogados o contables, los cuales deberán tener suscrito un deber de confidencialidad que tenga por lo menos el alcance de esta cláusula. La obligación de mantener la información confidencial se establece sin ninguna limitación temporal.', indent1);
 
-  addParagraph('5.2. Asimismo, las Partes se comprometen a cumplir con la normativa vigente en materia de proteccion de datos, obligandose mutuamente a no utilizar los datos personales de la otra parte para finalidades diferentes o incompatibles con la de dar cumplimiento a lo dispuesto en esta Licencia. Los datos podran ser conservados durante el tiempo necesario para cumplir con posibles responsabilidades legales y fiscales. En caso de que, por el ambito territorial de esta Licencia, los datos deban transferirse a Terceros Paises, la PRODUCTORA se compromete a adoptar las medidas de seguridad que sean necesarias para impedir, dentro de sus posibilidades, el acceso a los datos personales a terceros no autorizados.');
+  y += subItemSpace;
+  addParagraph('5.2. Asimismo, las Partes se comprometen a cumplir con la normativa vigente en materia de protección de datos, obligándose mutuamente a no utilizar los datos personales de la otra parte para finalidades diferentes o incompatibles con la de dar cumplimiento a lo dispuesto en esta Licencia. Los datos podrán ser conservados durante el tiempo necesario para cumplir con posibles responsabilidades legales y fiscales. En caso de que, por el ámbito territorial de esta Licencia, los datos deban transferirse a Terceros Países, la PRODUCTORA se compromete a adoptar las medidas de seguridad que sean necesarias para impedir, dentro de sus posibilidades, el acceso a los datos personales a terceros no autorizados.', indent1);
 
-  addParagraph('Las Partes podran ejercer sus derechos de acceso, oposicion, rectificacion, limitacion y portabilidad a traves del envio de correos electronicos a la direccion que consta en la Clausula de Notificaciones, debiendo aportar una fotocopia del DNI para poder verificar la identidad del remitente. Todo ello sin perjuicio del derecho a interponer una reclamacion ante la Agencia Espanola de Proteccion de Datos.');
+  y += subItemSpace;
+  addParagraph('Las Partes podrán ejercer sus derechos de acceso, oposición, rectificación, limitación y portabilidad a través del envío de correos electrónicos a la dirección que consta en la Cláusula de Notificaciones, debiendo aportar una fotocopia del DNI para poder verificar la identidad del remitente. Todo ello sin perjuicio del derecho a interponer una reclamación ante la Agencia Española de Protección de Datos.', indent1);
 
   // 6. LEY APLICABLE
-  addClauseTitle('6', 'LEY APLICABLE Y RESOLUCION DE CONFLICTOS');
+  y += sectionSpace;
+  addClauseTitle('6', 'LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS');
 
-  addParagraph('6.1. Esta Licencia se regira e interpretara de acuerdo con el ordenamiento juridico espanol y, en concreto, por lo dispuesto en la Ley de Propiedad Intelectual.');
+  y += sectionSpace;
+  addParagraph('6.1. Esta Licencia se regirá e interpretará de acuerdo con el ordenamiento jurídico español y, en concreto, por lo dispuesto en la Ley de Propiedad Intelectual.', indent1);
 
-  addParagraph('6.2. Ante cualquier incumplimiento, discrepancia o conflicto que pueda surgir entre las Partes, ambas se comprometen, en primer lugar, a intentar resolverlo de forma amistosa, otorgando a la otra parte un plazo de al menos diez (10) dias a contar desde la fecha en la que la parte perjudicada remita a la otra los motivos en los que se basa el incumplimiento o el conflicto. Una vez agotada la via amistosa, las Partes, con renuncia expresa a cualquier fuero que pudiere corresponderles, acuerdan someterse al Tribunal Arbitral de Barcelona (TAB).');
+  y += subItemSpace;
+  addParagraph('6.2. Ante cualquier incumplimiento, discrepancia o conflicto que pueda surgir entre las Partes, ambas se comprometen, en primer lugar, a intentar resolverlo de forma amistosa, otorgando a la otra parte un plazo de al menos diez (10) días a contar desde la fecha en la que la parte perjudicada remita a la otra los motivos en los que se basa el incumplimiento o el conflicto. Una vez agotada la vía amistosa, las Partes, con renuncia expresa a cualquier fuero que pudiere corresponderles, acuerdan someterse al Tribunal Arbitral de Barcelona (TAB).', indent1);
 
-  y += 4;
-  addParagraph('Y en senal de conformidad con lo previsto en este documento y para hacer efectiva la cesion de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.');
+  // Closing paragraph
+  y += sectionSpace;
+  addParagraph('Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.');
 
   // Signature block
   checkPage(50);
-  y += 10;
+  y += 15;
   const colW = (cw - 20) / 2;
-  
+
   pdf.setFont('times', 'bold');
-  pdf.setFontSize(12);
+  pdf.setFontSize(fontSize);
   pdf.text('La PRODUCTORA', ml + colW / 2, y, { align: 'center' });
   pdf.text('La COLABORADORA', ml + colW + 20 + colW / 2, y, { align: 'center' });
-  
+
   y += 25;
   pdf.setDrawColor(0);
   pdf.line(ml, y, ml + colW, y);
   pdf.line(ml + colW + 20, y, ml + colW + 20 + colW, y);
-  
+
   y += 6;
   pdf.setFont('times', 'normal');
-  pdf.setFontSize(11);
+  pdf.setFontSize(fontSize);
   pdf.text(s(d.firma_productora), ml + colW / 2, y, { align: 'center' });
   pdf.text(s(d.firma_colaboradora), ml + colW + 20 + colW / 2, y, { align: 'center' });
 
