@@ -305,23 +305,21 @@ function TrackAudioCard({ track }: { track: Track }) {
       if (insertError) throw insertError;
 
       // Extract duration from audio and update track
-      if (isFirstVersion) {
-        try {
-          const audio = new Audio(publicUrl);
-          audio.addEventListener('loadedmetadata', async () => {
-            const durationSeconds = Math.round(audio.duration);
-            if (durationSeconds && isFinite(durationSeconds)) {
-              await supabase
-                .from('tracks')
-                .update({ duration: durationSeconds })
-                .eq('id', track.id);
-              queryClient.invalidateQueries({ queryKey: ['release-tracks'] });
-            }
-          });
-          audio.load();
-        } catch (e) {
-          console.warn('Could not extract audio duration:', e);
-        }
+      try {
+        const audio = new Audio(publicUrl);
+        audio.addEventListener('loadedmetadata', async () => {
+          const durationSeconds = Math.round(audio.duration);
+          if (durationSeconds && isFinite(durationSeconds)) {
+            await supabase
+              .from('tracks')
+              .update({ duration: durationSeconds })
+              .eq('id', track.id);
+            queryClient.invalidateQueries({ queryKey: ['release-tracks'] });
+          }
+        });
+        audio.load();
+      } catch (e) {
+        console.warn('Could not extract audio duration:', e);
       }
     },
     onSuccess: () => {
