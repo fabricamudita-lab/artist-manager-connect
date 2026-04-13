@@ -74,6 +74,7 @@ export default function ReleaseContratos() {
   const [documents, setDocuments] = useState<ReleaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newDocType, setNewDocType] = useState('contract');
@@ -100,19 +101,74 @@ export default function ReleaseContratos() {
     fetchDocuments();
   }, [id]);
 
-  const handleViewDocument = async (fileUrl: string | null) => {
-    if (!fileUrl) return;
-    const path = fileUrl.includes('/storage/v1/object/public/documents/')
-      ? fileUrl.split('/storage/v1/object/public/documents/')[1]
-      : fileUrl;
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(path, 3600);
-    if (error || !data?.signedUrl) {
-      toast.error('Error al obtener enlace del documento');
-      return;
+  const resolveStoragePath = (fileUrl: string): string => {
+    // Legacy full public URLs
+    if (fileUrl.includes('/storage/v1/object/public/documents/')) {
+      return fileUrl.split('/storage/v1/object/public/documents/')[1];
     }
-    window.open(data.signedUrl, '_blank');
+    // Legacy signed URLs
+    if (fileUrl.includes('/storage/v1/object/sign/documents/')) {
+      const pathWithQuery = fileUrl.split('/storage/v1/object/sign/documents/')[1];
+      return pathWithQuery.split('?')[0];
+    }
+    // Already a relative path
+    return fileUrl;
+  };
+
+  const isPreviewable = (fileType: string | null, fileName: string): boolean => {
+    if (fileType) {
+      return fileType === 'application/pdf' || fileType.startsWith('image/');
+    }
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    return ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
+  };
+
+  const handleViewDocument = async (doc: ReleaseDocument) => {
+    if (!doc.file_url) return;
+    setViewingId(doc.id);
+
+    try {
+      const path = resolveStoragePath(doc.file_url);
+      const canPreview = isPreviewable(doc.file_type, doc.file_name);
+
+      // Pre-open tab for previewable files to avoid popup blocker
+      let newTab: Window | null = null;
+      if (canPreview) {
+        newTab = window.open('about:blank', '_blank');
+      }
+
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(path);
+
+      if (error || !data) {
+        console.error('Error downloading document:', error);
+        newTab?.close();
+        toast.error('Error al obtener el documento');
+        return;
+      }
+
+      const blobUrl = URL.createObjectURL(data);
+
+      if (canPreview && newTab) {
+        newTab.location.href = blobUrl;
+      } else {
+        // Trigger download for non-previewable files
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = doc.file_name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        toast.success('Documento descargado');
+      }
+    } catch (err: any) {
+      console.error('Error viewing document:', err);
+      toast.error('Error al abrir el documento');
+    } finally {
+      setViewingId(null);
+    }
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -283,9 +339,9 @@ export default function ReleaseContratos() {
                       {/* Actions */}
                       <div className="flex items-center gap-2">
                         {doc.file_url && (
-                          <Button variant="outline" size="sm" onClick={() => handleViewDocument(doc.file_url)}>
+                          <Button variant="outline" size="sm" onClick={() => handleViewDocument(doc)} disabled={viewingId === doc.id}>
                             <Eye className="h-4 w-4 mr-1.5" />
-                            Ver documento
+                            {viewingId === doc.id ? 'Abriendo...' : (isPreviewable(doc.file_type, doc.file_name) ? 'Ver documento' : 'Descargar')}
                           </Button>
                         )}
                         <Button
