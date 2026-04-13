@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileSignature, Trash2, Eye, MoreHorizontal, ChevronDown, StickyNote, FileText } from 'lucide-react';
+import { ArrowLeft, Upload, FileSignature, Trash2, Eye, ChevronDown, StickyNote, FileText, Download, X, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -74,7 +74,7 @@ export default function ReleaseContratos() {
   const [documents, setDocuments] = useState<ReleaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [viewingId, setViewingId] = useState<string | null>(null);
+  
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newDocType, setNewDocType] = useState('contract');
@@ -82,6 +82,9 @@ export default function ReleaseContratos() {
   const [showContractSelector, setShowContractSelector] = useState(false);
   const [showBookingGenerator, setShowBookingGenerator] = useState(false);
   const [showIPLicenseGenerator, setShowIPLicenseGenerator] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<ReleaseDocument | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchDocuments = async () => {
     if (!id) return;
@@ -123,51 +126,68 @@ export default function ReleaseContratos() {
     return ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
   };
 
-  const handleViewDocument = async (doc: ReleaseDocument) => {
+  const handlePreviewDocument = async (doc: ReleaseDocument) => {
     if (!doc.file_url) return;
-    setViewingId(doc.id);
+    setPreviewDoc(doc);
+    setPreviewLoading(true);
 
     try {
       const path = resolveStoragePath(doc.file_url);
-      const canPreview = isPreviewable(doc.file_type, doc.file_name);
-
-      // Pre-open tab for previewable files to avoid popup blocker
-      let newTab: Window | null = null;
-      if (canPreview) {
-        newTab = window.open('about:blank', '_blank');
-      }
-
       const { data, error } = await supabase.storage
         .from('documents')
         .download(path);
 
       if (error || !data) {
         console.error('Error downloading document:', error);
-        newTab?.close();
         toast.error('Error al obtener el documento');
+        setPreviewDoc(null);
         return;
       }
 
       const blobUrl = URL.createObjectURL(data);
-
-      if (canPreview && newTab) {
-        newTab.location.href = blobUrl;
-      } else {
-        // Trigger download for non-previewable files
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = doc.file_name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-        toast.success('Documento descargado');
-      }
+      setPreviewBlobUrl(blobUrl);
     } catch (err: any) {
-      console.error('Error viewing document:', err);
+      console.error('Error previewing document:', err);
       toast.error('Error al abrir el documento');
+      setPreviewDoc(null);
     } finally {
-      setViewingId(null);
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl);
+    }
+    setPreviewDoc(null);
+    setPreviewBlobUrl(null);
+  };
+
+  const handleDownloadDocument = async (doc: ReleaseDocument) => {
+    if (!doc.file_url) return;
+    try {
+      const path = resolveStoragePath(doc.file_url);
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(path);
+
+      if (error || !data) {
+        toast.error('Error al descargar el documento');
+        return;
+      }
+
+      const blobUrl = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      toast.success('Documento descargado');
+    } catch (err: any) {
+      console.error('Error downloading document:', err);
+      toast.error('Error al descargar');
     }
   };
 
@@ -339,10 +359,18 @@ export default function ReleaseContratos() {
                       {/* Actions */}
                       <div className="flex items-center gap-2">
                         {doc.file_url && (
-                          <Button variant="outline" size="sm" onClick={() => handleViewDocument(doc)} disabled={viewingId === doc.id}>
-                            <Eye className="h-4 w-4 mr-1.5" />
-                            {viewingId === doc.id ? 'Abriendo...' : (isPreviewable(doc.file_type, doc.file_name) ? 'Ver documento' : 'Descargar')}
-                          </Button>
+                          <>
+                            {isPreviewable(doc.file_type, doc.file_name) && (
+                              <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc)}>
+                                <Eye className="h-4 w-4 mr-1.5" />
+                                Ver documento
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => handleDownloadDocument(doc)}>
+                              <Download className="h-4 w-4 mr-1.5" />
+                              Descargar
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="outline"
@@ -453,6 +481,55 @@ export default function ReleaseContratos() {
           }
         }}
       />
+
+      {/* Preview Panel */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) handleClosePreview(); }}>
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2">
+            <DialogTitle className="truncate text-base">
+              {previewDoc?.file_name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-auto">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
+                Cargando vista previa...
+              </div>
+            ) : previewBlobUrl && previewDoc ? (
+              previewDoc.file_type === 'application/pdf' || previewDoc.file_name.toLowerCase().endsWith('.pdf') ? (
+                <iframe
+                  src={previewBlobUrl}
+                  className="w-full h-[65vh] rounded border"
+                  title="Vista previa del documento"
+                />
+              ) : previewDoc.file_type?.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewDoc.file_name) ? (
+                <div className="flex items-center justify-center p-4">
+                  <img
+                    src={previewBlobUrl}
+                    alt={previewDoc.file_name}
+                    className="max-w-full max-h-[65vh] object-contain rounded"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[40vh] gap-3 text-muted-foreground">
+                  <FileWarning className="h-12 w-12" />
+                  <p>No se puede previsualizar este tipo de archivo</p>
+                </div>
+              )
+            ) : null}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            {previewDoc && (
+              <Button onClick={() => handleDownloadDocument(previewDoc)}>
+                <Download className="h-4 w-4 mr-2" />
+                Descargar
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
