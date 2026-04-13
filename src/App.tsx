@@ -56,6 +56,7 @@ import ReleaseCreditos from "./pages/release-sections/ReleaseCreditos";
 import ReleaseAudio from "./pages/release-sections/ReleaseAudio";
 import ReleaseEPF from "./pages/release-sections/ReleaseEPF";
 import ReleasePitch from "./pages/release-sections/ReleasePitch";
+import ReleaseContratos from "./pages/release-sections/ReleaseContratos";
 
 // Roadmaps pages
 import Roadmaps from "./pages/Roadmaps";
@@ -387,6 +388,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <ReleasePitch />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/contratos" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseContratos />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
