@@ -358,6 +358,7 @@ export default function ReleaseContratos() {
       <IPLicenseGenerator
         open={showIPLicenseGenerator}
         onOpenChange={setShowIPLicenseGenerator}
+        releaseId={id}
         onSave={async (contract) => {
           if (!id || !user?.id || !contract.pdfBlob) return;
           try {

@@ -317,9 +317,11 @@ function generatePDF(d: FormData): jsPDF {
   return pdf;
 }
 
-export function IPLicenseGenerator({ open, onOpenChange, onSave }: IPLicenseGeneratorProps) {
+export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
+  const [manualTrack, setManualTrack] = useState(false);
+  const { data: tracks = [] } = useTracks(releaseId);
 
   const update = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -384,7 +386,41 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave }: IPLicenseGene
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Grabación y Derechos</h3>
-            <div><Label>Título de la Grabación</Label><Input value={formData.grabacion_titulo} onChange={e => update('grabacion_titulo', e.target.value)} /></div>
+            <div><Label>Título de la Grabación</Label>
+              {tracks.length > 0 && !manualTrack ? (
+                <Select
+                  value={formData.grabacion_titulo}
+                  onValueChange={(v) => {
+                    if (v === '__other__') {
+                      setManualTrack(true);
+                      update('grabacion_titulo', '');
+                      update('grabacion_duracion', '');
+                      return;
+                    }
+                    const track = tracks.find(t => t.title === v);
+                    update('grabacion_titulo', v);
+                    if (track) {
+                      update('grabacion_duracion', formatDuration(track.duration));
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecciona un track" /></SelectTrigger>
+                  <SelectContent>
+                    {tracks.map(t => (
+                      <SelectItem key={t.id} value={t.title}>{t.track_number}. {t.title}{t.duration ? ` (${formatDuration(t.duration)})` : ''}</SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Otro (escribir manualmente)</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex gap-2">
+                  <Input value={formData.grabacion_titulo} onChange={e => update('grabacion_titulo', e.target.value)} placeholder="Título de la grabación" className="flex-1" />
+                  {tracks.length > 0 && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setManualTrack(false)}>Tracks</Button>
+                  )}
+                </div>
+              )}
+            </div>
             <div><Label>Calidad de intervención</Label>
               <Select value={formData.grabacion_calidad} onValueChange={v => update('grabacion_calidad', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
