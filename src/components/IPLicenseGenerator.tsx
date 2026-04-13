@@ -508,11 +508,13 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
                     if (v === '__other__') {
                       setManualTrack(true);
                       update('grabacion_titulo', '');
+                      update('titulo_sencillo', '');
                       update('grabacion_duracion', '');
                       return;
                     }
                     const track = tracks.find(t => t.title === v);
                     update('grabacion_titulo', v);
+                    update('titulo_sencillo', v);
                     if (track) {
                       update('grabacion_duracion', formatDuration(track.duration));
                     }
