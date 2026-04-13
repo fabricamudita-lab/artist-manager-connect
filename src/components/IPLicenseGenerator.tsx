@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Download, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
-import { useTracks } from '@/hooks/useReleases';
+import { useTracks, useReleases } from '@/hooks/useReleases';
 
 function numberToSpanishText(n: number): string {
   if (n < 0 || n > 100 || !Number.isInteger(n)) return '';
@@ -454,11 +454,14 @@ function generatePDF(d: FormData): jsPDF {
   return pdf;
 }
 
-export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IPLicenseGeneratorProps) {
+export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: externalReleaseId }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
   const [manualTrack, setManualTrack] = useState(false);
-  const { data: tracks = [] } = useTracks(releaseId);
+  const [selectedReleaseId, setSelectedReleaseId] = useState<string | undefined>(externalReleaseId);
+  const effectiveReleaseId = externalReleaseId || selectedReleaseId;
+  const { data: releases = [] } = useReleases();
+  const { data: tracks = [] } = useTracks(effectiveReleaseId);
 
   const update = (field: keyof FormData, value: string) => {
     setFormData(prev => {
@@ -508,6 +511,8 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
     onOpenChange(false);
     setStep(0);
     setFormData({ ...defaultData });
+    if (!externalReleaseId) setSelectedReleaseId(undefined);
+    setManualTrack(false);
   };
 
   const handlePreview = () => {
@@ -582,6 +587,31 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Grabación y Derechos</h3>
+            {!externalReleaseId && (
+              <div>
+                <Label>Lanzamiento</Label>
+                <Select
+                  value={selectedReleaseId || ''}
+                  onValueChange={(v) => {
+                    setSelectedReleaseId(v === '__none__' ? undefined : v);
+                    setManualTrack(false);
+                    update('grabacion_titulo', '');
+                    update('titulo_sencillo', '');
+                    update('grabacion_duracion', '');
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecciona un lanzamiento (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin lanzamiento</SelectItem>
+                    {releases.map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.title} ({r.type === 'album' ? 'Álbum' : r.type === 'ep' ? 'EP' : 'Single'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div><Label>Título de la Grabación</Label>
               {tracks.length > 0 && !manualTrack ? (
                 <Select
