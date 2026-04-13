@@ -95,6 +95,38 @@ export default function Documents() {
     sortOrder: 'desc',
   });
 
+  const resolveStoragePath = (fileUrl: string) => {
+    const supabaseUrl = 'https://hptjzbaiclmgbvxlmllo.supabase.co/storage/v1/object/public/documents/';
+    if (fileUrl.startsWith(supabaseUrl)) return fileUrl.replace(supabaseUrl, '');
+    return fileUrl;
+  };
+
+  const handleDownloadDocument = async (doc: Document) => {
+    const path = resolveStoragePath(doc.file_url);
+    const { data, error } = await supabase.storage.from('documents').download(path);
+    if (error || !data) {
+      toast({ title: 'Error al descargar', description: error?.message, variant: 'destructive' });
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const a = window.document.createElement('a');
+    a.href = url;
+    a.download = doc.title.endsWith('.pdf') ? doc.title : `${doc.title}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePreviewDocument = async (doc: Document) => {
+    const path = resolveStoragePath(doc.file_url);
+    const { data, error } = await supabase.storage.from('documents').download(path);
+    if (error || !data) {
+      toast({ title: 'Error al previsualizar', description: error?.message, variant: 'destructive' });
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    window.open(url, '_blank');
+  };
+
   const [newDocument, setNewDocument] = useState({
     title: '',
     category: '',
@@ -487,17 +519,13 @@ export default function Documents() {
                     </div>
                     
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
-                        <a href={document.file_url} target="_blank" rel="noopener noreferrer">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver
-                        </a>
+                      <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => handlePreviewDocument(document)}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver
                       </Button>
-                      <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
-                        <a href={document.file_url} download>
-                          <Download className="w-4 h-4 mr-2" />
-                          Descargar
-                        </a>
+                      <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => handleDownloadDocument(document)}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar
                       </Button>
                       <Button 
                         variant="outline" 
@@ -542,15 +570,11 @@ export default function Documents() {
                       </Badge>
                       
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" asChild>
-                          <a href={document.file_url} target="_blank" rel="noopener noreferrer">
-                            <Eye className="w-4 h-4" />
-                          </a>
+                        <Button variant="ghost" size="icon" onClick={() => handlePreviewDocument(document)}>
+                          <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" asChild>
-                          <a href={document.file_url} download>
-                            <Download className="w-4 h-4" />
-                          </a>
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(document)}>
+                          <Download className="w-4 h-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
