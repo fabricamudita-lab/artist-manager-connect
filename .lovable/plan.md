@@ -1,36 +1,70 @@
 
 
-## Plan: Mostrar eventos de Booking en todas las vistas del Calendario
+## Plan: Nueva sección "Contratos" en Release Detail
 
-### Problema
-Los booking offers solo aparecen en la **vista de mes** y el **panel de detalle por fecha**. Faltan en:
-- **Vista de semana**: solo muestra events vinculados por `event_id`, no bookings directos
-- **Vista de año** (`YearlyCalendar`): solo recibe `events`, ignora `bookingOffers`
-
-Además, `fetchBookingOffers` no filtra por los artistas seleccionados, mostrando bookings de todos los artistas.
+### Objetivo
+Añadir una tarjeta "Contratos" en la vista de detalle del lanzamiento para gestionar documentos legales de cesión de derechos, acuerdos de royalties, licencias, etc. — similar al sistema de contratos de Booking pero adaptado al contexto discográfico.
 
 ### Cambios
 
-**Archivo: `src/pages/Calendar.tsx`**
+**1. Nueva tabla DB: `release_documents`**
 
-1. **`fetchBookingOffers`**: Añadir filtro `.in('artist_id', selectedArtists)` para respetar el filtro de artistas. También añadir filtro por `phase` además de `estado` para cubrir ambos campos.
+Migración SQL para crear una tabla análoga a `booking_documents` pero vinculada a releases:
 
-2. **Vista de semana (`renderWeekView`)**: 
-   - En la sección "Todo el día", añadir los booking offers del día (los bookings no tienen hora, así que van como eventos de todo el día)
-   - Renderizar con estilo amber (consistente con la vista mes)
+```sql
+CREATE TABLE public.release_documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  release_id uuid REFERENCES public.releases(id) ON DELETE CASCADE NOT NULL,
+  file_name text NOT NULL,
+  file_url text,
+  file_type text DEFAULT 'application/pdf',
+  document_type text NOT NULL DEFAULT 'contract',
+  status text NOT NULL DEFAULT 'draft',
+  content text,
+  contract_token text,
+  notes text,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
 
-3. **Vista de año (`YearlyCalendar`)**:
-   - Convertir los booking offers a formato `Event` compatible y combinarlos con `events` antes de pasarlos al componente
-   - O extender `YearlyCalendar` para aceptar también bookings (más limpio)
+ALTER TABLE public.release_documents ENABLE ROW LEVEL SECURITY;
+-- RLS policies for authenticated users (same pattern as booking_documents)
+```
 
-**Archivo: `src/components/YearlyCalendar.tsx`**
-   - Añadir prop opcional `bookings` con los booking offers
-   - En `getEventsForDate`, combinar events + bookings para el conteo y los indicadores de puntos
+Tipos de documento: `contract` (cesión derechos), `license` (licencia), `publishing_agreement` (acuerdo editorial), `distribution_agreement` (acuerdo distribución), `other`.
 
-### Resultado
-Los bookings aparecerán en las 3 vistas (semana, mes, año) y se filtrarán correctamente por artista seleccionado.
+**2. Nueva sección en `ReleaseDetail.tsx`**
+
+Añadir entrada al array `SECTIONS`:
+- id: `contratos`
+- title: "Contratos"
+- description: "Contratos de royalties, cesión de derechos y licencias"
+- icon: `FileSignature` (o `ScrollText`)
+- color: amber/yellow gradient
+
+**3. Nueva página: `src/pages/release-sections/ReleaseContratos.tsx`**
+
+Funcionalidad:
+- **Subir documentos**: Upload de PDFs/archivos de contratos
+- **Tipos de documento**: Selector con tipos relevantes (Cesión de derechos, Licencia, Acuerdo editorial, Acuerdo de distribución, Otro)
+- **Estados**: draft → sent → pending_signature → signed
+- **Listado**: Tarjetas colapsables con nombre, tipo, estado y fecha
+- **Previsualización**: Abrir PDFs directamente
+- **Notas**: Campo de notas por documento
+
+Reutiliza patrones visuales y de UX del `BookingDocumentsTab` existente, adaptados al contexto de releases.
+
+**4. Ruta en `App.tsx`**
+
+Añadir: `/releases/:id/contratos` → `<ReleaseContratos />`
 
 ### Archivos afectados
-- `src/pages/Calendar.tsx`
-- `src/components/YearlyCalendar.tsx`
+- Nueva migración SQL (tabla `release_documents` + RLS)
+- `src/pages/ReleaseDetail.tsx` — nueva entrada en SECTIONS
+- `src/pages/release-sections/ReleaseContratos.tsx` — nuevo componente
+- `src/App.tsx` — nueva ruta
+
+### Nota
+No se incluye generador de contratos automático en esta fase (a diferencia de Booking). Se centra en subida, categorización y seguimiento de estado de documentos legales vinculados al release.
 
