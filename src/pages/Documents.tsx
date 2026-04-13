@@ -26,7 +26,7 @@ import { es } from 'date-fns/locale';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { DocumentFilters, DocumentFiltersState } from '@/components/DocumentFilters';
 import { DocumentStats } from '@/components/DocumentStats';
-import { ContractGenerator } from '@/components/ContractGenerator';
+import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -654,7 +654,7 @@ export default function Documents() {
       </Dialog>
 
       {/* Contract Generator Dialog */}
-      <ContractGenerator
+      <ContractTypeSelector
         open={showContractGenerator}
         onOpenChange={setShowContractGenerator}
       />
