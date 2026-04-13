@@ -493,7 +493,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
             <div><Label>Domicilio</Label><Input value={formData.colaboradora_domicilio} onChange={e => update('colaboradora_domicilio', e.target.value)} /></div>
             <div><Label>Nombre artístico</Label><Input value={formData.colaboradora_nombre_artistico} onChange={e => update('colaboradora_nombre_artistico', e.target.value)} /></div>
             <div><Label>Email</Label><Input type="email" value={formData.colaboradora_email} onChange={e => update('colaboradora_email', e.target.value)} /></div>
-            <div><Label>Título del sencillo (Álbum)</Label><Input value={formData.titulo_sencillo} onChange={e => update('titulo_sencillo', e.target.value)} placeholder="Nombre del single" /></div>
+            
           </div>
         );
       case 2:
