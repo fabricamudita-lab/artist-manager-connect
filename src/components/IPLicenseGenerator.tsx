@@ -493,7 +493,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
             <div><Label>Domicilio</Label><Input value={formData.colaboradora_domicilio} onChange={e => update('colaboradora_domicilio', e.target.value)} /></div>
             <div><Label>Nombre artístico</Label><Input value={formData.colaboradora_nombre_artistico} onChange={e => update('colaboradora_nombre_artistico', e.target.value)} /></div>
             <div><Label>Email</Label><Input type="email" value={formData.colaboradora_email} onChange={e => update('colaboradora_email', e.target.value)} /></div>
-            <div><Label>Título del sencillo (Álbum)</Label><Input value={formData.titulo_sencillo} onChange={e => update('titulo_sencillo', e.target.value)} placeholder="Nombre del single" /></div>
+            
           </div>
         );
       case 2:
@@ -508,11 +508,13 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
                     if (v === '__other__') {
                       setManualTrack(true);
                       update('grabacion_titulo', '');
+                      update('titulo_sencillo', '');
                       update('grabacion_duracion', '');
                       return;
                     }
                     const track = tracks.find(t => t.title === v);
                     update('grabacion_titulo', v);
+                    update('titulo_sencillo', v);
                     if (track) {
                       update('grabacion_duracion', formatDuration(track.duration));
                     }
@@ -528,7 +530,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
                 </Select>
               ) : (
                 <div className="flex gap-2">
-                  <Input value={formData.grabacion_titulo} onChange={e => update('grabacion_titulo', e.target.value)} placeholder="Título de la grabación" className="flex-1" />
+                  <Input value={formData.grabacion_titulo} onChange={e => { update('grabacion_titulo', e.target.value); update('titulo_sencillo', e.target.value); }} placeholder="Título de la grabación" className="flex-1" />
                   {tracks.length > 0 && (
                     <Button type="button" variant="outline" size="sm" onClick={() => setManualTrack(false)}>Tracks</Button>
                   )}
@@ -586,8 +588,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
             <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
               <p><strong>Productora:</strong> {formData.productora_nombre} ({formData.productora_nombre_artistico})</p>
               <p><strong>Colaborador/a:</strong> {formData.colaboradora_nombre} ({formData.colaboradora_nombre_artistico})</p>
-              <p><strong>Sencillo:</strong> {formData.titulo_sencillo}</p>
-              <p><strong>Grabación:</strong> {formData.grabacion_titulo} - {formData.grabacion_duracion}</p>
+              <p><strong>Grabación (Sencillo):</strong> {formData.grabacion_titulo} - {formData.grabacion_duracion}</p>
               <p><strong>Royalty:</strong> {formData.royalty_porcentaje}% ({numberToSpanishText(parseInt(formData.royalty_porcentaje) || 0)})</p>
             </div>
             <div><Label>Nombre firma Productora</Label><Input value={formData.firma_productora} onChange={e => update('firma_productora', e.target.value)} /></div>
