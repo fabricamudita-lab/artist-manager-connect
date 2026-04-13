@@ -359,10 +359,18 @@ export default function ReleaseContratos() {
                       {/* Actions */}
                       <div className="flex items-center gap-2">
                         {doc.file_url && (
-                          <Button variant="outline" size="sm" onClick={() => handleViewDocument(doc)} disabled={viewingId === doc.id}>
-                            <Eye className="h-4 w-4 mr-1.5" />
-                            {viewingId === doc.id ? 'Abriendo...' : (isPreviewable(doc.file_type, doc.file_name) ? 'Ver documento' : 'Descargar')}
-                          </Button>
+                          <>
+                            {isPreviewable(doc.file_type, doc.file_name) && (
+                              <Button variant="outline" size="sm" onClick={() => handlePreviewDocument(doc)}>
+                                <Eye className="h-4 w-4 mr-1.5" />
+                                Ver documento
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => handleDownloadDocument(doc)}>
+                              <Download className="h-4 w-4 mr-1.5" />
+                              Descargar
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="outline"
