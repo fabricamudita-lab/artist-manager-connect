@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Download, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
-import { useTracks } from '@/hooks/useReleases';
+import { useTracks, useReleases } from '@/hooks/useReleases';
 
 function numberToSpanishText(n: number): string {
   if (n < 0 || n > 100 || !Number.isInteger(n)) return '';
@@ -454,11 +454,14 @@ function generatePDF(d: FormData): jsPDF {
   return pdf;
 }
 
-export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IPLicenseGeneratorProps) {
+export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: externalReleaseId }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
   const [manualTrack, setManualTrack] = useState(false);
-  const { data: tracks = [] } = useTracks(releaseId);
+  const [selectedReleaseId, setSelectedReleaseId] = useState<string | undefined>(externalReleaseId);
+  const effectiveReleaseId = externalReleaseId || selectedReleaseId;
+  const { data: releases = [] } = useReleases();
+  const { data: tracks = [] } = useTracks(effectiveReleaseId);
 
   const update = (field: keyof FormData, value: string) => {
     setFormData(prev => {
