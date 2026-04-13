@@ -1,39 +1,49 @@
 
-Diagnóstico:
-- He revisado `src/pages/release-sections/ReleaseContratos.tsx` y la corrección anterior sigue haciendo esto al pulsar “Ver documento”: `createSignedUrl(...)` + `window.open(data.signedUrl, '_blank')`.
-- Eso significa que, aunque la URL sea privada y válida, la pestaña nueva sigue navegando directamente a `hptjzbaiclmgbvxlmllo.supabase.co`, que en tu navegador está siendo bloqueado con `ERR_BLOCKED_BY_CLIENT`.
-- Por tanto, el problema ya no es el bucket ni la firma de la URL: es seguir abriendo el dominio de Supabase en una pestaña nueva.
 
-Plan de implementación:
+## Plan: Vista previa inline + descarga PDF
 
-1. Cambiar la visualización para no abrir nunca la URL de Supabase
-- En `src/pages/release-sections/ReleaseContratos.tsx`, reemplazar la lógica actual de `handleViewDocument`.
-- En vez de abrir la signed URL, descargaré el archivo desde Storage con `supabase.storage.from('documents').download(path)` y generaré un `blob:` local con `URL.createObjectURL(...)`.
-- La pestaña nueva abrirá ese `blob:` local, no `supabase.co`.
+### Problema
+Al pulsar "Ver documento", se abre una pestaña nueva con `blob:` URL que Chrome sigue bloqueando (`ERR_BLOCKED_BY_CLIENT`). El usuario quiere ver el documento dentro de la app y poder descargarlo como PDF.
 
-2. Hacer la resolución de ruta más robusta
-- Añadir un helper para convertir `file_url` en la ruta real del bucket, soportando:
-  - rutas relativas actuales (`release-documents/...`)
-  - URLs públicas antiguas (`/storage/v1/object/public/documents/...`)
-  - posibles URLs firmadas antiguas (`/storage/v1/object/sign/documents/...?...`)
-- Así seguirá funcionando con documentos ya guardados antes de los cambios.
+### Solución
 
-3. Diferenciar previsualización y descarga según tipo de archivo
-- Cambiar `handleViewDocument` para recibir el documento completo, no solo `file_url`.
-- Si el archivo es previsualizable (PDF o imagen), abrirlo en nueva pestaña mediante `blob:`.
-- Si es DOC/DOCX u otro formato que el navegador no previsualiza bien, descargarlo directamente y mostrar un toast claro, evitando pestañas vacías o bloqueadas.
+**Archivo: `src/pages/release-sections/ReleaseContratos.tsx`**
 
-4. Mejorar la UX del botón
-- Abrir una pestaña vacía inmediatamente solo en archivos previsualizables, y rellenarla después con el `blob:` para evitar bloqueos de popup tras el `await`.
-- Añadir estado de carga por documento (`viewingId`) para desactivar temporalmente el botón mientras se obtiene el archivo.
-- Mejorar el manejo de errores con `console.error(...)` y toast más específico.
+1. **Nuevo estado para vista previa inline**: Añadir estado `previewDoc` (documento seleccionado) y `previewBlobUrl` (blob URL generado).
 
-Alcance:
-- Archivo afectado: `src/pages/release-sections/ReleaseContratos.tsx`
-- Sin cambios en base de datos ni en Supabase.
+2. **Reemplazar `handleViewDocument`**: En vez de abrir nueva pestaña, descargar el blob con `supabase.storage.download()`, crear `URL.createObjectURL()` y guardarlo en estado para mostrarlo en un panel lateral.
 
-Resultado esperado:
-- “Ver documento” dejará de abrir la URL de Supabase que te bloquea Chrome.
-- PDFs e imágenes se abrirán correctamente.
-- DOC/DOCX se descargarán de forma controlada.
-- Los documentos antiguos seguirán siendo compatibles.
+3. **Panel lateral de vista previa**: Añadir un `Dialog` grande (similar al `InvoicePreviewDialog` existente) que muestre:
+   - Para PDFs: un `<iframe src={blobUrl}>` embebido
+   - Para imágenes: un `<img src={blobUrl}>`
+   - Para otros tipos: mensaje indicando que no se puede previsualizar + botón de descarga
+   - Botón "Descargar PDF" que descarga el archivo localmente
+
+4. **Botón de descarga**: Añadir un botón "Descargar" junto a "Ver documento" en la sección expandida de cada documento, que descarga directamente el blob sin abrir ninguna pestaña.
+
+5. **Limpieza**: Revocar el blob URL al cerrar el panel (`URL.revokeObjectURL`).
+
+### Estructura del panel de vista previa
+
+```text
+┌─────────────────────────────────────────┐
+│ Vista previa - nombre_archivo.pdf    [X]│
+├─────────────────────────────────────────┤
+│                                         │
+│   ┌─────────────────────────────────┐   │
+│   │                                 │   │
+│   │   <iframe> / <img> embebido     │   │
+│   │                                 │   │
+│   └─────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│                        [Descargar] [X]  │
+└─────────────────────────────────────────┘
+```
+
+### Archivos afectados
+- `src/pages/release-sections/ReleaseContratos.tsx` — toda la lógica de preview y descarga
+
+### Sin cambios en
+- Base de datos, Storage, ni otros componentes
+
