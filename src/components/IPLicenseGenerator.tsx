@@ -6,11 +6,22 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Download, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { useTracks } from '@/hooks/useReleases';
+
+const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '';
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  return `${min}:${sec.toString().padStart(2, '0')}`;
+}
 
 interface IPLicenseGeneratorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: (contract: { title: string; content: string; pdfBlob?: Blob }) => void | Promise<void>;
+  releaseId?: string;
 }
 
 interface FormData {
@@ -46,7 +57,7 @@ interface FormData {
 const STEPS = ['Productora', 'Colaborador/a', 'Grabación y Derechos', 'Vista Previa'];
 
 const defaultData: FormData = {
-  fecha_dia: '', fecha_mes: '', fecha_anio: new Date().getFullYear().toString(),
+  fecha_dia: new Date().getDate().toString(), fecha_mes: MESES_ES[new Date().getMonth()], fecha_anio: new Date().getFullYear().toString(),
   productora_nombre: '', productora_dni: '', productora_domicilio: '',
   productora_nombre_artistico: '', productora_email: '',
   colaboradora_nombre: '', colaboradora_dni: '', colaboradora_domicilio: '',
