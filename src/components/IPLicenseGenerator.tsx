@@ -588,8 +588,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
             <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
               <p><strong>Productora:</strong> {formData.productora_nombre} ({formData.productora_nombre_artistico})</p>
               <p><strong>Colaborador/a:</strong> {formData.colaboradora_nombre} ({formData.colaboradora_nombre_artistico})</p>
-              <p><strong>Sencillo:</strong> {formData.titulo_sencillo}</p>
-              <p><strong>Grabación:</strong> {formData.grabacion_titulo} - {formData.grabacion_duracion}</p>
+              <p><strong>Grabación (Sencillo):</strong> {formData.grabacion_titulo} - {formData.grabacion_duracion}</p>
               <p><strong>Royalty:</strong> {formData.royalty_porcentaje}% ({numberToSpanishText(parseInt(formData.royalty_porcentaje) || 0)})</p>
             </div>
             <div><Label>Nombre firma Productora</Label><Input value={formData.firma_productora} onChange={e => update('firma_productora', e.target.value)} /></div>
