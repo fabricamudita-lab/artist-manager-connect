@@ -74,7 +74,7 @@ export default function ReleaseContratos() {
   const [documents, setDocuments] = useState<ReleaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [viewingId, setViewingId] = useState<string | null>(null);
+  
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newDocType, setNewDocType] = useState('contract');
@@ -481,6 +481,55 @@ export default function ReleaseContratos() {
           }
         }}
       />
+
+      {/* Preview Panel */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) handleClosePreview(); }}>
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2">
+            <DialogTitle className="truncate text-base">
+              {previewDoc?.file_name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-auto">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
+                Cargando vista previa...
+              </div>
+            ) : previewBlobUrl && previewDoc ? (
+              previewDoc.file_type === 'application/pdf' || previewDoc.file_name.toLowerCase().endsWith('.pdf') ? (
+                <iframe
+                  src={previewBlobUrl}
+                  className="w-full h-[65vh] rounded border"
+                  title="Vista previa del documento"
+                />
+              ) : previewDoc.file_type?.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewDoc.file_name) ? (
+                <div className="flex items-center justify-center p-4">
+                  <img
+                    src={previewBlobUrl}
+                    alt={previewDoc.file_name}
+                    className="max-w-full max-h-[65vh] object-contain rounded"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[40vh] gap-3 text-muted-foreground">
+                  <FileWarning className="h-12 w-12" />
+                  <p>No se puede previsualizar este tipo de archivo</p>
+                </div>
+              )
+            ) : null}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            {previewDoc && (
+              <Button onClick={() => handleDownloadDocument(previewDoc)}>
+                <Download className="h-4 w-4 mr-2" />
+                Descargar
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
