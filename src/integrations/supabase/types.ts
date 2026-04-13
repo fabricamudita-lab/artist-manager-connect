@@ -5763,6 +5763,62 @@ export type Database = {
           },
         ]
       }
+      release_documents: {
+        Row: {
+          content: string | null
+          contract_token: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string
+          file_name: string
+          file_type: string | null
+          file_url: string | null
+          id: string
+          notes: string | null
+          release_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          contract_token?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string
+          file_name: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          release_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          contract_token?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          release_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_documents_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       release_milestones: {
         Row: {
           category: string | null
