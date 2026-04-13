@@ -1,72 +1,70 @@
 
 
-## Plan: Selector de tipo de contrato + Generador de contrato IP (Cesión de Derechos)
+## Plan: Nueva sección "Contratos" en Release Detail
 
-### Problema
-Al pulsar "Generar Contrato" (en Documentos o en ReleaseContratos), se abre directamente el generador de contratos de Booking. No hay opción de elegir tipo de contrato ni existe un generador para contratos de propiedad intelectual/cesión de derechos.
+### Objetivo
+Añadir una tarjeta "Contratos" en la vista de detalle del lanzamiento para gestionar documentos legales de cesión de derechos, acuerdos de royalties, licencias, etc. — similar al sistema de contratos de Booking pero adaptado al contexto discográfico.
 
 ### Cambios
 
-**1. Pantalla de selección de tipo de contrato (nuevo componente)**
+**1. Nueva tabla DB: `release_documents`**
 
-`src/components/ContractTypeSelector.tsx` -- Dialog intermedio que aparece al pulsar "Generar Contrato". Muestra tarjetas:
-- **Contrato de Booking** (icono Calendar): Abre el `ContractGenerator` existente
-- **Cesión de Derechos / IP** (icono FileSignature): Abre el nuevo `IPContractGenerator`
+Migración SQL para crear una tabla análoga a `booking_documents` pero vinculada a releases:
 
-Se usara desde `Documents.tsx`, `BookingDocumentsTab.tsx` y `ReleaseContratos.tsx`.
+```sql
+CREATE TABLE public.release_documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  release_id uuid REFERENCES public.releases(id) ON DELETE CASCADE NOT NULL,
+  file_name text NOT NULL,
+  file_url text,
+  file_type text DEFAULT 'application/pdf',
+  document_type text NOT NULL DEFAULT 'contract',
+  status text NOT NULL DEFAULT 'draft',
+  content text,
+  contract_token text,
+  notes text,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
 
-**2. Generador de contrato IP (nuevo componente)**
+ALTER TABLE public.release_documents ENABLE ROW LEVEL SECURITY;
+-- RLS policies for authenticated users (same pattern as booking_documents)
+```
 
-`src/components/IPContractGenerator.tsx` -- Wizard similar al de Booking pero con los pasos adaptados al documento DOCX proporcionado:
+Tipos de documento: `contract` (cesión derechos), `license` (licencia), `publishing_agreement` (acuerdo editorial), `distribution_agreement` (acuerdo distribución), `other`.
 
-**Pasos del wizard:**
-1. **Label** -- Datos del sello: nombre, CIF, direccion, representante legal
-2. **Featured Artist** -- Nombre, DNI/NIE/Pasaporte, direccion, nombre artistico
-3. **Master/Tracks** -- Titulo del album, nombre del artista principal, datos del track (titulo, contribucion, duracion, video si/no, fecha grabacion, credit designation)
-4. **Derechos y Compensacion** -- Duracion (perpetuo/temporal), territorio, porcentaje royalty, frecuencia de pago
-5. **Creditos y Contacto** -- Nombre profesional, credit designation, email label, email artista
-6. **Vista Previa y PDF** -- Preview del documento completo + descarga PDF
+**2. Nueva sección en `ReleaseDetail.tsx`**
 
-**Campos editables** (detectados del DOCX con marcas verdes):
-- Fecha de ejecucion (dia, mes, ano)
-- Datos del Label (nombre, CIF, direccion, representante)
-- Datos del Featured Artist (nombre, DNI, direccion, nombre artistico)
-- Titulo del album
-- Nombre del artista principal del album
-- Track: titulo, contribucion, duracion, video (si/no), fecha grabacion, credit designation
-- Termino (perpetuo/otro), territorio, medios
-- Nombre profesional para creditos, credit designation
-- Porcentaje de royalty (default 20%)
-- Emails de contacto (label + artista)
+Añadir entrada al array `SECTIONS`:
+- id: `contratos`
+- title: "Contratos"
+- description: "Contratos de royalties, cesión de derechos y licencias"
+- icon: `FileSignature` (o `ScrollText`)
+- color: amber/yellow gradient
 
-**3. Plantilla PDF del contrato IP**
+**3. Nueva página: `src/pages/release-sections/ReleaseContratos.tsx`**
 
-`src/lib/ipContractTemplate.ts` -- Funcion `generateIPContractPDF()` usando jsPDF, replicando exactamente la tipografia y estructura del DOCX:
-- Titulo centrado en bold: "MASTER RECORDING COLLABORATION AGREEMENT"
-- Secciones: PARTIES, RECITALS (I-IV), TERMS AND CONDITIONS (1-6)
-- Texto justificado, misma fuente/tamano que el generador de booking
-- Los campos rellenables se insertan en el flujo del texto
-- Firma al final: "For the LABEL" / "FEATURED ARTIST"
+Funcionalidad:
+- **Subir documentos**: Upload de PDFs/archivos de contratos
+- **Tipos de documento**: Selector con tipos relevantes (Cesión de derechos, Licencia, Acuerdo editorial, Acuerdo de distribución, Otro)
+- **Estados**: draft → sent → pending_signature → signed
+- **Listado**: Tarjetas colapsables con nombre, tipo, estado y fecha
+- **Previsualización**: Abrir PDFs directamente
+- **Notas**: Campo de notas por documento
 
-**4. Integracion en ReleaseContratos**
+Reutiliza patrones visuales y de UX del `BookingDocumentsTab` existente, adaptados al contexto de releases.
 
-Anadir boton "Generar Contrato" junto al boton "Subir documento" en el header de `ReleaseContratos.tsx`. Al pulsarlo, abre el `ContractTypeSelector`.
+**4. Ruta en `App.tsx`**
 
-**5. Integracion en Documents.tsx y BookingDocumentsTab.tsx**
+Añadir: `/releases/:id/contratos` → `<ReleaseContratos />`
 
-Reemplazar la apertura directa de `ContractGenerator` por `ContractTypeSelector`, que luego delega al generador correcto.
+### Archivos afectados
+- Nueva migración SQL (tabla `release_documents` + RLS)
+- `src/pages/ReleaseDetail.tsx` — nueva entrada en SECTIONS
+- `src/pages/release-sections/ReleaseContratos.tsx` — nuevo componente
+- `src/App.tsx` — nueva ruta
 
-### Archivos
-
-| Archivo | Accion |
-|---------|--------|
-| `src/components/ContractTypeSelector.tsx` | Nuevo -- dialog selector de tipo |
-| `src/components/IPContractGenerator.tsx` | Nuevo -- wizard + formulario IP |
-| `src/lib/ipContractTemplate.ts` | Nuevo -- generacion PDF del contrato IP |
-| `src/pages/release-sections/ReleaseContratos.tsx` | Anadir boton "Generar Contrato" |
-| `src/pages/Documents.tsx` | Usar ContractTypeSelector en lugar de abrir ContractGenerator directamente |
-| `src/components/booking-detail/BookingDocumentsTab.tsx` | Idem |
-
-### Nota sobre fidelidad al documento
-El PDF generado replicara la estructura exacta del DOCX: titulos centrados en bold, parrafos numerados (1.1, 1.2...), sub-items con letras (a, b, c...), texto justificado, mismos margenes. Las clausulas 1-6 son texto fijo con los campos rellenables insertados inline.
+### Nota
+No se incluye generador de contratos automático en esta fase (a diferencia de Booking). Se centra en subida, categorización y seguimiento de estado de documentos legales vinculados al release.
 
