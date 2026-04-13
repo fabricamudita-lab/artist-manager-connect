@@ -1,49 +1,38 @@
 
 
-## Plan: Vista previa inline + descarga PDF
+## Plan: Ajustar formato visual del PDF de Licencia IP para coincidir con la plantilla 024
 
-### Problema
-Al pulsar "Ver documento", se abre una pestaña nueva con `blob:` URL que Chrome sigue bloqueando (`ERR_BLOCKED_BY_CLIENT`). El usuario quiere ver el documento dentro de la app y poder descargarlo como PDF.
+### Archivo afectado
+- `src/components/IPLicenseGenerator.tsx` — solo la función `generatePDF` (líneas 87-332)
 
-### Solución
+### Cambios concretos
 
-**Archivo: `src/pages/release-sections/ReleaseContratos.tsx`**
+**1. Título en una sola línea**
+- Reducir el `fontSize` del título de 14 a ~12 para que "LICENCIA DE CESIÓN DE DERECHOS DE PROPIEDAD INTELECTUAL" quepa en una línea con los márgenes actuales (25mm cada lado).
 
-1. **Nuevo estado para vista previa inline**: Añadir estado `previewDoc` (documento seleccionado) y `previewBlobUrl` (blob URL generado).
+**2. Aumentar espaciado vertical entre secciones**
+- Más espacio después del título antes de la fecha (de `y += 6` a `y += 10`)
+- Más espacio en `addSection` antes del texto (de `y += 4` a `y += 8`)
+- Más espacio entre los bloques "DE UNA PARTE" y "DE OTRA PARTE" (añadir `y += 4` entre ellos)
+- Más espacio antes de "CLÁUSULAS"
 
-2. **Reemplazar `handleViewDocument`**: En vez de abrir nueva pestaña, descargar el blob con `supabase.storage.download()`, crear `URL.createObjectURL()` y guardarlo en estado para mostrarlo en un panel lateral.
+**3. Sangría francesa en REUNIDOS (hanging indent)**
+- Modificar `addBoldInline` para que en los bloques "DE UNA PARTE" y "DE OTRA PARTE", la primera línea empiece sin sangría pero las líneas siguientes tengan sangría (~10mm). Esto se logra renderizando la primera línea (con la parte bold) al margen izquierdo y las siguientes con `indent`.
 
-3. **Panel lateral de vista previa**: Añadir un `Dialog` grande (similar al `InvoicePreviewDialog` existente) que muestre:
-   - Para PDFs: un `<iframe src={blobUrl}>` embebido
-   - Para imágenes: un `<img src={blobUrl}>`
-   - Para otros tipos: mensaje indicando que no se puede previsualizar + botón de descarga
-   - Botón "Descargar PDF" que descarga el archivo localmente
+**4. Sangría francesa en MANIFIESTAN**
+- Los párrafos I), II), III), IV) deben usar sangría francesa: el número romano al margen, y las líneas siguientes con sangría (~8-10mm). Crear una función `addHangingParagraph(label, text, hangIndent)` que renderice el label a `ml` y el texto restante con indent.
 
-4. **Botón de descarga**: Añadir un botón "Descargar" junto a "Ver documento" en la sección expandida de cada documento, que descarga directamente el blob sin abrir ninguna pestaña.
+**5. Sub-ítems con títulos en negrita y mayor sangría**
+- Modificar `addSubItem` para que el label (ej. "a. Título de la obra Grabación:") se renderice en **negrita** y el valor en normal.
+- Aumentar la sangría de 10mm a 15mm.
+- Aumentar el espacio vertical entre ítems de 6mm a 8mm.
 
-5. **Limpieza**: Revocar el blob URL al cerrar el panel (`URL.revokeObjectURL`).
+**6. Sub-opciones a, b, c en cláusula 2.1 con sangría adicional**
+- Las llamadas a `addBoldInline('a. PERIODO:', ...)` ya usan indent 10. Aumentar a 15mm para mayor sangría, consistente con el punto anterior.
 
-### Estructura del panel de vista previa
-
-```text
-┌─────────────────────────────────────────┐
-│ Vista previa - nombre_archivo.pdf    [X]│
-├─────────────────────────────────────────┤
-│                                         │
-│   ┌─────────────────────────────────┐   │
-│   │                                 │   │
-│   │   <iframe> / <img> embebido     │   │
-│   │                                 │   │
-│   └─────────────────────────────────┘   │
-│                                         │
-├─────────────────────────────────────────┤
-│                        [Descargar] [X]  │
-└─────────────────────────────────────────┘
-```
-
-### Archivos afectados
-- `src/pages/release-sections/ReleaseContratos.tsx` — toda la lógica de preview y descarga
-
-### Sin cambios en
-- Base de datos, Storage, ni otros componentes
+### Resumen técnico
+- Crear helper `addHangingParagraph(label, text, hangIndent)` para sangría francesa
+- Modificar `addSubItem` para poner label en bold y aumentar indent/spacing
+- Ajustar constantes de espaciado en `addSection`, `addTitle`, y entre bloques
+- Aumentar indent en las llamadas existentes de `addBoldInline` con sub-opciones
 
