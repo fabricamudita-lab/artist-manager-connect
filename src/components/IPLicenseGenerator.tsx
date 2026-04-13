@@ -108,7 +108,7 @@ function generatePDF(d: FormData): jsPDF {
     }
   };
 
-  const addTitle = (text: string, size: number = 14) => {
+  const addTitle = (text: string, size: number = 12) => {
     checkPage(20);
     pdf.setFont('times', 'bold');
     pdf.setFontSize(size);
@@ -118,21 +118,21 @@ function generatePDF(d: FormData): jsPDF {
       pdf.text(line, pw / 2, y, { align: 'center' });
       y += size * 0.45;
     });
-    y += 4;
+    y += 6;
   };
 
   const addSection = (text: string) => {
     checkPage(16);
-    y += 4;
+    y += 8;
     pdf.setFont('times', 'bold');
     pdf.setFontSize(12);
     pdf.text(text, ml, y);
-    y += 8;
+    y += 10;
   };
 
   const addClauseTitle = (num: string, text: string) => {
     checkPage(16);
-    y += 4;
+    y += 6;
     pdf.setFont('times', 'bold');
     pdf.setFontSize(12);
     pdf.text(`${num}. ${text}`, ml, y);
@@ -150,6 +150,73 @@ function generatePDF(d: FormData): jsPDF {
       y += 5.5;
     });
     y += 2;
+  };
+
+  // Hanging indent: label at left margin, continuation lines indented
+  const addHangingParagraph = (label: string, text: string, hangIndent: number = 10) => {
+    checkPage();
+    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    const labelWidth = pdf.getTextWidth(label + ' ');
+    const fullText = label + ' ' + text;
+    
+    // First line: render label bold, then normal text on same line
+    pdf.text(label, ml, y);
+    pdf.setFont('times', 'normal');
+    
+    const firstLineAvail = cw - labelWidth;
+    const restLines = pdf.splitTextToSize(text, firstLineAvail);
+    
+    if (restLines.length > 0) {
+      pdf.text(restLines[0], ml + labelWidth, y);
+      y += 5.5;
+      
+      // Continuation lines with hanging indent
+      if (restLines.length > 1) {
+        const continuationText = restLines.slice(1).join(' ');
+        const indentedLines = pdf.splitTextToSize(continuationText, cw - hangIndent);
+        indentedLines.forEach((line: string) => {
+          checkPage();
+          pdf.text(line, ml + hangIndent, y, { maxWidth: cw - hangIndent, align: 'justify' });
+          y += 5.5;
+        });
+      }
+    } else {
+      y += 5.5;
+    }
+    y += 2;
+  };
+
+  // Hanging indent for numbered items (I, II, III, IV)
+  const addNumberedHanging = (label: string, text: string) => {
+    checkPage();
+    pdf.setFontSize(12);
+    pdf.setFont('times', 'normal');
+    const hangIndent = 10;
+    
+    const labelWidth = pdf.getTextWidth(label + ' ');
+    const firstLineAvail = cw - labelWidth;
+    const restLines = pdf.splitTextToSize(text, firstLineAvail);
+    
+    pdf.text(label, ml, y);
+    
+    if (restLines.length > 0) {
+      pdf.text(restLines[0], ml + labelWidth, y);
+      y += 5.5;
+      
+      if (restLines.length > 1) {
+        const continuationText = restLines.slice(1).join(' ');
+        const indentedLines = pdf.splitTextToSize(continuationText, cw - hangIndent);
+        indentedLines.forEach((line: string) => {
+          checkPage();
+          pdf.text(line, ml + hangIndent, y, { maxWidth: cw - hangIndent, align: 'justify' });
+          y += 5.5;
+        });
+      }
+    } else {
+      y += 5.5;
+    }
+    y += 3;
   };
 
   const addBoldInline = (boldPart: string, normalPart: string, indent: number = 0) => {
@@ -186,15 +253,18 @@ function generatePDF(d: FormData): jsPDF {
   const addSubItem = (label: string, value: string) => {
     checkPage();
     pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    const labelW = pdf.getTextWidth(label + ' ');
+    pdf.text(label, ml + 15, y);
     pdf.setFont('times', 'normal');
-    pdf.text(`${label} ${value}`, ml + 10, y);
-    y += 6;
+    pdf.text(value, ml + 15 + labelW, y);
+    y += 8;
   };
 
   // === PAGE 1: Title & REUNIDOS ===
   y = mt + 10;
   addTitle('LICENCIA DE CESIÓN DE DERECHOS DE PROPIEDAD INTELECTUAL');
-  y += 6;
+  y += 10;
 
   pdf.setFont('times', 'normal');
   pdf.setFontSize(12);
@@ -203,28 +273,31 @@ function generatePDF(d: FormData): jsPDF {
 
   addSection('REUNIDOS');
 
-  addBoldInline('DE UNA PARTE,',
-    `${s(d.productora_nombre)}, mayor de edad, con DNI (NIE/DNI/PASSAPORTE) ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara la PRODUCTORA.`);
+  addHangingParagraph('DE UNA PARTE,',
+    `${s(d.productora_nombre)}, mayor de edad, con DNI (NIE/DNI/PASSAPORTE) ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara la PRODUCTORA.`, 10);
 
-  addBoldInline('DE OTRA PARTE,',
-    `${s(d.colaboradora_nombre)}, mayor de edad, con DNI (NIE/DNI/PASSAPORTE) ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara el COLABORADOR o la COLABORADORA indistintamente.`);
+  y += 4;
+
+  addHangingParagraph('DE OTRA PARTE,',
+    `${s(d.colaboradora_nombre)}, mayor de edad, con DNI (NIE/DNI/PASSAPORTE) ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara el COLABORADOR o la COLABORADORA indistintamente.`, 10);
 
   addParagraph('En adelante, ambas partes, seran denominadas conjuntamente como las Partes.');
   addParagraph('Las Partes se reconocen reciprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,');
 
   addSection('MANIFIESTAN');
 
-  addParagraph(`I) Que la PRODUCTORA, es una compositora, interprete y productora fonografica que, en su calidad de productora fonografica, esta produciendo un sencillo fonografico titulado tentativamente "${s(d.titulo_sencillo)}" (el Album) que sera explotado comercialmente bajo su nombre artistico "${s(d.productora_nombre_artistico)}", por si o por terceros.`);
+  addNumberedHanging('I)', `Que la PRODUCTORA, es una compositora, interprete y productora fonografica que, en su calidad de productora fonografica, esta produciendo un sencillo fonografico titulado tentativamente "${s(d.titulo_sencillo)}" (el Album) que sera explotado comercialmente bajo su nombre artistico "${s(d.productora_nombre_artistico)}", por si o por terceros.`);
 
-  addParagraph('I) Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de musica interprete y/o ejecutante en una o mas obras musicales (la/s Grabacion/es), las cuales se detallaran, o para su explotacion en forma de sencillo fonografico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.');
+  addNumberedHanging('II)', 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de musica interprete y/o ejecutante en una o mas obras musicales (la/s Grabacion/es), las cuales se detallaran, o para su explotacion en forma de sencillo fonografico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.');
 
-  addParagraph(`I) Que la COLABORADORA, conocida artisticamente como "${s(d.colaboradora_nombre_artistico)}", es una interprete musical independiente, facultada para aceptar la propuesta de colaboracion de la PRODUCTORA, en los terminos que se diran, que no esta sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptacion y posterior cesion de derechos de propiedad intelectual sobre sus interpretaciones musicales.`);
+  addNumberedHanging('III)', `Que la COLABORADORA, conocida artisticamente como "${s(d.colaboradora_nombre_artistico)}", es una interprete musical independiente, facultada para aceptar la propuesta de colaboracion de la PRODUCTORA, en los terminos que se diran, que no esta sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptacion y posterior cesion de derechos de propiedad intelectual sobre sus interpretaciones musicales.`);
 
-  addParagraph('I) Que la PRODUCTORA ha llevado a cabo la fijacion de las interpretaciones de la COLABORADORA en la/s Grabacion/es a satisfaccion de las Partes.');
+  addNumberedHanging('IV)', 'Que la PRODUCTORA ha llevado a cabo la fijacion de las interpretaciones de la COLABORADORA en la/s Grabacion/es a satisfaccion de las Partes.');
 
   addParagraph('Con la finalidad de acordar los terminos y condiciones de la colaboracion entre las Partes y formalizar la cesion de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes');
 
   // CLÁUSULAS
+  y += 4;
   addTitle('CLAUSULAS', 13);
 
   // 1. OBJETO
@@ -238,7 +311,7 @@ function generatePDF(d: FormData): jsPDF {
   addSubItem('d. Participacion (Si/No) en videoclip de la Grabacion:', s(d.grabacion_videoclip));
   addSubItem('e. Fecha de la fijacion:', s(d.grabacion_fecha_fijacion));
 
-  addBoldInline('f. Caracter de la intervencion:', ` ${s(d.grabacion_caracter)}`, 10);
+  addBoldInline('f. Caracter de la intervencion:', ` ${s(d.grabacion_caracter)}`, 15);
 
   addParagraph('1.2. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesion a terceros todos los derechos que recaen sobre su imagen personal, incluyendo nombre civil o artistico, con proposito de mencion e informacion relacionada con la Grabacion, y, en especial los relativos a su imagen personal vinculada a su interpretacion en el caso de que exista una grabacion audiovisual (en la forma de un videoclip o similar) vinculada a la Grabacion.');
 
@@ -247,9 +320,9 @@ function generatePDF(d: FormData): jsPDF {
 
   addParagraph('2.1. El alcance de las cesiones de derechos de la COLABORADORA a favor de la PRODUCTORA que son objeto de este contrato, se conceden con la mayor amplitud y de forma ilimitada con la finalidad de que la PRODUCTORA pueda explotar la Grabacion, el Album, el videoclip y/o cualquier material promocional, publicitario y/o informativo que acompane a los mismos, en todos los formatos y sistemas de explotacion de musica y audiovisuales, a traves de todos los medios de explotacion que existan durante la vigencia de la presente cesion de derechos y sin mas limitaciones que las establecidas en el presente contrato.');
 
-  addBoldInline('a. PERIODO:', 'A perpetuidad.', 10);
-  addBoldInline('b. TERRITORIO:', 'El Universo.', 10);
-  addBoldInline('c. MEDIOS:', 'Todos los medios existentes durante la vigencia de este contrato.', 10);
+  addBoldInline('a. PERIODO:', 'A perpetuidad.', 15);
+  addBoldInline('b. TERRITORIO:', 'El Universo.', 15);
+  addBoldInline('c. MEDIOS:', 'Todos los medios existentes durante la vigencia de este contrato.', 15);
 
   addParagraph('2.2. La COLABORADORA cede a la PRODUCTORA, a titulo enunciativo, pero sin caracter limitativo, el derecho de reproduccion, distribucion, comunicacion publica y transformacion necesarios para la pacifica explotacion de la Grabacion y, en su caso, de los audiovisuales que la acompanen, quedando facultada la PRODUCTORA para contratar con terceros la explotacion de los mismos, transfiriendo a dichos terceros los mismos derechos y obligaciones que adquiere la PRODUCTORA en este contrato.');
 
