@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileSignature, Trash2, Eye, MoreHorizontal, ChevronDown, StickyNote } from 'lucide-react';
+import { ArrowLeft, Upload, FileSignature, Trash2, Eye, MoreHorizontal, ChevronDown, StickyNote, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,9 @@ import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ContractTypeSelector } from '@/components/ContractTypeSelector';
+import { ContractGenerator } from '@/components/ContractGenerator';
+import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
 
 interface ReleaseDocument {
   id: string;
@@ -75,6 +78,9 @@ export default function ReleaseContratos() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newDocType, setNewDocType] = useState('contract');
   const [newDocNotes, setNewDocNotes] = useState('');
+  const [showContractSelector, setShowContractSelector] = useState(false);
+  const [showBookingGenerator, setShowBookingGenerator] = useState(false);
+  const [showIPLicenseGenerator, setShowIPLicenseGenerator] = useState(false);
 
   const fetchDocuments = async () => {
     if (!id) return;
@@ -182,10 +188,16 @@ export default function ReleaseContratos() {
             )}
           </div>
         </div>
-        <Button onClick={() => setShowUploadDialog(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Subir documento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowContractSelector(true)}>
+            <FileText className="h-4 w-4 mr-2" />
+            Generar Contrato
+          </Button>
+          <Button onClick={() => setShowUploadDialog(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Subir documento
+          </Button>
+        </div>
       </div>
 
       {/* Document list */}
@@ -327,6 +339,56 @@ export default function ReleaseContratos() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Contract Type Selector */}
+      <ContractTypeSelector
+        open={showContractSelector}
+        onOpenChange={setShowContractSelector}
+        onSelectBooking={() => setShowBookingGenerator(true)}
+        onSelectIPLicense={() => setShowIPLicenseGenerator(true)}
+      />
+
+      {/* Booking Contract Generator */}
+      <ContractGenerator
+        open={showBookingGenerator}
+        onOpenChange={setShowBookingGenerator}
+      />
+
+      {/* IP License Generator */}
+      <IPLicenseGenerator
+        open={showIPLicenseGenerator}
+        onOpenChange={setShowIPLicenseGenerator}
+        onSave={async (contract) => {
+          if (!id || !user?.id || !contract.pdfBlob) return;
+          try {
+            const fileName = `${contract.title.replace(/\s+/g, '_')}.pdf`;
+            const filePath = `release-documents/${id}/${Date.now()}_${fileName}`;
+            const { error: uploadError } = await supabase.storage
+              .from('artist-files')
+              .upload(filePath, contract.pdfBlob, { contentType: 'application/pdf' });
+            if (uploadError) throw uploadError;
+            const { data: urlData } = supabase.storage
+              .from('artist-files')
+              .getPublicUrl(filePath);
+            const { error: insertError } = await supabase
+              .from('release_documents')
+              .insert({
+                release_id: id,
+                file_name: fileName,
+                file_url: urlData.publicUrl,
+                file_type: 'application/pdf',
+                document_type: 'license',
+                notes: contract.content,
+                created_by: user.id,
+              } as any);
+            if (insertError) throw insertError;
+            toast.success('Contrato generado y guardado');
+            fetchDocuments();
+          } catch (err: any) {
+            toast.error('Error al guardar: ' + (err.message || ''));
+          }
+        }}
+      />
     </div>
   );
 }
