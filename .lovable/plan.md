@@ -1,49 +1,36 @@
 
 
-## Plan: Agrupar campos por sección con toggle por grupo y colapsar
+## Plan: Mostrar eventos de Booking en todas las vistas del Calendario
 
 ### Problema
-La configuración de campos muestra 28+ campos en una lista plana. Es lento configurar uno por uno. Los campos ya tienen una propiedad `section` (`info`, `content`, `spotify`, `strategy`, `vevo`) pero no se usa en la UI.
+Los booking offers solo aparecen en la **vista de mes** y el **panel de detalle por fecha**. Faltan en:
+- **Vista de semana**: solo muestra events vinculados por `event_id`, no bookings directos
+- **Vista de año** (`YearlyCalendar`): solo recibe `events`, ignora `bookingOffers`
 
-### Solución
+Además, `fetchBookingOffers` no filtra por los artistas seleccionados, mostrando bookings de todos los artistas.
 
-**Archivo: `src/pages/release-sections/ReleasePitch.tsx`**
+### Cambios
 
-1. **Definir grupos de secciones** con labels en español:
-   - `info` → "Información Básica"
-   - `content` → "Archivos y Contenido"
-   - `spotify` → "Datos Spotify"
-   - `strategy` → "Estrategia y RRSS"
-   - `vevo` → "Vevo (opcional)"
+**Archivo: `src/pages/Calendar.tsx`**
 
-2. **Reemplazar la lista plana** (líneas 529-557) por secciones colapsables:
-   - Cada grupo tiene un header clickable con chevron para expandir/colapsar
-   - El header muestra: nombre del grupo + conteo de campos + toggle maestro (visible/editable)
-   - Toggle maestro de grupo: al activar/desactivar, cambia todos los campos del grupo de golpe
-   - Estado colapsado por defecto para secciones opcionales (vevo)
+1. **`fetchBookingOffers`**: Añadir filtro `.in('artist_id', selectedArtists)` para respetar el filtro de artistas. También añadir filtro por `phase` además de `estado` para cubrir ambos campos.
 
-3. **Toggle maestro por grupo**:
-   - Switch "Visible" en el header → activa/desactiva visibilidad de todos los campos del grupo
-   - Switch "Editable" en el header → activa/desactiva editable de todos los campos del grupo
-   - Estado "indeterminate" (dash) cuando algunos campos están on y otros off dentro del grupo
+2. **Vista de semana (`renderWeekView`)**: 
+   - En la sección "Todo el día", añadir los booking offers del día (los bookings no tienen hora, así que van como eventos de todo el día)
+   - Renderizar con estilo amber (consistente con la vista mes)
 
-4. **Campos individuales** dentro de cada grupo expandido mantienen los switches individuales actuales
+3. **Vista de año (`YearlyCalendar`)**:
+   - Convertir los booking offers a formato `Event` compatible y combinarlos con `events` antes de pasarlos al componente
+   - O extender `YearlyCalendar` para aceptar también bookings (más limpio)
 
-5. **Estado de colapso** guardado en un `useState` local (no persiste, se reinicia al abrir)
+**Archivo: `src/components/YearlyCalendar.tsx`**
+   - Añadir prop opcional `bookings` con los booking offers
+   - En `getEventsForDate`, combinar events + bookings para el conteo y los indicadores de puntos
 
-### Detalle técnico
+### Resultado
+Los bookings aparecerán en las 3 vistas (semana, mes, año) y se filtrarán correctamente por artista seleccionado.
 
-```text
-┌─ Información Básica (7)          [Visible ◉] [Editable ◉]  ▼
-│  ├─ País                         [  ◉  ]     [  ◉  ]
-│  ├─ Descripción                  [  ◉  ]     [  ○  ]
-│  └─ ...
-├─ Archivos y Contenido (5)        [Visible ◉] [Editable ◉]  ▶ (collapsed)
-├─ Datos Spotify (5)               [Visible ◉] [Editable ◉]  ▶
-├─ Estrategia y RRSS (4)          [Visible ◉] [Editable ◉]  ▶
-└─ Vevo (opcional) (5)            [Visible ○] [Editable ○]  ▶
-```
-
-### Un archivo afectado
-- `src/pages/release-sections/ReleasePitch.tsx`
+### Archivos afectados
+- `src/pages/Calendar.tsx`
+- `src/components/YearlyCalendar.tsx`
 
