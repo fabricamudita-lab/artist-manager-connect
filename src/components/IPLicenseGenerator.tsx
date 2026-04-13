@@ -352,6 +352,18 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
           next.acreditacion_caracter = value;
         }
       }
+      // Auto-sync firma_productora when productora_nombre changes
+      if (field === 'productora_nombre') {
+        if (!prev.firma_productora || prev.firma_productora === prev.productora_nombre) {
+          next.firma_productora = value;
+        }
+      }
+      // Auto-sync firma_colaboradora when colaboradora_nombre changes
+      if (field === 'colaboradora_nombre') {
+        if (!prev.firma_colaboradora || prev.firma_colaboradora === prev.colaboradora_nombre) {
+          next.firma_colaboradora = value;
+        }
+      }
       return next;
     });
   };
