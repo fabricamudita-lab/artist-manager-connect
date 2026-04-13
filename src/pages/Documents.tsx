@@ -27,6 +27,8 @@ import { ArtistSelector } from '@/components/ArtistSelector';
 import { DocumentFilters, DocumentFiltersState } from '@/components/DocumentFilters';
 import { DocumentStats } from '@/components/DocumentStats';
 import { ContractGenerator } from '@/components/ContractGenerator';
+import { ContractTypeSelector } from '@/components/ContractTypeSelector';
+import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +78,8 @@ export default function Documents() {
   const [uploading, setUploading] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [showContractGenerator, setShowContractGenerator] = useState(false);
+  const [showContractSelector, setShowContractSelector] = useState(false);
+  const [showIPLicenseGenerator, setShowIPLicenseGenerator] = useState(false);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'stats'>('grid');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -378,7 +382,7 @@ export default function Documents() {
           </div>
           
           {/* Contract generator */}
-          <Button variant="outline" onClick={() => setShowContractGenerator(true)}>
+          <Button variant="outline" onClick={() => setShowContractSelector(true)}>
             <FileText className="h-4 w-4 mr-2" />
             Generar Contrato
           </Button>
@@ -653,10 +657,24 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
+      {/* Contract Type Selector */}
+      <ContractTypeSelector
+        open={showContractSelector}
+        onOpenChange={setShowContractSelector}
+        onSelectBooking={() => setShowContractGenerator(true)}
+        onSelectIPLicense={() => setShowIPLicenseGenerator(true)}
+      />
+
       {/* Contract Generator Dialog */}
       <ContractGenerator
         open={showContractGenerator}
         onOpenChange={setShowContractGenerator}
+      />
+
+      {/* IP License Generator */}
+      <IPLicenseGenerator
+        open={showIPLicenseGenerator}
+        onOpenChange={setShowIPLicenseGenerator}
       />
 
       {/* Delete Confirmation Dialog */}
