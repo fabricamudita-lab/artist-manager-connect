@@ -654,7 +654,7 @@ export default function Documents() {
       </Dialog>
 
       {/* Contract Generator Dialog */}
-      <ContractGenerator
+      <ContractTypeSelector
         open={showContractGenerator}
         onOpenChange={setShowContractGenerator}
       />

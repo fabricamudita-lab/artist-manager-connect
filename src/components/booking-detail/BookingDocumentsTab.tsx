@@ -621,7 +621,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
   return (
     <div className="space-y-6">
       {/* Contract Generator Dialog */}
-      <ContractGenerator
+      <ContractTypeSelector
         open={showContractGenerator}
         onOpenChange={(open) => {
           setShowContractGenerator(open);
