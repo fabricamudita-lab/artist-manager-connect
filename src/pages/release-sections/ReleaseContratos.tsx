@@ -193,7 +193,7 @@ export default function ReleaseContratos() {
         <div className="text-center py-12 text-muted-foreground">Cargando...</div>
       ) : documents.length === 0 ? (
         <EmptyState
-          icon={FileSignature}
+          icon={<FileSignature className="h-12 w-12" />}
           title="Sin contratos"
           description="Sube contratos de cesión de derechos, licencias o acuerdos editoriales vinculados a este lanzamiento."
         />
