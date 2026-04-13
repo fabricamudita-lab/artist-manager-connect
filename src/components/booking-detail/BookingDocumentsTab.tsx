@@ -647,6 +647,34 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
       <IPLicenseGenerator
         open={showIPLicenseGenerator}
         onOpenChange={setShowIPLicenseGenerator}
+        onSave={async (contract) => {
+          if (!profile?.id || !contract.pdfBlob) return;
+          try {
+            const fileName = `${contract.title.replace(/\s+/g, '_')}.pdf`;
+            const filePath = `booking-documents/${booking.id}/${Date.now()}_${fileName}`;
+            const { error: uploadError } = await supabase.storage
+              .from('documents')
+              .upload(filePath, contract.pdfBlob, { contentType: 'application/pdf' });
+            if (uploadError) throw uploadError;
+            const { error: insertError } = await supabase
+              .from('booking_documents')
+              .insert({
+                booking_id: booking.id,
+                document_type: 'contract',
+                file_name: fileName,
+                file_url: filePath,
+                file_type: 'application/pdf',
+                content: contract.content,
+                status: 'draft',
+                created_by: profile.id,
+              });
+            if (insertError) throw insertError;
+            toast({ title: 'Contrato guardado', description: 'La licencia IP se ha guardado correctamente' });
+            onUpdate();
+          } catch (err: any) {
+            toast({ title: 'Error', description: 'Error al guardar: ' + (err.message || ''), variant: 'destructive' });
+          }
+        }}
       />
 
       {/* Contract Viewer Dialog */}
