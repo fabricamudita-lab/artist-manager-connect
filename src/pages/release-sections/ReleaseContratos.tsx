@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileSignature, Trash2, Eye, MoreHorizontal, ChevronDown, StickyNote } from 'lucide-react';
+import { ArrowLeft, Upload, FileSignature, Trash2, Eye, MoreHorizontal, ChevronDown, StickyNote, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRelease } from '@/hooks/useReleases';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -75,6 +76,7 @@ export default function ReleaseContratos() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newDocType, setNewDocType] = useState('contract');
   const [newDocNotes, setNewDocNotes] = useState('');
+  const [showContractGenerator, setShowContractGenerator] = useState(false);
 
   const fetchDocuments = async () => {
     if (!id) return;
