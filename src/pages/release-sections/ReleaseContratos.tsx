@@ -334,6 +334,14 @@ export default function ReleaseContratos() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Contract Generator */}
+      <ContractTypeSelector
+        open={showContractGenerator}
+        onOpenChange={setShowContractGenerator}
+        hideBooking
+        context="release"
+      />
     </div>
   );
 }

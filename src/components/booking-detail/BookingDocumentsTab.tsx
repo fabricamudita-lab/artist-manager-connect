@@ -39,7 +39,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ContractGenerator } from '@/components/ContractGenerator';
+import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import { ContractSignersManager } from './ContractSignersManager';
 import { ContractSignersSummary } from './ContractSignersSummary';
 import { ContractSignaturesFooter, getDocumentSigners } from './ContractSignaturesFooter';
