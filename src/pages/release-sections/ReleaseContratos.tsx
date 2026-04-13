@@ -346,6 +346,7 @@ export default function ReleaseContratos() {
         onOpenChange={setShowContractSelector}
         onSelectBooking={() => setShowBookingGenerator(true)}
         onSelectIPLicense={() => setShowIPLicenseGenerator(true)}
+        showBooking={false}
       />
 
       {/* Booking Contract Generator */}
