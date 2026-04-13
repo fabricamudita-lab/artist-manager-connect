@@ -126,51 +126,68 @@ export default function ReleaseContratos() {
     return ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
   };
 
-  const handleViewDocument = async (doc: ReleaseDocument) => {
+  const handlePreviewDocument = async (doc: ReleaseDocument) => {
     if (!doc.file_url) return;
-    setViewingId(doc.id);
+    setPreviewDoc(doc);
+    setPreviewLoading(true);
 
     try {
       const path = resolveStoragePath(doc.file_url);
-      const canPreview = isPreviewable(doc.file_type, doc.file_name);
-
-      // Pre-open tab for previewable files to avoid popup blocker
-      let newTab: Window | null = null;
-      if (canPreview) {
-        newTab = window.open('about:blank', '_blank');
-      }
-
       const { data, error } = await supabase.storage
         .from('documents')
         .download(path);
 
       if (error || !data) {
         console.error('Error downloading document:', error);
-        newTab?.close();
         toast.error('Error al obtener el documento');
+        setPreviewDoc(null);
         return;
       }
 
       const blobUrl = URL.createObjectURL(data);
-
-      if (canPreview && newTab) {
-        newTab.location.href = blobUrl;
-      } else {
-        // Trigger download for non-previewable files
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = doc.file_name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-        toast.success('Documento descargado');
-      }
+      setPreviewBlobUrl(blobUrl);
     } catch (err: any) {
-      console.error('Error viewing document:', err);
+      console.error('Error previewing document:', err);
       toast.error('Error al abrir el documento');
+      setPreviewDoc(null);
     } finally {
-      setViewingId(null);
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl);
+    }
+    setPreviewDoc(null);
+    setPreviewBlobUrl(null);
+  };
+
+  const handleDownloadDocument = async (doc: ReleaseDocument) => {
+    if (!doc.file_url) return;
+    try {
+      const path = resolveStoragePath(doc.file_url);
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(path);
+
+      if (error || !data) {
+        toast.error('Error al descargar el documento');
+        return;
+      }
+
+      const blobUrl = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      toast.success('Documento descargado');
+    } catch (err: any) {
+      console.error('Error downloading document:', err);
+      toast.error('Error al descargar');
     }
   };
 
