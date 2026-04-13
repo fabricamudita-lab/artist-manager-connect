@@ -74,6 +74,7 @@ export default function ReleaseContratos() {
   const [documents, setDocuments] = useState<ReleaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newDocType, setNewDocType] = useState('contract');
