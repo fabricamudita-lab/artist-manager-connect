@@ -41,11 +41,13 @@ interface FormData {
   fecha_mes: string;
   fecha_anio: string;
   productora_nombre: string;
+  productora_doc_tipo: string;
   productora_dni: string;
   productora_domicilio: string;
   productora_nombre_artistico: string;
   productora_email: string;
   colaboradora_nombre: string;
+  colaboradora_doc_tipo: string;
   colaboradora_dni: string;
   colaboradora_domicilio: string;
   colaboradora_nombre_artistico: string;
@@ -69,9 +71,9 @@ const STEPS = ['Productora', 'Colaborador/a', 'Grabación y Derechos', 'Vista Pr
 
 const defaultData: FormData = {
   fecha_dia: new Date().getDate().toString(), fecha_mes: MESES_ES[new Date().getMonth()], fecha_anio: new Date().getFullYear().toString(),
-  productora_nombre: '', productora_dni: '', productora_domicilio: '',
+  productora_nombre: '', productora_doc_tipo: 'DNI', productora_dni: '', productora_domicilio: '',
   productora_nombre_artistico: '', productora_email: '',
-  colaboradora_nombre: '', colaboradora_dni: '', colaboradora_domicilio: '',
+  colaboradora_nombre: '', colaboradora_doc_tipo: 'DNI', colaboradora_dni: '', colaboradora_domicilio: '',
   colaboradora_nombre_artistico: '', colaboradora_email: '',
   titulo_sencillo: '', grabacion_titulo: '', grabacion_calidad: 'músico intérprete',
   grabacion_duracion: '', grabacion_videoclip: 'Sí', grabacion_fecha_fijacion: '',
@@ -274,12 +276,12 @@ function generatePDF(d: FormData): jsPDF {
   addSection('REUNIDOS');
 
   addHangingParagraph('DE UNA PARTE,',
-    `${s(d.productora_nombre)}, mayor de edad, con DNI (NIE/DNI/PASSAPORTE) ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara la PRODUCTORA.`, 10);
+    `${s(d.productora_nombre)}, mayor de edad, con ${s(d.productora_doc_tipo)} ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara la PRODUCTORA.`, 10);
 
   y += 4;
 
   addHangingParagraph('DE OTRA PARTE,',
-    `${s(d.colaboradora_nombre)}, mayor de edad, con DNI (NIE/DNI/PASSAPORTE) ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara el COLABORADOR o la COLABORADORA indistintamente.`, 10);
+    `${s(d.colaboradora_nombre)}, mayor de edad, con ${s(d.colaboradora_doc_tipo)} ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representacion. En adelante, a esta parte se la denominara el COLABORADOR o la COLABORADORA indistintamente.`, 10);
 
   addParagraph('En adelante, ambas partes, seran denominadas conjuntamente como las Partes.');
   addParagraph('Las Partes se reconocen reciprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,');
@@ -478,7 +480,23 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
               <div><Label>Año</Label><Input value={formData.fecha_anio} onChange={e => update('fecha_anio', e.target.value)} /></div>
             </div>
             <div><Label>Nombre completo</Label><Input value={formData.productora_nombre} onChange={e => update('productora_nombre', e.target.value)} placeholder="Nombre legal de la productora" /></div>
-            <div><Label>DNI/NIE/Pasaporte</Label><Input value={formData.productora_dni} onChange={e => update('productora_dni', e.target.value)} /></div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Tipo documento</Label>
+                <Select value={formData.productora_doc_tipo} onValueChange={v => update('productora_doc_tipo', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DNI">DNI</SelectItem>
+                    <SelectItem value="NIE">NIE</SelectItem>
+                    <SelectItem value="Pasaporte">Pasaporte</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Número de {formData.productora_doc_tipo}</Label>
+                <Input value={formData.productora_dni} onChange={e => update('productora_dni', e.target.value)} placeholder={`Número de ${formData.productora_doc_tipo}`} />
+              </div>
+            </div>
             <div><Label>Domicilio</Label><Input value={formData.productora_domicilio} onChange={e => update('productora_domicilio', e.target.value)} /></div>
             <div><Label>Nombre artístico</Label><Input value={formData.productora_nombre_artistico} onChange={e => update('productora_nombre_artistico', e.target.value)} /></div>
             <div><Label>Email</Label><Input type="email" value={formData.productora_email} onChange={e => update('productora_email', e.target.value)} /></div>
@@ -489,7 +507,23 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Datos del Colaborador/a</h3>
             <div><Label>Nombre completo</Label><Input value={formData.colaboradora_nombre} onChange={e => update('colaboradora_nombre', e.target.value)} /></div>
-            <div><Label>DNI/NIE/Pasaporte</Label><Input value={formData.colaboradora_dni} onChange={e => update('colaboradora_dni', e.target.value)} /></div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Tipo documento</Label>
+                <Select value={formData.colaboradora_doc_tipo} onValueChange={v => update('colaboradora_doc_tipo', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DNI">DNI</SelectItem>
+                    <SelectItem value="NIE">NIE</SelectItem>
+                    <SelectItem value="Pasaporte">Pasaporte</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Número de {formData.colaboradora_doc_tipo}</Label>
+                <Input value={formData.colaboradora_dni} onChange={e => update('colaboradora_dni', e.target.value)} placeholder={`Número de ${formData.colaboradora_doc_tipo}`} />
+              </div>
+            </div>
             <div><Label>Domicilio</Label><Input value={formData.colaboradora_domicilio} onChange={e => update('colaboradora_domicilio', e.target.value)} /></div>
             <div><Label>Nombre artístico</Label><Input value={formData.colaboradora_nombre_artistico} onChange={e => update('colaboradora_nombre_artistico', e.target.value)} /></div>
             <div><Label>Email</Label><Input type="email" value={formData.colaboradora_email} onChange={e => update('colaboradora_email', e.target.value)} /></div>
