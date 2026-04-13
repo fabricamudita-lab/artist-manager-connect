@@ -174,7 +174,7 @@ function generatePDF(d: FormData): jsPDF {
     const allLines = pdf.splitTextToSize(text, Math.min(firstLineAvail, textW));
 
     if (allLines.length > 0) {
-      pdf.text(allLines[0], xNum + labelW, y);
+      pdf.text(allLines[0], xNum + labelW, y, { maxWidth: firstLineAvail, align: 'justify' });
       y += interline;
       if (allLines.length > 1) {
         const cont = allLines.slice(1).join(' ');
@@ -212,7 +212,7 @@ function generatePDF(d: FormData): jsPDF {
     const valX = x + letterW + titleW;
     const remaining = cw - indentSub - letterW - titleW;
     if (remaining > 0 && pdf.getTextWidth(value) <= remaining) {
-      pdf.text(value, valX, y);
+      pdf.text(value, valX, y, { maxWidth: remaining, align: 'justify' });
       y += subItemSpace;
     } else {
       y += interline;
@@ -233,7 +233,7 @@ function generatePDF(d: FormData): jsPDF {
     pdf.setFont('times', 'normal');
     const valLines = pdf.splitTextToSize(normalPart, maxW - bw);
     if (valLines.length > 0) {
-      pdf.text(valLines[0], x + bw, y);
+      pdf.text(valLines[0], x + bw, y, { maxWidth: maxW - bw, align: 'justify' });
       y += interline;
       for (let i = 1; i < valLines.length; i++) {
         checkPage();
@@ -279,12 +279,12 @@ function generatePDF(d: FormData): jsPDF {
 
   // 4. DE UNA PARTE - after REUNIDOS + 15.5mm
   y += sectionSpace;
-  addHangingParagraph('DE UNA PARTE,',
+  addHangingParagraph('DE UNA PARTE, ',
     `${s(d.productora_nombre)}, mayor de edad, con ${s(d.productora_doc_tipo)} ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará la PRODUCTORA.`);
 
-  // 5. DE OTRA PARTE - one interline gap
-  y += interline;
-  addHangingParagraph('DE OTRA PARTE,',
+  // 5. DE OTRA PARTE - section space gap
+  y += sectionSpace;
+  addHangingParagraph('DE OTRA PARTE, ',
     `${s(d.colaboradora_nombre)}, mayor de edad, con ${s(d.colaboradora_doc_tipo)} ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará el COLABORADOR o la COLABORADORA indistintamente.`);
 
   // 6. "En adelante..." paragraph
