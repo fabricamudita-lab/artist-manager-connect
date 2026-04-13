@@ -1,30 +1,20 @@
 
 
-## Plan: Fecha por defecto + Selector de track en grabación
+## Plan: Auto-rellenar acreditación y sincronizar royalty
 
 ### Cambios en `src/components/IPLicenseGenerator.tsx`
 
-**1. Fecha actual por defecto**
+**1. Acreditación pre-rellenada**
+- Cuando el usuario cambia `colaboradora_nombre_artistico`, auto-rellenar `acreditacion_nombre` con ese valor (si el campo está vacío o coincide con el valor anterior)
+- Cuando el usuario cambia `grabacion_caracter`, auto-rellenar `acreditacion_caracter` con ese valor
+- Los campos siguen siendo editables si el usuario quiere sobreescribir
 
-Cambiar los valores por defecto de `fecha_dia` y `fecha_mes` en `defaultData` para que se inicialicen con el día y mes actuales:
-- `fecha_dia`: `new Date().getDate().toString()`
-- `fecha_mes`: nombre del mes en español (usando un array de meses)
+**2. Royalty: solo un campo numérico**
+- Eliminar el input manual de `royalty_texto`
+- Convertir automáticamente el número a texto en español (ej: 22 → "VEINTIDÓS", 15 → "QUINCE")
+- Implementar una función `numberToSpanishText()` que cubra del 0 al 100
+- Mostrar el texto generado como badge/etiqueta informativa al lado del input numérico, no como campo editable
 
-**2. Selector de track en "Título de la Grabación"**
-
-- Añadir nueva prop opcional `releaseId?: string` al componente
-- Importar y usar `useTracks(releaseId)` para obtener los tracks del release
-- Reemplazar el `<Input>` de "Título de la Grabación" (paso 2, línea 376) por un `<Select>` que liste los tracks disponibles
-- Al seleccionar un track, auto-rellenar:
-  - `grabacion_titulo` con el título del track
-  - `grabacion_duracion` con la duración formateada (ej: "3:45") — el campo `duration` es en segundos
-- Mantener opción "Otro" para escribir manualmente si no hay tracks o se quiere un título diferente
-
-### Cambios en `src/pages/release-sections/ReleaseContratos.tsx`
-
-- Pasar `releaseId={id}` como prop al componente `<IPLicenseGenerator>`
-
-### Archivos afectados
+### Archivo afectado
 - `src/components/IPLicenseGenerator.tsx`
-- `src/pages/release-sections/ReleaseContratos.tsx`
 
