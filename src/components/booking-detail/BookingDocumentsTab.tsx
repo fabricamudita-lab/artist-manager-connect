@@ -40,6 +40,8 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ContractGenerator } from '@/components/ContractGenerator';
+import { ContractTypeSelector } from '@/components/ContractTypeSelector';
+import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
 import { ContractSignersManager } from './ContractSignersManager';
 import { ContractSignersSummary } from './ContractSignersSummary';
 import { ContractSignaturesFooter, getDocumentSigners } from './ContractSignaturesFooter';
@@ -100,6 +102,8 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showContractGenerator, setShowContractGenerator] = useState(false);
+  const [showContractSelector, setShowContractSelector] = useState(false);
+  const [showIPLicenseGenerator, setShowIPLicenseGenerator] = useState(false);
   const [editingContract, setEditingContract] = useState<BookingDocument | null>(null);
   const [viewingContract, setViewingContract] = useState<BookingDocument | null>(null);
   const [contractContents, setContractContents] = useState<Record<string, string>>({});
@@ -620,6 +624,14 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
 
   return (
     <div className="space-y-6">
+      {/* Contract Type Selector */}
+      <ContractTypeSelector
+        open={showContractSelector}
+        onOpenChange={setShowContractSelector}
+        onSelectBooking={() => setShowContractGenerator(true)}
+        onSelectIPLicense={() => setShowIPLicenseGenerator(true)}
+      />
+
       {/* Contract Generator Dialog */}
       <ContractGenerator
         open={showContractGenerator}
@@ -629,6 +641,12 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
         }}
         bookingData={getBookingDataForContract()}
         onSave={handleContractSave}
+      />
+
+      {/* IP License Generator */}
+      <IPLicenseGenerator
+        open={showIPLicenseGenerator}
+        onOpenChange={setShowIPLicenseGenerator}
       />
 
       {/* Contract Viewer Dialog */}
@@ -745,7 +763,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
             </p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => setShowContractGenerator(true)}>
+            <Button size="sm" onClick={() => setShowContractSelector(true)}>
               <FileText className="h-4 w-4 mr-2" />
               Generar Contrato
             </Button>
