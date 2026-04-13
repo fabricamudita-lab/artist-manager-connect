@@ -184,11 +184,16 @@ export default function ReleaseContratos() {
             )}
           </div>
         </div>
-        <Button onClick={() => setShowUploadDialog(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Subir documento
-        </Button>
-      </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowContractGenerator(true)}>
+            <FileText className="h-4 w-4 mr-2" />
+            Generar Contrato
+          </Button>
+          <Button onClick={() => setShowUploadDialog(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Subir documento
+          </Button>
+        </div>
 
       {/* Document list */}
       {loading ? (
