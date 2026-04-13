@@ -1,35 +1,36 @@
 
 
-## Plan: Extraer duración del audio al subir una versión
+## Plan: Corregir formato del PDF según instrucciones detalladas
 
-### Problema
-El campo `duration` en la tabla `tracks` nunca se rellena al subir audio. El generador de licencia IP ya usa `track.duration` para auto-completar la duración, pero como es `null`, el campo queda vacío.
+### Archivo afectado
+- `src/components/IPLicenseGenerator.tsx` — función `generatePDF`
 
-### Solución
+### Cambios necesarios
 
-**Archivo: `src/pages/release-sections/ReleaseAudio.tsx`** — función `uploadVersion.mutationFn`
+**1. Justificación completa (justified) en todo el documento**
+- `renderLines`: ya usa `align: 'justify'` — OK
+- `addHangingParagraph` (línea 148): la primera línea junto al label no tiene justify. Añadir justify a las continuaciones y primera línea donde sea posible.
+- `addParagraph` / `addNumberedHanging`: revisar que todas las llamadas a `pdf.text()` con líneas largas usen `align: 'justify'`.
 
-Después de insertar la versión en `track_versions` (línea 305), añadir lógica para:
+**2. Sangría francesa en "DE UNA PARTE" / "DE OTRA PARTE"**
+- Actualmente `addHangingParagraph` pone las líneas de continuación en `ml` (30mm = 85pts). Las instrucciones dicen que deben ir en `ml + indent1` (36.3mm = 103pts).
+- Modificar `addHangingParagraph` para que las líneas 2+ usen `ml + indent1` con ancho `cw - indent1`.
 
-1. Crear un elemento `Audio` temporal con la `publicUrl` del archivo subido.
-2. Escuchar el evento `loadedmetadata` para obtener `audio.duration` (en segundos).
-3. Actualizar `supabase.from('tracks').update({ duration: Math.round(audio.duration) }).eq('id', track.id)`.
-4. Invalidar la query de tracks para refrescar los datos.
+**3. Sangría francesa en puntos I), II), III), IV)**
+- `addNumberedHanging` ya pone el número en `ml + indent1` y texto en `ml + indent2`. Las continuaciones van a `xText` (ml + indent2) — esto parece correcto. Verificar que el primer texto al lado del número también empiece correctamente.
 
-Esto se ejecuta solo si es la primera versión o la versión actual (`is_current_version`), para que la duración siempre refleje la versión activa.
+**4. Negritas parciales en sub-ítems (ya implementado)**
+- El `addSubItem` actual ya hace "a. " normal + título bold + valor normal — OK.
 
-```text
-Upload audio → Insert track_version → Extract duration via Audio element
-                                     → Update tracks.duration
-                                     → Invalidate queries
-```
+**5. Espaciado vertical — verificar consistencia**
+- Los espacios ya usan las constantes correctas. No se requieren cambios mayores.
 
-### Cambios concretos
+### Resumen de edits
 
-- ~15 líneas nuevas después de la línea 305 en `ReleaseAudio.tsx`
-- Sin cambios en base de datos (el campo `duration` ya existe en `tracks`)
-- Sin cambios en el generador de licencia (ya consume `track.duration`)
-
-### Archivos afectados
-- `src/pages/release-sections/ReleaseAudio.tsx`
+| Línea(s) | Cambio |
+|----------|--------|
+| 136-157 | `addHangingParagraph`: continuaciones a `ml + indent1` en vez de `ml`; justify en todas las líneas |
+| 125-133 | `renderLines`: asegurar justify consistente |
+| 160-190 | `addNumberedHanging`: asegurar justify en continuaciones |
+| Múltiples | Revisar que no haya llamadas a `pdf.text()` sin justify donde debería haberlo |
 
