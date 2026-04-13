@@ -370,9 +370,10 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
   };
 
   // Resolve all clauses with dynamic data
-  const c = Object.fromEntries(
-    Object.entries(clauses).map(([k, v]) => [k, resolveClause(v, d)])
-  ) as IPLegalClauses;
+  const c = {} as IPLegalClauses;
+  for (const k of Object.keys(clauses) as Array<keyof IPLegalClauses>) {
+    c[k] = resolveClause(clauses[k], d);
+  }
 
   // === PAGE 1 ===
   y = 25.3;
