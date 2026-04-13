@@ -10,9 +10,20 @@ interface Event {
   event_type: string;
 }
 
+interface BookingOffer {
+  id: string;
+  fecha: string | null;
+  festival_ciclo?: string;
+  venue?: string;
+  lugar?: string;
+  ciudad?: string;
+  estado?: string;
+}
+
 interface YearlyCalendarProps {
   year: number;
   events: Event[];
+  bookings?: BookingOffer[];
   onDateSelect?: (date: Date) => void;
   onEventClick?: (event: Event, mouseEvent: React.MouseEvent) => void;
   selectedDate?: Date;
@@ -38,11 +49,15 @@ const monthNames = [
   'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
 ];
 
-export function YearlyCalendar({ year, events, onDateSelect, onEventClick, selectedDate }: YearlyCalendarProps) {
+export function YearlyCalendar({ year, events, bookings = [], onDateSelect, onEventClick, selectedDate }: YearlyCalendarProps) {
   const getEventsForDate = (date: Date) => {
     return events.filter(event => 
       isSameDay(new Date(event.start_date), date)
     );
+  };
+
+  const getBookingsForDate = (date: Date) => {
+    return bookings.filter(b => b.fecha && isSameDay(new Date(b.fecha), date));
   };
 
   const renderMonth = (monthIndex: number) => {
@@ -82,8 +97,9 @@ export function YearlyCalendar({ year, events, onDateSelect, onEventClick, selec
               }
               
               const dayEvents = getEventsForDate(day);
+              const dayBookings = getBookingsForDate(day);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
-              const hasEvents = dayEvents.length > 0;
+              const hasEvents = dayEvents.length > 0 || dayBookings.length > 0;
               
               return (
                 <div
@@ -99,7 +115,7 @@ export function YearlyCalendar({ year, events, onDateSelect, onEventClick, selec
                     // Solo seleccionar el día, no abrir popover
                     onDateSelect?.(day);
                   }}
-                  title={hasEvents ? `${dayEvents.length} evento(s): ${dayEvents.map(e => e.title).join(', ')}` : undefined}
+                  title={hasEvents ? `${dayEvents.length + dayBookings.length} evento(s): ${[...dayEvents.map(e => e.title), ...dayBookings.map(b => b.festival_ciclo || b.venue || b.lugar || 'Booking')].join(', ')}` : undefined}
                 >
                   {format(day, 'd')}
                   {hasEvents && (
@@ -115,7 +131,7 @@ export function YearlyCalendar({ year, events, onDateSelect, onEventClick, selec
             <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
               {events.filter(event => 
                 isSameMonth(new Date(event.start_date), monthDate)
-              ).length} eventos
+              ).length + bookings.filter(b => b.fecha && isSameMonth(new Date(b.fecha), monthDate)).length} eventos
             </Badge>
           </div>
         </div>
