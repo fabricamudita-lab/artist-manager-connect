@@ -82,6 +82,9 @@ export default function ReleaseContratos() {
   const [showContractSelector, setShowContractSelector] = useState(false);
   const [showBookingGenerator, setShowBookingGenerator] = useState(false);
   const [showIPLicenseGenerator, setShowIPLicenseGenerator] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<ReleaseDocument | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchDocuments = async () => {
     if (!id) return;
