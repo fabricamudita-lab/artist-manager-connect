@@ -530,7 +530,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
                 </Select>
               ) : (
                 <div className="flex gap-2">
-                  <Input value={formData.grabacion_titulo} onChange={e => update('grabacion_titulo', e.target.value)} placeholder="Título de la grabación" className="flex-1" />
+                  <Input value={formData.grabacion_titulo} onChange={e => { update('grabacion_titulo', e.target.value); update('titulo_sencillo', e.target.value); }} placeholder="Título de la grabación" className="flex-1" />
                   {tracks.length > 0 && (
                     <Button type="button" variant="outline" size="sm" onClick={() => setManualTrack(false)}>Tracks</Button>
                   )}
