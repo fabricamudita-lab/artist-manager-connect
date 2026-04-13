@@ -1,20 +1,16 @@
 
 
-## Plan: Auto-rellenar acreditación y sincronizar royalty
+## Plan: Auto-rellenar nombres de firma
 
-### Cambios en `src/components/IPLicenseGenerator.tsx`
+### Cambio
 
-**1. Acreditación pre-rellenada**
-- Cuando el usuario cambia `colaboradora_nombre_artistico`, auto-rellenar `acreditacion_nombre` con ese valor (si el campo está vacío o coincide con el valor anterior)
-- Cuando el usuario cambia `grabacion_caracter`, auto-rellenar `acreditacion_caracter` con ese valor
-- Los campos siguen siendo editables si el usuario quiere sobreescribir
+En `src/components/IPLicenseGenerator.tsx`, pre-rellenar automáticamente los campos de firma a partir de datos ya introducidos:
 
-**2. Royalty: solo un campo numérico**
-- Eliminar el input manual de `royalty_texto`
-- Convertir automáticamente el número a texto en español (ej: 22 → "VEINTIDÓS", 15 → "QUINCE")
-- Implementar una función `numberToSpanishText()` que cubra del 0 al 100
-- Mostrar el texto generado como badge/etiqueta informativa al lado del input numérico, no como campo editable
+- `firma_productora`: sincronizar con `productora_nombre` (nombre completo de la productora, paso 1)
+- `firma_colaboradora`: sincronizar con `colaboradora_nombre` (nombre completo del colaborador/a, paso 1)
+
+La lógica será igual que la ya implementada para `acreditacion_nombre`: se auto-rellena si el campo está vacío o coincide con el valor anterior, permitiendo sobrescritura manual.
 
 ### Archivo afectado
-- `src/components/IPLicenseGenerator.tsx`
+- `src/components/IPLicenseGenerator.tsx` — añadir dos condiciones más en la función `update()`
 
