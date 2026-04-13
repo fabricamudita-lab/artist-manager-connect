@@ -4,9 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Download, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useTracks } from '@/hooks/useReleases';
+
+function numberToSpanishText(n: number): string {
+  if (n < 0 || n > 100 || !Number.isInteger(n)) return '';
+  const units = ['CERO','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE','VEINTIÚN','VEINTIDÓS','VEINTITRÉS','VEINTICUATRO','VEINTICINCO','VEINTISÉIS','VEINTISIETE','VEINTIOCHO','VEINTINUEVE'];
+  if (n <= 29) return units[n];
+  const tens = ['','','','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
+  if (n === 100) return 'CIEN';
+  const t = Math.floor(n / 10);
+  const u = n % 10;
+  return u === 0 ? tens[t] : `${tens[t]} Y ${units[u]}`;
+}
 
 const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -49,7 +61,6 @@ interface FormData {
   acreditacion_caracter: string;
   calidad_entidad: string;
   royalty_porcentaje: string;
-  royalty_texto: string;
   firma_productora: string;
   firma_colaboradora: string;
 }
@@ -65,7 +76,7 @@ const defaultData: FormData = {
   titulo_sencillo: '', grabacion_titulo: '', grabacion_calidad: 'músico intérprete',
   grabacion_duracion: '', grabacion_videoclip: 'Sí', grabacion_fecha_fijacion: '',
   grabacion_caracter: 'featured artist', acreditacion_nombre: '', acreditacion_caracter: '',
-  calidad_entidad: 'músico intérprete', royalty_porcentaje: '20', royalty_texto: 'VEINTE',
+  calidad_entidad: 'músico intérprete', royalty_porcentaje: '20',
   firma_productora: '', firma_colaboradora: '',
 };
 
@@ -254,7 +265,10 @@ function generatePDF(d: FormData): jsPDF {
   // 3. CONTRAPRESTACIÓN
   addClauseTitle('3', 'CONTRAPRESTACION');
 
-  addParagraph(`3.1. En contraprestacion por la cesion de derechos que es objeto de este contrato y como remuneracion total por la participacion de la COLABORADORA en la Grabacion y, en su caso, el videoclip, la PRODUCTORA abonara a la COLABORADORA, por si o por terceros, un royalty de artista equivalente al ${s(d.royalty_texto)} POR CIENTO (${s(d.royalty_porcentaje)}%) de los ingresos que la PRODUCTORA obtenga por la explotacion de la Grabacion y, en su caso, del videoclip, independientemente de su procedencia. A estos efectos se considerara explotacion de la Grabacion todo acto de comercializacion que sea remunerado, incluyendo, para mayor claridad, los ingresos por venta de la Grabacion en formato digital y en formato fisico; los ingresos recibidos por el streaming de la Grabacion; los ingresos recibidos por el streaming del videoclip si lo hubiera; los ingresos recibidos de la explotacion en forma de sincronizacion de la Grabacion y, en general, todo acto de comercializacion de la Grabacion en el Territorio y durante el Periodo.`);
+  const royaltyNum = parseInt(d.royalty_porcentaje) || 0;
+  const royaltyText = numberToSpanishText(royaltyNum) || s('');
+
+  addParagraph(`3.1. En contraprestacion por la cesion de derechos que es objeto de este contrato y como remuneracion total por la participacion de la COLABORADORA en la Grabacion y, en su caso, el videoclip, la PRODUCTORA abonara a la COLABORADORA, por si o por terceros, un royalty de artista equivalente al ${royaltyText} POR CIENTO (${s(d.royalty_porcentaje)}%) de los ingresos que la PRODUCTORA obtenga por la explotacion de la Grabacion y, en su caso, del videoclip, independientemente de su procedencia. A estos efectos se considerara explotacion de la Grabacion todo acto de comercializacion que sea remunerado, incluyendo, para mayor claridad, los ingresos por venta de la Grabacion en formato digital y en formato fisico; los ingresos recibidos por el streaming de la Grabacion; los ingresos recibidos por el streaming del videoclip si lo hubiera; los ingresos recibidos de la explotacion en forma de sincronizacion de la Grabacion y, en general, todo acto de comercializacion de la Grabacion en el Territorio y durante el Periodo.`);
 
   addParagraph('3.2. En el caso de que posteriormente la Grabacion se incorpore a un album u otra compilacion, y los ingresos de la PRODUCTORA provengan de la explotacion de dicho album o compilacion, dichos ingresos seran repartidos entre el numero de grabaciones integrantes del mismo para calcular los ingresos correspondientes a la Grabacion y abonar el royalty de artista en consecuencia. La forma de calculo del royalty, en este caso, sera, por tanto, la de prorrata tituli (o partes iguales para cada uno de los titulos).');
 
@@ -324,7 +338,22 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
   const { data: tracks = [] } = useTracks(releaseId);
 
   const update = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      // Auto-sync acreditacion_nombre when colaboradora_nombre_artistico changes
+      if (field === 'colaboradora_nombre_artistico') {
+        if (!prev.acreditacion_nombre || prev.acreditacion_nombre === prev.colaboradora_nombre_artistico) {
+          next.acreditacion_nombre = value;
+        }
+      }
+      // Auto-sync acreditacion_caracter when grabacion_caracter changes
+      if (field === 'grabacion_caracter') {
+        if (!prev.acreditacion_caracter || prev.acreditacion_caracter === prev.grabacion_caracter) {
+          next.acreditacion_caracter = value;
+        }
+      }
+      return next;
+    });
   };
 
   const handleGenerate = async () => {
@@ -454,9 +483,14 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
               <div><Label>Nombre para acreditación</Label><Input value={formData.acreditacion_nombre} onChange={e => update('acreditacion_nombre', e.target.value)} /></div>
               <div><Label>Carácter para acreditación</Label><Input value={formData.acreditacion_caracter} onChange={e => update('acreditacion_caracter', e.target.value)} placeholder="featured artist" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Royalty (%)</Label><Input value={formData.royalty_porcentaje} onChange={e => update('royalty_porcentaje', e.target.value)} /></div>
-              <div><Label>Royalty (texto)</Label><Input value={formData.royalty_texto} onChange={e => update('royalty_texto', e.target.value)} placeholder="VEINTE" /></div>
+            <div>
+              <Label>Royalty (%)</Label>
+              <div className="flex items-center gap-3">
+                <Input type="number" min="0" max="100" value={formData.royalty_porcentaje} onChange={e => update('royalty_porcentaje', e.target.value)} className="w-24" />
+                <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                  {numberToSpanishText(parseInt(formData.royalty_porcentaje) || 0) || '—'} POR CIENTO
+                </Badge>
+              </div>
             </div>
           </div>
         );
@@ -469,7 +503,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IP
               <p><strong>Colaborador/a:</strong> {formData.colaboradora_nombre} ({formData.colaboradora_nombre_artistico})</p>
               <p><strong>Sencillo:</strong> {formData.titulo_sencillo}</p>
               <p><strong>Grabación:</strong> {formData.grabacion_titulo} - {formData.grabacion_duracion}</p>
-              <p><strong>Royalty:</strong> {formData.royalty_porcentaje}% ({formData.royalty_texto})</p>
+              <p><strong>Royalty:</strong> {formData.royalty_porcentaje}% ({numberToSpanishText(parseInt(formData.royalty_porcentaje) || 0)})</p>
             </div>
             <div><Label>Nombre firma Productora</Label><Input value={formData.firma_productora} onChange={e => update('firma_productora', e.target.value)} /></div>
             <div><Label>Nombre firma Colaboradora</Label><Input value={formData.firma_colaboradora} onChange={e => update('firma_colaboradora', e.target.value)} /></div>
