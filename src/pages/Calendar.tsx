@@ -329,14 +329,18 @@ export default function Calendar() {
   };
   const fetchBookingOffers = async () => {
     try {
+      const artistFilter = selectedArtists.length > 0 ? selectedArtists : (profile ? [profile.id] : []);
+      if (artistFilter.length === 0) return;
+      
       const { data, error } = await supabase
         .from('booking_offers')
         .select(`
-          id, fecha, estado, contratos, link_venta, ciudad, lugar, venue, 
+          id, fecha, estado, phase, contratos, link_venta, ciudad, lugar, venue, 
           festival_ciclo, event_id, formato, duracion, folder_url,
           artist_id, artists!booking_offers_artist_id_fkey(name, stage_name)
         `)
-        .in('estado', ['confirmado', 'pendiente', 'negociacion', 'interes', 'oferta']);
+        .in('artist_id', artistFilter)
+        .or('estado.in.(confirmado,pendiente,negociacion,interes,oferta),phase.in.(interes,negociacion,preconfirmado,confirmado,realizado)');
       
       if (error) {
         console.error('Error fetching booking offers:', error);
@@ -630,8 +634,9 @@ export default function Calendar() {
           <div className="p-3 text-xs font-medium text-muted-foreground bg-muted/10">Todo el día</div>
           {weekDays.map((day, dayIndex) => {
           const allDayEvents = getAllDayEventsForDate(day);
+          const dayBookings = getBookingOffersForDate(day);
           return <div key={dayIndex} className="border-l min-h-16 p-2 space-y-1">
-                {allDayEvents.map((event, eventIndex) => <div key={event.id} className={`text-xs px-2 py-1 rounded truncate font-medium relative ${event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' : event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' : event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                {allDayEvents.map((event) => <div key={event.id} className={`text-xs px-2 py-1 rounded truncate font-medium relative ${event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' : event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' : event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                     <div className="flex items-center justify-between">
                       <span className="truncate">{event.title}</span>
                       {(() => {
@@ -644,6 +649,17 @@ export default function Calendar() {
                   }
                   return null;
                 })()}
+                    </div>
+                  </div>)}
+                {dayBookings.map((booking) => <div key={booking.id} className="text-xs px-2 py-1 rounded truncate font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/50" onClick={e => { e.stopPropagation(); setSelectedBookingOffer(booking); }}>
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{formatBookingTitle(booking)}</span>
+                      {(() => {
+                        const reminders = getRemindersForBooking(booking.id);
+                        return reminders.length > 0 ? <div className="ml-1 flex-shrink-0">
+                              <ReminderBadge reminders={reminders} variant="compact" />
+                            </div> : null;
+                      })()}
                     </div>
                   </div>)}
               </div>;
@@ -885,7 +901,7 @@ export default function Calendar() {
             </div>
           </div>
           
-          <YearlyCalendar year={currentDate.getFullYear()} events={events} onDateSelect={date => {
+          <YearlyCalendar year={currentDate.getFullYear()} events={events} bookings={bookingOffers} onDateSelect={date => {
           setSelectedDate(date);
         }} onEventClick={handleEventClick} selectedDate={selectedDate} />
         </CardContent>
