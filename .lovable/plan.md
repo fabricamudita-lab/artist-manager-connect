@@ -1,27 +1,39 @@
 
+Diagnóstico:
+- He revisado `src/pages/release-sections/ReleaseContratos.tsx` y la corrección anterior sigue haciendo esto al pulsar “Ver documento”: `createSignedUrl(...)` + `window.open(data.signedUrl, '_blank')`.
+- Eso significa que, aunque la URL sea privada y válida, la pestaña nueva sigue navegando directamente a `hptjzbaiclmgbvxlmllo.supabase.co`, que en tu navegador está siendo bloqueado con `ERR_BLOCKED_BY_CLIENT`.
+- Por tanto, el problema ya no es el bucket ni la firma de la URL: es seguir abriendo el dominio de Supabase en una pestaña nueva.
 
-## Plan: Usar URLs firmadas para ver documentos
+Plan de implementación:
 
-### Problema
-El bucket `documents` de Supabase no es público. Se está usando `getPublicUrl` que genera una URL pública que no funciona, causando `ERR_BLOCKED_BY_CLIENT`.
+1. Cambiar la visualización para no abrir nunca la URL de Supabase
+- En `src/pages/release-sections/ReleaseContratos.tsx`, reemplazar la lógica actual de `handleViewDocument`.
+- En vez de abrir la signed URL, descargaré el archivo desde Storage con `supabase.storage.from('documents').download(path)` y generaré un `blob:` local con `URL.createObjectURL(...)`.
+- La pestaña nueva abrirá ese `blob:` local, no `supabase.co`.
 
-### Solución
+2. Hacer la resolución de ruta más robusta
+- Añadir un helper para convertir `file_url` en la ruta real del bucket, soportando:
+  - rutas relativas actuales (`release-documents/...`)
+  - URLs públicas antiguas (`/storage/v1/object/public/documents/...`)
+  - posibles URLs firmadas antiguas (`/storage/v1/object/sign/documents/...?...`)
+- Así seguirá funcionando con documentos ya guardados antes de los cambios.
 
-**En `src/pages/release-sections/ReleaseContratos.tsx`:**
+3. Diferenciar previsualización y descarga según tipo de archivo
+- Cambiar `handleViewDocument` para recibir el documento completo, no solo `file_url`.
+- Si el archivo es previsualizable (PDF o imagen), abrirlo en nueva pestaña mediante `blob:`.
+- Si es DOC/DOCX u otro formato que el navegador no previsualiza bien, descargarlo directamente y mostrar un toast claro, evitando pestañas vacías o bloqueadas.
 
-1. **Al guardar documentos**: Guardar solo el `filePath` (ruta relativa dentro del bucket) en `file_url` en vez de la URL pública completa. Ejemplo: `release-documents/{id}/1234_file.pdf`
+4. Mejorar la UX del botón
+- Abrir una pestaña vacía inmediatamente solo en archivos previsualizables, y rellenarla después con el `blob:` para evitar bloqueos de popup tras el `await`.
+- Añadir estado de carga por documento (`viewingId`) para desactivar temporalmente el botón mientras se obtiene el archivo.
+- Mejorar el manejo de errores con `console.error(...)` y toast más específico.
 
-2. **Al ver documentos**: Reemplazar el link directo `<a href={doc.file_url}>` por un botón que genera una URL firmada (signed URL) al hacer clic:
-   - Usar `supabase.storage.from('documents').createSignedUrl(filePath, 3600)` para generar una URL temporal válida por 1 hora
-   - Abrir la URL firmada en una nueva pestaña
+Alcance:
+- Archivo afectado: `src/pages/release-sections/ReleaseContratos.tsx`
+- Sin cambios en base de datos ni en Supabase.
 
-3. **Misma lógica para el guardado del IPLicenseGenerator**: Cambiar el `getPublicUrl` por guardar solo el path relativo.
-
-### Cambios concretos
-- Función `handleViewDocument(fileUrl)` que extrae el path del bucket, genera signed URL y abre en nueva pestaña
-- Actualizar los dos puntos de guardado (upload manual y IPLicenseGenerator onSave) para guardar el path relativo
-- Para documentos ya guardados con URL completa, extraer el path del URL para retrocompatibilidad
-
-### Archivo afectado
-- `src/pages/release-sections/ReleaseContratos.tsx`
-
+Resultado esperado:
+- “Ver documento” dejará de abrir la URL de Supabase que te bloquea Chrome.
+- PDFs e imágenes se abrirán correctamente.
+- DOC/DOCX se descargarán de forma controlada.
+- Los documentos antiguos seguirán siendo compatibles.
