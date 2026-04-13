@@ -145,11 +145,12 @@ function generatePDF(d: FormData): jsPDF {
     const restLines = pdf.splitTextToSize(text, firstLineW);
 
     if (restLines.length > 0) {
-      pdf.text(restLines[0], ml + labelW, y);
+      pdf.text(restLines[0], ml + labelW, y, { maxWidth: firstLineW, align: 'justify' });
       y += interline;
       if (restLines.length > 1) {
         const cont = restLines.slice(1).join(' ');
-        renderLines(cont, ml, cw);
+        const contW = cw - indent1;
+        renderLines(cont, ml + indent1, contW);
       }
     } else {
       y += interline;
