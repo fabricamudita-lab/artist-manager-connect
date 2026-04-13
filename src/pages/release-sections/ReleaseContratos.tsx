@@ -100,6 +100,21 @@ export default function ReleaseContratos() {
     fetchDocuments();
   }, [id]);
 
+  const handleViewDocument = async (fileUrl: string | null) => {
+    if (!fileUrl) return;
+    const path = fileUrl.includes('/storage/v1/object/public/documents/')
+      ? fileUrl.split('/storage/v1/object/public/documents/')[1]
+      : fileUrl;
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) {
+      toast.error('Error al obtener enlace del documento');
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !id || !user?.id) return;
@@ -113,16 +128,12 @@ export default function ReleaseContratos() {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
-
       const { error: insertError } = await supabase
         .from('release_documents')
         .insert({
           release_id: id,
           file_name: file.name,
-          file_url: urlData.publicUrl,
+          file_url: filePath,
           file_type: file.type,
           document_type: newDocType,
           notes: newDocNotes || null,
