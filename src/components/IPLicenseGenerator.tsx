@@ -6,11 +6,22 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Download, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { useTracks } from '@/hooks/useReleases';
+
+const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '';
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  return `${min}:${sec.toString().padStart(2, '0')}`;
+}
 
 interface IPLicenseGeneratorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: (contract: { title: string; content: string; pdfBlob?: Blob }) => void | Promise<void>;
+  releaseId?: string;
 }
 
 interface FormData {
@@ -46,7 +57,7 @@ interface FormData {
 const STEPS = ['Productora', 'Colaborador/a', 'Grabación y Derechos', 'Vista Previa'];
 
 const defaultData: FormData = {
-  fecha_dia: '', fecha_mes: '', fecha_anio: new Date().getFullYear().toString(),
+  fecha_dia: new Date().getDate().toString(), fecha_mes: MESES_ES[new Date().getMonth()], fecha_anio: new Date().getFullYear().toString(),
   productora_nombre: '', productora_dni: '', productora_domicilio: '',
   productora_nombre_artistico: '', productora_email: '',
   colaboradora_nombre: '', colaboradora_dni: '', colaboradora_domicilio: '',
@@ -306,9 +317,11 @@ function generatePDF(d: FormData): jsPDF {
   return pdf;
 }
 
-export function IPLicenseGenerator({ open, onOpenChange, onSave }: IPLicenseGeneratorProps) {
+export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
+  const [manualTrack, setManualTrack] = useState(false);
+  const { data: tracks = [] } = useTracks(releaseId);
 
   const update = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -373,7 +386,41 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave }: IPLicenseGene
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Grabación y Derechos</h3>
-            <div><Label>Título de la Grabación</Label><Input value={formData.grabacion_titulo} onChange={e => update('grabacion_titulo', e.target.value)} /></div>
+            <div><Label>Título de la Grabación</Label>
+              {tracks.length > 0 && !manualTrack ? (
+                <Select
+                  value={formData.grabacion_titulo}
+                  onValueChange={(v) => {
+                    if (v === '__other__') {
+                      setManualTrack(true);
+                      update('grabacion_titulo', '');
+                      update('grabacion_duracion', '');
+                      return;
+                    }
+                    const track = tracks.find(t => t.title === v);
+                    update('grabacion_titulo', v);
+                    if (track) {
+                      update('grabacion_duracion', formatDuration(track.duration));
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecciona un track" /></SelectTrigger>
+                  <SelectContent>
+                    {tracks.map(t => (
+                      <SelectItem key={t.id} value={t.title}>{t.track_number}. {t.title}{t.duration ? ` (${formatDuration(t.duration)})` : ''}</SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Otro (escribir manualmente)</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex gap-2">
+                  <Input value={formData.grabacion_titulo} onChange={e => update('grabacion_titulo', e.target.value)} placeholder="Título de la grabación" className="flex-1" />
+                  {tracks.length > 0 && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setManualTrack(false)}>Tracks</Button>
+                  )}
+                </div>
+              )}
+            </div>
             <div><Label>Calidad de intervención</Label>
               <Select value={formData.grabacion_calidad} onValueChange={v => update('grabacion_calidad', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
