@@ -100,6 +100,21 @@ export default function ReleaseContratos() {
     fetchDocuments();
   }, [id]);
 
+  const handleViewDocument = async (fileUrl: string | null) => {
+    if (!fileUrl) return;
+    const path = fileUrl.includes('/storage/v1/object/public/documents/')
+      ? fileUrl.split('/storage/v1/object/public/documents/')[1]
+      : fileUrl;
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) {
+      toast.error('Error al obtener enlace del documento');
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !id || !user?.id) return;
@@ -113,16 +128,12 @@ export default function ReleaseContratos() {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
-
       const { error: insertError } = await supabase
         .from('release_documents')
         .insert({
           release_id: id,
           file_name: file.name,
-          file_url: urlData.publicUrl,
+          file_url: filePath,
           file_type: file.type,
           document_type: newDocType,
           notes: newDocNotes || null,
@@ -272,11 +283,9 @@ export default function ReleaseContratos() {
                       {/* Actions */}
                       <div className="flex items-center gap-2">
                         {doc.file_url && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                              <Eye className="h-4 w-4 mr-1.5" />
-                              Ver documento
-                            </a>
+                          <Button variant="outline" size="sm" onClick={() => handleViewDocument(doc.file_url)}>
+                            <Eye className="h-4 w-4 mr-1.5" />
+                            Ver documento
                           </Button>
                         )}
                         <Button
@@ -369,15 +378,12 @@ export default function ReleaseContratos() {
               .from('documents')
               .upload(filePath, contract.pdfBlob, { contentType: 'application/pdf' });
             if (uploadError) throw uploadError;
-            const { data: urlData } = supabase.storage
-              .from('documents')
-              .getPublicUrl(filePath);
             const { error: insertError } = await supabase
               .from('release_documents')
               .insert({
                 release_id: id,
                 file_name: fileName,
-                file_url: urlData.publicUrl,
+                file_url: filePath,
                 file_type: 'application/pdf',
                 document_type: 'license',
                 notes: contract.content,
