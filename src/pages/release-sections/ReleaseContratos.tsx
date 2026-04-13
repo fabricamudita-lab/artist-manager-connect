@@ -108,13 +108,13 @@ export default function ReleaseContratos() {
     try {
       const filePath = `release-documents/${id}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage
-        .from('artist-files')
+        .from('documents')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from('artist-files')
+        .from('documents')
         .getPublicUrl(filePath);
 
       const { error: insertError } = await supabase
@@ -365,11 +365,11 @@ export default function ReleaseContratos() {
             const fileName = `${contract.title.replace(/\s+/g, '_')}.pdf`;
             const filePath = `release-documents/${id}/${Date.now()}_${fileName}`;
             const { error: uploadError } = await supabase.storage
-              .from('artist-files')
+              .from('documents')
               .upload(filePath, contract.pdfBlob, { contentType: 'application/pdf' });
             if (uploadError) throw uploadError;
             const { data: urlData } = supabase.storage
-              .from('artist-files')
+              .from('documents')
               .getPublicUrl(filePath);
             const { error: insertError } = await supabase
               .from('release_documents')
