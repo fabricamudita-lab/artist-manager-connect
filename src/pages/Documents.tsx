@@ -675,6 +675,35 @@ export default function Documents() {
       <IPLicenseGenerator
         open={showIPLicenseGenerator}
         onOpenChange={setShowIPLicenseGenerator}
+        onSave={async (contract) => {
+          if (!profile?.id || !contract.pdfBlob) return;
+          const artistId = selectedArtists[0];
+          if (!artistId) return;
+          try {
+            const fileName = `${contract.title.replace(/\s+/g, '_')}.pdf`;
+            const filePath = `${profile.id}/${Date.now()}_${fileName}`;
+            const { error: uploadError } = await supabase.storage
+              .from('documents')
+              .upload(filePath, contract.pdfBlob, { contentType: 'application/pdf' });
+            if (uploadError) throw uploadError;
+            const { error: insertError } = await supabase
+              .from('documents')
+              .insert({
+                title: contract.title,
+                category: 'contract',
+                file_type: 'application/pdf',
+                file_size: contract.pdfBlob.size,
+                file_url: filePath,
+                artist_id: artistId,
+                uploaded_by: profile.id,
+              });
+            if (insertError) throw insertError;
+            toast({ title: 'Contrato guardado', description: 'La licencia IP se ha guardado correctamente' });
+            fetchDocuments();
+          } catch (err: any) {
+            toast({ title: 'Error', description: 'Error al guardar: ' + (err.message || ''), variant: 'destructive' });
+          }
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
