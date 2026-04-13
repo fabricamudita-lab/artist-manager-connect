@@ -511,6 +511,8 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     onOpenChange(false);
     setStep(0);
     setFormData({ ...defaultData });
+    if (!externalReleaseId) setSelectedReleaseId(undefined);
+    setManualTrack(false);
   };
 
   const handlePreview = () => {
