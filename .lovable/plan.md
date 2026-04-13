@@ -1,21 +1,27 @@
 
 
-## Plan: Limitar opciones del selector según contexto
+## Plan: Usar URLs firmadas para ver documentos
 
 ### Problema
-Actualmente el `ContractTypeSelector` muestra siempre las dos opciones (Booking + IP License) en todos los contextos. En la sección de contratos de un lanzamiento discográfico, solo debería aparecer la opción de Licencia de Propiedad Intelectual.
+El bucket `documents` de Supabase no es público. Se está usando `getPublicUrl` que genera una URL pública que no funciona, causando `ERR_BLOCKED_BY_CLIENT`.
 
-### Cambios
+### Solución
 
-**1. `src/components/ContractTypeSelector.tsx`**
-- Añadir prop opcional `showBooking?: boolean` (default `true`)
-- Condicionar la renderización de la card "Contrato de Booking" a `showBooking`
-- Si solo hay una opción visible, se sigue mostrando el diálogo (para consistencia y extensibilidad futura)
+**En `src/pages/release-sections/ReleaseContratos.tsx`:**
 
-**2. `src/pages/release-sections/ReleaseContratos.tsx`**
-- Pasar `showBooking={false}` al `ContractTypeSelector`
+1. **Al guardar documentos**: Guardar solo el `filePath` (ruta relativa dentro del bucket) en `file_url` en vez de la URL pública completa. Ejemplo: `release-documents/{id}/1234_file.pdf`
 
-**3. Sin cambios en:**
-- `src/pages/Documents.tsx` — sigue mostrando ambas opciones
-- `src/components/booking-detail/BookingDocumentsTab.tsx` — sigue mostrando ambas opciones
+2. **Al ver documentos**: Reemplazar el link directo `<a href={doc.file_url}>` por un botón que genera una URL firmada (signed URL) al hacer clic:
+   - Usar `supabase.storage.from('documents').createSignedUrl(filePath, 3600)` para generar una URL temporal válida por 1 hora
+   - Abrir la URL firmada en una nueva pestaña
+
+3. **Misma lógica para el guardado del IPLicenseGenerator**: Cambiar el `getPublicUrl` por guardar solo el path relativo.
+
+### Cambios concretos
+- Función `handleViewDocument(fileUrl)` que extrae el path del bucket, genera signed URL y abre en nueva pestaña
+- Actualizar los dos puntos de guardado (upload manual y IPLicenseGenerator onSave) para guardar el path relativo
+- Para documentos ya guardados con URL completa, extraer el path del URL para retrocompatibilidad
+
+### Archivo afectado
+- `src/pages/release-sections/ReleaseContratos.tsx`
 
