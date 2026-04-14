@@ -2276,17 +2276,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
     
-    // ── RESUMEN EJECUTIVO ──
+    // ── RESUMEN FINANCIERO ──
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN EJECUTIVO', margin, yPos);
+    doc.text('RESUMEN FINANCIERO', margin, yPos);
     yPos += 8;
+    
+    // Fee breakdown for income
+    const feeIvaRate = 21;
+    const feeIrpfRate = 15;
+    const feeNeto = budgetAmount;
+    const feeIva = feeNeto * (feeIvaRate / 100);
+    const feeBruto = feeNeto + feeIva;
+    const feeIrpf = feeNeto * (feeIrpfRate / 100);
+    const feeLiquido = feeBruto - feeIrpf;
     
     const summaryData = [
       [budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital', `${fmt(budgetAmount)} €`],
       ['Presupuesto Gastos', `${fmt(expenseBudget)} €`],
       ['Gastos Reales (Neto)', `${fmt(totals.neto)} €`],
-      ['Beneficio Neto', `${fmt(beneficio)} €`],
+      ['IVA Repercutido (+)', `${fmt(feeIva)} €`],
+      ['IRPF Retenido (−)', `-${fmt(feeIrpf)} €`],
+      ['Total a Facturar*', `${fmt(feeLiquido)} €`],
+      ['Beneficio', `${fmt(beneficio)} €`],
       ['Margen', `${margen.toFixed(1)}%`],
     ];
     
@@ -2295,12 +2307,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       startY: yPos,
       theme: 'plain',
       styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { halign: 'right', cellWidth: 50 } },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 }, 1: { halign: 'right', cellWidth: 50 } },
       margin: { left: margin },
       didParseCell: (data: any) => {
         const label = data.row.raw?.[0];
-        if (label === 'Beneficio Neto' && beneficio < 0) {
+        if (label === 'Beneficio' && beneficio < 0) {
           data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+        if (label === 'Total a Facturar*') {
           data.cell.styles.fontStyle = 'bold';
         }
       }
@@ -2316,15 +2331,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFont('helvetica', 'bold');
     doc.text('INGRESOS', margin, yPos);
     yPos += 8;
-    
-    // Fee / Caché breakdown
-    const feeIvaRate = 21;
-    const feeIrpfRate = 15;
-    const feeNeto = budgetAmount;
-    const feeIva = feeNeto * (feeIvaRate / 100);
-    const feeBruto = feeNeto + feeIva;
-    const feeIrpf = feeNeto * (feeIrpfRate / 100);
-    const feeLiquido = feeBruto - feeIrpf;
     
     autoTable(doc, {
       head: [['Concepto', 'Neto', `IVA (${feeIvaRate}%)`, 'Bruto', `IRPF (${feeIrpfRate}%)`, 'Líquido']],
