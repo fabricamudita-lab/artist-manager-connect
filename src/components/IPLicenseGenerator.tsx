@@ -234,16 +234,31 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     }
   };
 
-  // Render justified text - pass full text to jsPDF and let it handle splitting
+  // Draw a single line with manual word-spacing justification
+  const drawJustifiedLine = (text: string, x: number, yPos: number, maxW: number) => {
+    const words = text.trim().split(/\s+/);
+    if (words.length <= 1) {
+      pdf.text(text, x, yPos);
+      return;
+    }
+    const totalTextWidth = words.reduce((sum, w) => sum + pdf.getTextWidth(w), 0);
+    const extraSpace = (maxW - totalTextWidth) / (words.length - 1);
+    let cursorX = x;
+    for (const word of words) {
+      pdf.text(word, cursorX, yPos);
+      cursorX += pdf.getTextWidth(word) + extraSpace;
+    }
+  };
+
+  // Render justified text
   const renderLines = (text: string, xLeft: number, maxW: number) => {
     pdf.setFontSize(fontSize);
     pdf.setFont('times', 'normal');
     const lines: string[] = pdf.splitTextToSize(text, maxW);
     for (let i = 0; i < lines.length; i++) {
       checkPage();
-      // Only justify non-last lines (last line should be left-aligned)
       if (i < lines.length - 1) {
-        pdf.text(lines[i], xLeft, y, { maxWidth: maxW, align: 'justify' });
+        drawJustifiedLine(lines[i], xLeft, y, maxW);
       } else {
         pdf.text(lines[i], xLeft, y);
       }
@@ -263,7 +278,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     const restLines = pdf.splitTextToSize(text, firstLineW);
 
     if (restLines.length > 0) {
-      pdf.text(restLines[0], ml + labelW, y, { maxWidth: firstLineW, align: 'justify' });
+      drawJustifiedLine(restLines[0], ml + labelW, y, firstLineW);
       y += interline;
       if (restLines.length > 1) {
         const cont = restLines.slice(1).join(' ');
@@ -289,7 +304,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     const allLines = pdf.splitTextToSize(text, Math.min(firstLineAvail, textW));
 
     if (allLines.length > 0) {
-      pdf.text(allLines[0], xNum + labelW, y, { maxWidth: firstLineAvail, align: 'justify' });
+      drawJustifiedLine(allLines[0], xNum + labelW, y, firstLineAvail);
       y += interline;
       if (allLines.length > 1) {
         const cont = allLines.slice(1).join(' ');
@@ -297,7 +312,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
         for (let i = 0; i < contLines.length; i++) {
           checkPage();
           if (i < contLines.length - 1) {
-            pdf.text(contLines[i], xText, y, { maxWidth: textW, align: 'justify' });
+            drawJustifiedLine(contLines[i], xText, y, textW);
           } else {
             pdf.text(contLines[i], xText, y);
           }
@@ -329,7 +344,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     const valX = x + letterW + titleW;
     const remaining = cw - indentSub - letterW - titleW;
     if (remaining > 0 && pdf.getTextWidth(value) <= remaining) {
-      pdf.text(value, valX, y, { maxWidth: remaining, align: 'justify' });
+      drawJustifiedLine(value, valX, y, remaining);
       y += subItemSpace;
     } else {
       y += interline;
@@ -349,11 +364,15 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     pdf.setFont('times', 'normal');
     const valLines: string[] = pdf.splitTextToSize(normalPart, maxW - bw);
     if (valLines.length > 0) {
-      pdf.text(valLines[0], x + bw, y, { maxWidth: maxW - bw, align: 'justify' });
+      drawJustifiedLine(valLines[0], x + bw, y, maxW - bw);
       y += interline;
       for (let i = 1; i < valLines.length; i++) {
         checkPage();
-        pdf.text(valLines[i], x, y, { maxWidth: maxW, align: 'justify' });
+        if (i < valLines.length - 1) {
+          drawJustifiedLine(valLines[i], x, y, maxW);
+        } else {
+          pdf.text(valLines[i], x, y);
+        }
         y += interline;
       }
     } else {
