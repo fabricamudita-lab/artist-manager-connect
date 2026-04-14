@@ -1,48 +1,43 @@
 
 
-## Plan: Alinear PDF y CSV con la UI del presupuesto
+## Plan: Implementar justificación real del texto en el PDF de Licencia IP
 
-### Contexto
-Los cambios anteriores no se aplicaron al PDF que descargaste (el PDF muestra "RESUMEN FINANCIERO" y "Total a Facturar*" del código antiguo). El código actual YA tiene las mejoras (Resumen Ejecutivo, Ingresos, Resumen Fiscal, etc.), pero la tabla de detalle no coincide con lo que ves en la UI.
+### Problema raíz
+jsPDF's `align: 'justify'` **no funciona** cuando se pasan líneas individuales pre-divididas con `splitTextToSize`. jsPDF necesita el texto completo para justificar, pero el código divide primero y pasa línea a línea — resultado: texto alineado a la izquierda.
 
-### Cambios en `src/components/BudgetDetailsDialog.tsx`
+### Solución
+Implementar justificación manual: calcular el espacio sobrante en cada línea y distribuirlo entre las palabras, renderizando palabra por palabra.
 
-#### 1. Resumen Financiero — mantener tu formato preferido
-Renombrar "RESUMEN EJECUTIVO" de vuelta a **"RESUMEN FINANCIERO"** (como en tu captura) y añadir las líneas que faltan:
-- Caché (Ingresos)
-- Presupuesto Gastos
-- Gastos Reales (Neto)
-- IVA Repercutido (+)
-- IRPF Retenido (-)
-- Total a Facturar*
-- Beneficio (en rojo si negativo)
-- Margen
+### Cambios en `src/components/IPLicenseGenerator.tsx`
 
-#### 2. Detalle de gastos — alinear con la UI
-Cambiar las columnas del detalle para que coincidan con la UI:
-
+#### 1. Nueva función `drawJustifiedLine` (~15 líneas)
 ```text
-Antes (PDF actual):
-Concepto | Contacto | Cant. | P.Unit. | Subtotal | IVA | Total Bruto | IRPF | Neto a Pagar | Estado
-
-Después (como la UI):
-Concepto | Contacto | Fecha Emisión | Precio/Comisión | IVA (%) | IRPF (%) | Total (€) | Estado
+function drawJustifiedLine(pdf, text, x, y, maxWidth):
+  words = text.split(' ')
+  if words.length <= 1: draw normally, return
+  totalTextWidth = sum of each word's width
+  extraSpace = (maxWidth - totalTextWidth) / (words.length - 1)
+  cursorX = x
+  for each word:
+    pdf.text(word, cursorX, y)
+    cursorX += wordWidth + extraSpace
 ```
 
-- **Fecha Emisión**: Usar `item.fecha_emision` formateado dd/MM/yyyy o "-"
-- **IVA (%)**: Mostrar el porcentaje (ej. "21%") en vez del importe
-- **IRPF (%)**: Mostrar el porcentaje (ej. "15%")
-- **Total (€)**: Mostrar el líquido como valor principal. Debajo, en texto más pequeño: "+ €X retención" (como en la UI)
+#### 2. Actualizar `renderLines` (línea 237-251)
+Reemplazar `pdf.text(lines[i], ..., { align: 'justify' })` por `drawJustifiedLine(pdf, lines[i], xLeft, y, maxW)` para líneas no-finales. Última línea sigue left-aligned.
 
-#### 3. Categorías por grupo — añadir total líquido
-En la cabecera de cada categoría, mostrar el total líquido (como en la UI: "Líquido €2.650,00 + €375 ret.")
+#### 3. Actualizar `addHangingParagraph` (línea 266)
+Reemplazar la llamada con justify por `drawJustifiedLine` para la primera línea.
 
-#### 4. Excel/CSV — mismos cambios
-Actualizar `downloadExcel()` con las mismas columnas: Concepto, Contacto, Fecha Emisión, Precio, IVA (%), IRPF (%), Total Líquido, Retención, Estado
+#### 4. Actualizar `addNumberedHanging` (línea 292, 300)
+Mismo cambio: usar `drawJustifiedLine` en lugar de `align: 'justify'`.
 
-#### 5. Gráfico donut — verificar
-El código ya usa importes netos (`unit_price * quantity`). Si al descargar ahora sigue mostrando líquido, es porque el navegador usaba código cacheado. Tras estos cambios se regenerará correctamente.
+#### 5. Actualizar `addBoldNormal` (líneas 352, 356)
+Mismo patrón.
 
-### Resultado esperado
-El PDF será un reflejo fiel de la UI: mismas columnas, mismos porcentajes de IVA/IRPF visibles, fecha de emisión, y el total mostrando claramente el líquido con la retención indicada.
+### Resultado
+El texto del contrato quedará con **justificación completa** real (ambos márgenes alineados), como en un contrato legal estándar. La última línea de cada párrafo permanece alineada a la izquierda (comportamiento correcto de justificación).
+
+### Archivos a modificar
+- `src/components/IPLicenseGenerator.tsx` — nueva función + ~8 reemplazos de `align: 'justify'`
 
