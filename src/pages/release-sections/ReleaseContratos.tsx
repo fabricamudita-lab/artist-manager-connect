@@ -469,14 +469,18 @@ export default function ReleaseContratos() {
       {/* Booking Contract Generator */}
       <ContractGenerator
         open={showBookingGenerator}
-        onOpenChange={setShowBookingGenerator}
+        onOpenChange={(open) => { setShowBookingGenerator(open); if (!open) setEditingDraft(null); }}
+        draftId={editingDraft?.draft_type === 'booking' ? editingDraft.id : undefined}
+        onDraftSaved={fetchDrafts}
       />
 
       {/* IP License Generator */}
       <IPLicenseGenerator
         open={showIPLicenseGenerator}
-        onOpenChange={setShowIPLicenseGenerator}
+        onOpenChange={(open) => { setShowIPLicenseGenerator(open); if (!open) setEditingDraft(null); }}
         releaseId={id}
+        draftId={editingDraft?.draft_type === 'ip_license' ? editingDraft.id : undefined}
+        onDraftSaved={fetchDrafts}
         onSave={async (contract) => {
           if (!id || !user?.id || !contract.pdfBlob) return;
           try {
