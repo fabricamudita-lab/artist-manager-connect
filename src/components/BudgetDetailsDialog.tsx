@@ -1021,7 +1021,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     const chartData = sortedCategories.map((category, index) => {
       const categoryItems = getCategoryItems(category.id);
-      const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+      const total = categoryItems.reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
       
       return {
         name: category.name,
