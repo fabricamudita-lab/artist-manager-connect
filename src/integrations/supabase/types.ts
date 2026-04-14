@@ -2786,37 +2786,61 @@ export type Database = {
       }
       contract_draft_comments: {
         Row: {
+          approved_by_collaborator: boolean
+          approved_by_producer: boolean
           author_name: string
           author_profile_id: string | null
+          clause_number: string | null
+          comment_status: string
           created_at: string | null
           draft_id: string
           id: string
           message: string
           parent_comment_id: string | null
+          proposed_change: string | null
           resolved: boolean | null
           section_key: string
+          selected_text: string | null
+          selection_end: number | null
+          selection_start: number | null
         }
         Insert: {
+          approved_by_collaborator?: boolean
+          approved_by_producer?: boolean
           author_name: string
           author_profile_id?: string | null
+          clause_number?: string | null
+          comment_status?: string
           created_at?: string | null
           draft_id: string
           id?: string
           message: string
           parent_comment_id?: string | null
+          proposed_change?: string | null
           resolved?: boolean | null
           section_key: string
+          selected_text?: string | null
+          selection_end?: number | null
+          selection_start?: number | null
         }
         Update: {
+          approved_by_collaborator?: boolean
+          approved_by_producer?: boolean
           author_name?: string
           author_profile_id?: string | null
+          clause_number?: string | null
+          comment_status?: string
           created_at?: string | null
           draft_id?: string
           id?: string
           message?: string
           parent_comment_id?: string | null
+          proposed_change?: string | null
           resolved?: boolean | null
           section_key?: string
+          selected_text?: string | null
+          selection_end?: number | null
+          selection_start?: number | null
         }
         Relationships: [
           {
