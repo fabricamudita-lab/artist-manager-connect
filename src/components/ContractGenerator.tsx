@@ -26,8 +26,12 @@ import { cn } from "@/lib/utils";
 import { 
   FileText, Check, ChevronRight, ChevronLeft, ClipboardCopy, Eye, 
   Building, User, Calendar, CreditCard, Scale, Users, Download,
-  Plus, Trash2, Save, ChevronDown
+  Plus, Trash2, Save, ChevronDown, Share2, Copy
 } from "lucide-react";
+import { useContractDrafts, type ContractDraft } from '@/hooks/useContractDrafts';
+import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
+import { useAuth } from '@/hooks/useAuth';
+import { toast as sonnerToast } from 'sonner';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -61,6 +65,10 @@ type ContractGeneratorProps = {
     formato?: string;
     festival_ciclo?: string;
   };
+  draftId?: string;
+  bookingId?: string;
+  artistId?: string;
+  onDraftSaved?: () => void;
 };
 
 interface WizardStep {
@@ -154,6 +162,10 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   onOpenChange,
   onSave,
   bookingData,
+  draftId,
+  bookingId,
+  artistId,
+  onDraftSaved,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [contractDate, setContractDate] = useState(format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es }));
