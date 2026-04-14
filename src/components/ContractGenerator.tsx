@@ -26,8 +26,12 @@ import { cn } from "@/lib/utils";
 import { 
   FileText, Check, ChevronRight, ChevronLeft, ClipboardCopy, Eye, 
   Building, User, Calendar, CreditCard, Scale, Users, Download,
-  Plus, Trash2, Save, ChevronDown
+  Plus, Trash2, Save, ChevronDown, Share2, Copy
 } from "lucide-react";
+import { useContractDrafts, type ContractDraft } from '@/hooks/useContractDrafts';
+import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
+import { useAuth } from '@/hooks/useAuth';
+import { toast as sonnerToast } from 'sonner';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -61,6 +65,10 @@ type ContractGeneratorProps = {
     formato?: string;
     festival_ciclo?: string;
   };
+  draftId?: string;
+  bookingId?: string;
+  artistId?: string;
+  onDraftSaved?: () => void;
 };
 
 interface WizardStep {
@@ -154,11 +162,86 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   onOpenChange,
   onSave,
   bookingData,
+  draftId,
+  bookingId,
+  artistId,
+  onDraftSaved,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [contractDate, setContractDate] = useState(format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es }));
   const [savingContact, setSavingContact] = useState(false);
   const [sponsorPreset, setSponsorPreset] = useState<string>('estricta');
+  const { user } = useAuth();
+  const { saveDraft, updateDraft, updateStatus } = useContractDrafts();
+  const [currentDraft, setCurrentDraft] = useState<ContractDraft | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  // Load existing draft
+  useEffect(() => {
+    if (draftId && open) {
+      (async () => {
+        const { data } = await supabase
+          .from('contract_drafts')
+          .select('*')
+          .eq('id', draftId)
+          .single();
+        if (data) {
+          const d = data as unknown as ContractDraft;
+          setCurrentDraft(d);
+          if (d.form_data) {
+            const fd = d.form_data as any;
+            if (fd.agentData) setAgentData(fd.agentData);
+            if (fd.promoterData) setPromoterData(fd.promoterData);
+            if (fd.conditions) setConditions(fd.conditions);
+            if (fd.paymentTerms) setPaymentTerms(fd.paymentTerms);
+            if (fd.ticketPrices) setTicketPrices(fd.ticketPrices);
+          }
+          if (d.clauses_data) setLegalClauses(d.clauses_data as any);
+        }
+      })();
+    }
+  }, [draftId, open]);
+
+  const getFormDataSnapshot = () => ({
+    agentData, promoterData, conditions, paymentTerms, ticketPrices,
+  });
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const title = `Contrato - ${conditions.artista || 'Artista'} - ${conditions.evento || conditions.ciudad || 'Evento'}`;
+      if (currentDraft) {
+        await updateDraft(currentDraft.id, { formData: getFormDataSnapshot(), clausesData: legalClauses, title });
+      } else {
+        const draft = await saveDraft({
+          draftType: 'booking',
+          title,
+          formData: getFormDataSnapshot(),
+          clausesData: legalClauses,
+          bookingId: bookingId,
+          artistId: artistId,
+        });
+        if (draft) setCurrentDraft(draft);
+      }
+      onDraftSaved?.();
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!currentDraft) return;
+    if (currentDraft.status === 'borrador') {
+      await updateStatus(currentDraft.id, 'en_negociacion');
+      setCurrentDraft({ ...currentDraft, status: 'en_negociacion' });
+    }
+    const url = `${window.location.origin}/contract-draft/${currentDraft.share_token}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    sonnerToast.success('Link de negociación copiado');
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
   
   // Agent Data
   const [agentData, setAgentData] = useState<AgentData>(DEFAULT_AGENT_DATA);
@@ -1191,13 +1274,16 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={isOpen => { onOpenChange(isOpen); if (!isOpen) resetForm(); }}>
+    <Dialog open={open} onOpenChange={isOpen => { onOpenChange(isOpen); if (!isOpen) { resetForm(); setCurrentDraft(null); } }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center gap-2">
-            <FileText className="h-6 w-6" />
-            Generador de Contratos
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <FileText className="h-6 w-6" />
+              Generador de Contratos
+            </DialogTitle>
+            {currentDraft && <DraftStatusBanner status={currentDraft.status} />}
+          </div>
         </DialogHeader>
 
         {renderStepIndicator()}
@@ -1227,10 +1313,22 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button onClick={handleSave}>
-              <FileText className="h-4 w-4 mr-2" />
-              Guardar Contrato
-            </Button>
+            <div className="flex gap-2 flex-wrap justify-end">
+              <Button variant="outline" onClick={handleSaveDraft} disabled={savingDraft}>
+                <Save className="h-4 w-4 mr-2" />
+                {currentDraft ? 'Actualizar borrador' : 'Guardar borrador'}
+              </Button>
+              {currentDraft && (
+                <Button variant="outline" onClick={handleShareLink}>
+                  {copiedLink ? <Check className="h-4 w-4 mr-2" /> : <Share2 className="h-4 w-4 mr-2" />}
+                  {copiedLink ? 'Copiado' : 'Compartir link'}
+                </Button>
+              )}
+              <Button onClick={handleSave} disabled={currentDraft?.status === 'en_negociacion'}>
+                <FileText className="h-4 w-4 mr-2" />
+                Guardar Contrato
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>

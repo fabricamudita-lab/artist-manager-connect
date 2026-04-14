@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileSignature, Trash2, Eye, ChevronDown, StickyNote, FileText, Download, X, FileWarning } from 'lucide-react';
+import { ArrowLeft, Upload, FileSignature, Trash2, Eye, ChevronDown, StickyNote, FileText, Download, X, FileWarning, FileEdit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,8 @@ import { es } from 'date-fns/locale';
 import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
-
+import { useContractDrafts, type ContractDraft } from '@/hooks/useContractDrafts';
+import { DraftsList } from '@/components/contract-drafts/DraftsList';
 interface ReleaseDocument {
   id: string;
   release_id: string;
@@ -85,6 +86,8 @@ export default function ReleaseContratos() {
   const [previewDoc, setPreviewDoc] = useState<ReleaseDocument | null>(null);
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<ContractDraft | null>(null);
+  const { drafts, loading: draftsLoading, fetchDrafts, deleteDraft, updateStatus } = useContractDrafts({ releaseId: id });
 
   const fetchDocuments = async () => {
     if (!id) return;
@@ -287,6 +290,27 @@ export default function ReleaseContratos() {
         </div>
       </div>
 
+      {/* Borradores de contratos */}
+      {drafts.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <FileEdit className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Borradores en negociación</h2>
+          </div>
+          <DraftsList
+            drafts={drafts}
+            loading={draftsLoading}
+            onEdit={(draft) => {
+              setEditingDraft(draft);
+              if (draft.draft_type === 'ip_license') setShowIPLicenseGenerator(true);
+              else setShowBookingGenerator(true);
+            }}
+            onDelete={deleteDraft}
+            onStatusChange={updateStatus}
+          />
+        </div>
+      )}
+
       {/* Document list */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Cargando...</div>
@@ -445,14 +469,18 @@ export default function ReleaseContratos() {
       {/* Booking Contract Generator */}
       <ContractGenerator
         open={showBookingGenerator}
-        onOpenChange={setShowBookingGenerator}
+        onOpenChange={(open) => { setShowBookingGenerator(open); if (!open) setEditingDraft(null); }}
+        draftId={editingDraft?.draft_type === 'booking' ? editingDraft.id : undefined}
+        onDraftSaved={fetchDrafts}
       />
 
       {/* IP License Generator */}
       <IPLicenseGenerator
         open={showIPLicenseGenerator}
-        onOpenChange={setShowIPLicenseGenerator}
+        onOpenChange={(open) => { setShowIPLicenseGenerator(open); if (!open) setEditingDraft(null); }}
         releaseId={id}
+        draftId={editingDraft?.draft_type === 'ip_license' ? editingDraft.id : undefined}
+        onDraftSaved={fetchDrafts}
         onSave={async (contract) => {
           if (!id || !user?.id || !contract.pdfBlob) return;
           try {

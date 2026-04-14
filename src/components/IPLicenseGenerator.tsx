@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useContractDrafts, type ContractDraft } from '@/hooks/useContractDrafts';
+import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ArrowLeft, ArrowRight, Download, Eye, ChevronDown, RotateCcw, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Download, Eye, ChevronDown, RotateCcw, Calendar as CalendarIcon, Save, Share2, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parse } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -42,6 +46,8 @@ interface IPLicenseGeneratorProps {
   onOpenChange: (open: boolean) => void;
   onSave?: (contract: { title: string; content: string; pdfBlob?: Blob }) => void | Promise<void>;
   releaseId?: string;
+  draftId?: string;
+  onDraftSaved?: () => void;
 }
 
 interface FormData {
@@ -578,7 +584,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
   return pdf;
 }
 
-export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: externalReleaseId }: IPLicenseGeneratorProps) {
+export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: externalReleaseId, draftId, onDraftSaved }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
   const [ipClauses, setIpClauses] = useState<IPLegalClauses>({ ...DEFAULT_IP_CLAUSES });
@@ -587,6 +593,64 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
   const effectiveReleaseId = externalReleaseId || selectedReleaseId;
   const { data: releases = [] } = useReleases();
   const { data: tracks = [] } = useTracks(effectiveReleaseId);
+  const { user } = useAuth();
+  const { saveDraft, updateDraft, updateStatus } = useContractDrafts();
+  const [currentDraft, setCurrentDraft] = useState<ContractDraft | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  // Load existing draft
+  useEffect(() => {
+    if (draftId && open) {
+      (async () => {
+        const { data } = await supabase
+          .from('contract_drafts')
+          .select('*')
+          .eq('id', draftId)
+          .single();
+        if (data) {
+          const d = data as unknown as ContractDraft;
+          setCurrentDraft(d);
+          if (d.form_data) setFormData(d.form_data as FormData);
+          if (d.clauses_data) setIpClauses(d.clauses_data as IPLegalClauses);
+        }
+      })();
+    }
+  }, [draftId, open]);
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      if (currentDraft) {
+        await updateDraft(currentDraft.id, { formData, clausesData: ipClauses, title: `Licencia IP - ${formData.colaboradora_nombre_artistico || formData.colaboradora_nombre || 'Sin nombre'}` });
+      } else {
+        const draft = await saveDraft({
+          draftType: 'ip_license',
+          title: `Licencia IP - ${formData.colaboradora_nombre_artistico || formData.colaboradora_nombre || 'Sin nombre'}`,
+          formData,
+          clausesData: ipClauses,
+          releaseId: effectiveReleaseId,
+        });
+        if (draft) setCurrentDraft(draft);
+      }
+      onDraftSaved?.();
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!currentDraft) return;
+    if (currentDraft.status === 'borrador') {
+      await updateStatus(currentDraft.id, 'en_negociacion');
+      setCurrentDraft({ ...currentDraft, status: 'en_negociacion' });
+    }
+    const url = `${window.location.origin}/contract-draft/${currentDraft.share_token}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    toast.success('Link de negociación copiado');
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   const update = (field: keyof FormData, value: string) => {
     setFormData(prev => {
@@ -943,10 +1007,13 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) { setStep(0); } }}>
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) { setStep(0); setCurrentDraft(null); } }}>
       <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Licencia de Propiedad Intelectual</DialogTitle>
+          <div className="flex items-center gap-2">
+            <DialogTitle>Licencia de Propiedad Intelectual</DialogTitle>
+            {currentDraft && <DraftStatusBanner status={currentDraft.status} />}
+          </div>
           <div className="flex gap-1 mt-2">
             {STEPS.map((label, i) => (
               <div key={label} className={`flex-1 h-1.5 rounded-full ${i <= step ? 'bg-primary' : 'bg-muted'}`} />
@@ -962,14 +1029,24 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
             <ArrowLeft className="h-4 w-4 mr-1" />
             {step === 0 ? 'Cancelar' : 'Anterior'}
           </Button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             {step === STEPS.length - 1 && (
               <>
+                <Button variant="outline" onClick={handleSaveDraft} disabled={savingDraft}>
+                  <Save className="h-4 w-4 mr-1" />
+                  {currentDraft ? 'Actualizar borrador' : 'Guardar borrador'}
+                </Button>
+                {currentDraft && (
+                  <Button variant="outline" onClick={handleShareLink}>
+                    {copiedLink ? <Check className="h-4 w-4 mr-1" /> : <Share2 className="h-4 w-4 mr-1" />}
+                    {copiedLink ? 'Copiado' : 'Compartir link'}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handlePreview}>
                   <Eye className="h-4 w-4 mr-1" />
                   Vista previa
                 </Button>
-                <Button onClick={handleGenerate}>
+                <Button onClick={handleGenerate} disabled={currentDraft?.status === 'en_negociacion'}>
                   <Download className="h-4 w-4 mr-1" />
                   Generar PDF
                 </Button>
