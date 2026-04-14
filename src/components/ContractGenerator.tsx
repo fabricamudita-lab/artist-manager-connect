@@ -796,15 +796,33 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       }
     };
 
+    // ── drawJustifiedLine: manual word-spacing justification ──
+    const drawJustifiedLine = (text: string, x: number, yPos: number, maxW: number) => {
+      const words = text.split(' ').filter(w => w.length > 0);
+      if (words.length <= 1) { doc.text(text, x, yPos); return; }
+      const totalTextW = words.reduce((sum, w) => sum + doc.getTextWidth(w), 0);
+      const extraSpace = (maxW - totalTextW) / (words.length - 1);
+      let cx = x;
+      words.forEach((word, idx) => {
+        doc.text(word, cx, yPos);
+        if (idx < words.length - 1) cx += doc.getTextWidth(word) + extraSpace;
+      });
+    };
+
     // ── addParagraph: renders justified multi-line text ──
     const addParagraph = (text: string, x: number, fontSize = 10, fontStyle: 'normal' | 'bold' = 'normal') => {
       doc.setFont(FONT, fontStyle);
       doc.setFontSize(fontSize);
       const maxW = PW - x - MR;
       const lines: string[] = doc.splitTextToSize(clean(text), maxW);
-      lines.forEach((line: string) => {
+      lines.forEach((line: string, idx: number) => {
         ensureSpace(LH);
-        doc.text(line, x, y, { maxWidth: maxW });
+        const isLast = idx === lines.length - 1;
+        if (!isLast && line.trim().split(' ').length > 1) {
+          drawJustifiedLine(line, x, y, maxW);
+        } else {
+          doc.text(line, x, y);
+        }
         y += LH;
       });
     };
@@ -844,17 +862,22 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       const labelW = doc.getTextWidth(labelText);
       doc.text(labelText, indent, y);
       doc.setFont(FONT, 'normal');
-      const valLines: string[] = doc.splitTextToSize(clean(value), PW - indent - labelW - MR);
+      const valMaxW = PW - indent - labelW - MR;
+      const valLines: string[] = doc.splitTextToSize(clean(value), valMaxW);
       if (valLines.length === 1) {
         doc.text(valLines[0], indent + labelW, y);
         y += LH;
       } else {
-        // First part on same line
         doc.text(valLines[0], indent + labelW, y);
         y += LH;
         for (let i = 1; i < valLines.length; i++) {
           ensureSpace(LH);
-          doc.text(valLines[i], indent + labelW, y);
+          const isLast = i === valLines.length - 1;
+          if (!isLast && valLines[i].trim().split(' ').length > 1) {
+            drawJustifiedLine(valLines[i], indent + labelW, y, valMaxW);
+          } else {
+            doc.text(valLines[i], indent + labelW, y);
+          }
           y += LH;
         }
       }
