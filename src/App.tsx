@@ -43,6 +43,7 @@ import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
 import SharedFile from "./pages/SharedFile";
 import SharedRelease from "./pages/SharedRelease";
+import ContractDraftView from "./pages/ContractDraftView";
 import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
 import PublicArtistForm from "./pages/PublicArtistForm";
 import PublicReleaseForm from "./pages/PublicReleaseForm";
@@ -429,6 +430,8 @@ const App = () => (
               <Route path="/shared/release/:token" element={<SharedRelease />} />
               {/* Public Shared File Route */}
               <Route path="/shared/:token" element={<SharedFile />} />
+              {/* Public Contract Draft Negotiation */}
+              <Route path="/contract-draft/:token" element={<ContractDraftView />} />
               {/* Public Contract Signature Route */}
               <Route path="/sign/:token" element={<SignContractMulti />} />
               {/* Public Sync Request Form */}

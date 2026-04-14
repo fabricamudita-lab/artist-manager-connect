@@ -1274,13 +1274,16 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={isOpen => { onOpenChange(isOpen); if (!isOpen) resetForm(); }}>
+    <Dialog open={open} onOpenChange={isOpen => { onOpenChange(isOpen); if (!isOpen) { resetForm(); setCurrentDraft(null); } }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center gap-2">
-            <FileText className="h-6 w-6" />
-            Generador de Contratos
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <FileText className="h-6 w-6" />
+              Generador de Contratos
+            </DialogTitle>
+            {currentDraft && <DraftStatusBanner status={currentDraft.status} />}
+          </div>
         </DialogHeader>
 
         {renderStepIndicator()}
@@ -1310,10 +1313,22 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button onClick={handleSave}>
-              <FileText className="h-4 w-4 mr-2" />
-              Guardar Contrato
-            </Button>
+            <div className="flex gap-2 flex-wrap justify-end">
+              <Button variant="outline" onClick={handleSaveDraft} disabled={savingDraft}>
+                <Save className="h-4 w-4 mr-2" />
+                {currentDraft ? 'Actualizar borrador' : 'Guardar borrador'}
+              </Button>
+              {currentDraft && (
+                <Button variant="outline" onClick={handleShareLink}>
+                  {copiedLink ? <Check className="h-4 w-4 mr-2" /> : <Share2 className="h-4 w-4 mr-2" />}
+                  {copiedLink ? 'Copiado' : 'Compartir link'}
+                </Button>
+              )}
+              <Button onClick={handleSave} disabled={currentDraft?.status === 'en_negociacion'}>
+                <FileText className="h-4 w-4 mr-2" />
+                Guardar Contrato
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>
