@@ -1040,7 +1040,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     return sortedCategories.map(category => {
       const categoryItems = getCategoryItems(category.id);
-      const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+      const total = categoryItems.reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
       const confirmed = categoryItems
         .filter(i => !i.is_provisional)
         .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
