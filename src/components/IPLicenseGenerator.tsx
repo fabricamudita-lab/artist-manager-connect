@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ArrowLeft, ArrowRight, Download, Eye, ChevronDown, RotateCcw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useTracks, useReleases } from '@/hooks/useReleases';
+import { PersonSearchInput, type PersonData } from '@/components/PersonSearchInput';
 
 function numberToSpanishText(n: number): string {
   if (n < 0 || n > 100 || !Number.isInteger(n)) return '';
