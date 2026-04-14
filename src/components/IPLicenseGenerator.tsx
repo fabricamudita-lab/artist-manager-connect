@@ -590,6 +590,33 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     });
   };
 
+  const handleSelectPerson = (person: PersonData, target: 'productora' | 'colaboradora') => {
+    setFormData(prev => {
+      const next = { ...prev };
+      const fullName = person.legal_name || person.name;
+      next[`${target}_nombre`] = fullName;
+      if (person.nif) next[`${target}_dni`] = person.nif;
+      if (person.address) next[`${target}_domicilio`] = person.address;
+      if (person.stage_name) next[`${target}_nombre_artistico`] = person.stage_name;
+      if (person.email) next[`${target}_email`] = person.email;
+      // Sync dependent fields
+      if (target === 'productora') {
+        if (!prev.firma_productora || prev.firma_productora === prev.productora_nombre) {
+          next.firma_productora = fullName;
+        }
+      }
+      if (target === 'colaboradora') {
+        if (!prev.firma_colaboradora || prev.firma_colaboradora === prev.colaboradora_nombre) {
+          next.firma_colaboradora = fullName;
+        }
+        if (!prev.acreditacion_nombre || prev.acreditacion_nombre === prev.colaboradora_nombre_artistico) {
+          next.acreditacion_nombre = person.stage_name || '';
+        }
+      }
+      return next;
+    });
+  };
+
   const handleGenerate = async () => {
     const pdf = generatePDF(formData, ipClauses);
     const blob = pdf.output('blob');
