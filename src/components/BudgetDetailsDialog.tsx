@@ -2243,78 +2243,50 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     const totals = calculateGrandTotals();
     const beneficio = budgetAmount - totals.neto;
     const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
-    const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
-    const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
     
     let yPos = 15;
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
+    const fmt = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2 });
     
-    // Título principal
+    const checkPage = (needed: number) => {
+      if (yPos + needed > 275) { doc.addPage(); yPos = 15; }
+    };
+    
+    // ── CABECERA ──
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text(budgetData.name, margin, yPos);
     yPos += 7;
     
-    // Subtítulo indicando modo de visualización
-    const modeLabels: Record<string, string> = {
-      'neto': 'NETO (sin IVA ni IRPF)',
-      'con_iva': 'CON IVA (sin IRPF)',
-      'liquido': 'LÍQUIDO (Neto + IVA - IRPF)'
-    };
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100);
-    doc.text(`Importes mostrados en: ${modeLabels[displayMode] || modeLabels['neto']}`, margin, yPos);
-    doc.setTextColor(0);
-    yPos += 8;
-    
-    // Información del evento
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    
     if (budgetData.event_date) {
-      const eventDate = new Date(budgetData.event_date).toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
+      const eventDate = new Date(budgetData.event_date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       doc.text(`Fecha: ${eventDate}${budgetData.event_time ? ` a las ${budgetData.event_time}` : ''}`, margin, yPos);
       yPos += 5;
     }
-    
     if (budgetData.venue || budgetData.city) {
       const location = [budgetData.venue, budgetData.city, budgetData.country].filter(Boolean).join(', ');
       doc.text(`Lugar: ${location}`, margin, yPos);
       yPos += 5;
     }
-    
     yPos += 3;
-    
-    // Línea separadora
     doc.setDrawColor(200);
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
     
-    // Vista General - Resumen Financiero
+    // ── RESUMEN EJECUTIVO ──
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN FINANCIERO', margin, yPos);
+    doc.text('RESUMEN EJECUTIVO', margin, yPos);
     yPos += 8;
     
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    // Tabla de resumen financiero
     const summaryData = [
-      [budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital (Presupuesto)', `${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
-      ['Presupuesto Gastos', `${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
-      ['Gastos Reales (Neto)', `${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €${expenseBudget > 0 ? ` (${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%)` : ''}`],
-      ['IVA Repercutido', `+${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
-      ['IRPF Retenido', `-${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
-      ['Total Líquido (a transferir)*', `${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
-      ['Beneficio', `${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      [budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital', `${fmt(budgetAmount)} €`],
+      ['Presupuesto Gastos', `${fmt(expenseBudget)} €`],
+      ['Gastos Reales (Neto)', `${fmt(totals.neto)} €`],
+      ['Beneficio Neto', `${fmt(beneficio)} €`],
       ['Margen', `${margen.toFixed(1)}%`],
     ];
     
@@ -2323,114 +2295,116 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       startY: yPos,
       theme: 'plain',
       styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 50 },
-        1: { halign: 'right', cellWidth: 50 }
-      },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { halign: 'right', cellWidth: 50 } },
       margin: { left: margin },
       didParseCell: (data: any) => {
-        const rowLabel = data.row.raw?.[0];
-        if (rowLabel === 'Beneficio' && beneficio < 0) {
-          data.cell.styles.textColor = [220, 38, 38];
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 11;
-        }
-        if (rowLabel === 'Margen' && margen < 0) {
+        const label = data.row.raw?.[0];
+        if (label === 'Beneficio Neto' && beneficio < 0) {
           data.cell.styles.textColor = [220, 38, 38];
           data.cell.styles.fontStyle = 'bold';
         }
       }
     });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
     
-    yPos = (doc as any).lastAutoTable.finalY + 3;
-    
-    // Nota sobre total a facturar
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100);
-    doc.text('*Total líquido (Neto + IVA - IRPF) a fecha de emisión del documento', margin, yPos);
-    doc.setTextColor(0);
-    yPos += 8;
-    
-    // Línea separadora
+    // ── INGRESOS ──
+    checkPage(40);
     doc.setDrawColor(200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-    
-    // Desglose por categorías
+    doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+    yPos += 6;
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text('DESGLOSE POR CATEGORÍAS', margin, yPos);
+    doc.text('INGRESOS', margin, yPos);
+    yPos += 8;
+    
+    // Fee / Caché breakdown
+    const feeIvaRate = 21;
+    const feeIrpfRate = 15;
+    const feeNeto = budgetAmount;
+    const feeIva = feeNeto * (feeIvaRate / 100);
+    const feeBruto = feeNeto + feeIva;
+    const feeIrpf = feeNeto * (feeIrpfRate / 100);
+    const feeLiquido = feeBruto - feeIrpf;
+    
+    autoTable(doc, {
+      head: [['Concepto', 'Neto', `IVA (${feeIvaRate}%)`, 'Bruto', `IRPF (${feeIrpfRate}%)`, 'Líquido']],
+      body: [[
+        budget.type === 'concierto' ? 'Caché' : 'Capital',
+        `${fmt(feeNeto)} €`, `${fmt(feeIva)} €`, `${fmt(feeBruto)} €`,
+        `-${fmt(feeIrpf)} €`, `${fmt(feeLiquido)} €`
+      ]],
+      startY: yPos,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 139, 34] },
+      margin: { left: margin }
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    // ── GASTOS POR CATEGORÍA ──
+    checkPage(40);
+    doc.setDrawColor(200);
+    doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+    yPos += 6;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('GASTOS POR CATEGORÍA', margin, yPos);
     yPos += 8;
     
     const categoryTotals = items.reduce((acc, item) => {
       const cat = item.budget_categories?.name || item.category || 'Sin categoría';
-      if (!acc[cat]) acc[cat] = { neto: 0, count: 0, confirmed: 0, provisional: 0 };
-      const itemNeto = item.unit_price * item.quantity;
+      if (!acc[cat]) acc[cat] = { neto: 0, pagado: 0, pendiente: 0, count: 0 };
+      const itemNeto = item.unit_price * (item.quantity || 1);
       acc[cat].neto += itemNeto;
       acc[cat].count += 1;
-      if (item.is_provisional) {
-        acc[cat].provisional += itemNeto;
-      } else {
-        acc[cat].confirmed += itemNeto;
-      }
+      if (item.billing_status === 'pagada') acc[cat].pagado += itemNeto;
+      else acc[cat].pendiente += itemNeto;
       return acc;
-    }, {} as Record<string, { neto: number; count: number; confirmed: number; provisional: number }>);
+    }, {} as Record<string, { neto: number; pagado: number; pendiente: number; count: number }>);
     
     const categoryOrder = budgetCategories.reduce((acc, bc, idx) => {
       acc[bc.name] = bc.sort_order ?? idx;
       return acc;
     }, {} as Record<string, number>);
     
-    const sortedCategoryEntries = Object.entries(categoryTotals).sort((a, b) => {
-      const orderA = categoryOrder[a[0]] ?? 999;
-      const orderB = categoryOrder[b[0]] ?? 999;
-      return orderA - orderB;
-    });
+    const sortedCatEntries = Object.entries(categoryTotals).sort((a, b) => 
+      (categoryOrder[a[0]] ?? 999) - (categoryOrder[b[0]] ?? 999)
+    );
+    const totalNetoGastos = sortedCatEntries.reduce((s, [_, d]) => s + d.neto, 0);
     
-    const totalNeto = sortedCategoryEntries.reduce((sum, [_, data]) => sum + data.neto, 0);
-    
-    const categoryData = sortedCategoryEntries.map(([cat, data]) => {
-      const percentage = totalNeto > 0 ? ((data.neto / totalNeto) * 100).toFixed(1) : '0';
-      return [
-        cat,
-        String(data.count),
-        `${data.confirmed.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
-        `${data.provisional.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
-        `${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
-        `${percentage}%`
-      ];
+    const catData = sortedCatEntries.map(([cat, data]) => {
+      const pct = totalNetoGastos > 0 ? ((data.neto / totalNetoGastos) * 100).toFixed(1) : '0';
+      const status = data.pendiente === 0 && data.neto > 0 ? '✓ Pagado' : data.pagado === 0 ? 'Pendiente' : 'Parcial';
+      return [cat, String(data.count), `${fmt(data.neto)} €`, `${fmt(data.pagado)} €`, `${fmt(data.pendiente)} €`, `${pct}%`, status];
     });
     
     autoTable(doc, {
-      head: [['Categoría', 'Elem.', 'Confirmado', 'Provisional', 'Total Neto', '%']],
-      body: categoryData,
+      head: [['Categoría', 'Elem.', 'Presupuestado', 'Pagado', 'Pendiente', '%', 'Estado']],
+      body: catData,
       startY: yPos,
-      styles: { fontSize: 9 },
+      styles: { fontSize: 8 },
       headStyles: { fillColor: [80, 80, 80] },
-      margin: { left: margin }
+      margin: { left: margin },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 6) {
+          const val = data.cell.raw;
+          if (val === '✓ Pagado') data.cell.styles.textColor = [34, 139, 34];
+          else if (val === 'Pendiente') data.cell.styles.textColor = [220, 38, 38];
+          else data.cell.styles.textColor = [200, 150, 0];
+        }
+      }
     });
-    
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
-    if (yPos > 220) {
-      doc.addPage();
-      yPos = 15;
-    }
-    
-    // Línea separadora
+    // ── DETALLE DE GASTOS ──
+    checkPage(30);
     doc.setDrawColor(200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-    
-    // Detalle de elementos - Agrupados por categoría
+    doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+    yPos += 6;
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('DETALLE DE ELEMENTOS', margin, yPos);
+    doc.text('DETALLE DE GASTOS', margin, yPos);
     yPos += 8;
     
-    // Agrupar items por categoría
     const itemsByCategory: Record<string, typeof items> = {};
     items.forEach(item => {
       const cat = item.budget_categories?.name || item.category || 'Sin categoría';
@@ -2438,80 +2412,75 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       itemsByCategory[cat].push(item);
     });
     
-    const sortedCategoryNames = Object.keys(itemsByCategory).sort((a, b) => {
-      const orderA = categoryOrder[a] ?? 999;
-      const orderB = categoryOrder[b] ?? 999;
-      return orderA - orderB;
-    });
+    const sortedCategoryNames = Object.keys(itemsByCategory).sort((a, b) =>
+      (categoryOrder[a] ?? 999) - (categoryOrder[b] ?? 999)
+    );
     
-    // Construir tableData con agrupación de items similares
     const tableData: (string | { content: string; colSpan: number; styles: any })[][] = [];
     
     sortedCategoryNames.forEach(categoryName => {
       const categoryItems = itemsByCategory[categoryName];
-      const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateDisplayTotal(item), 0);
+      const catNeto = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
       
-      // Fila de categoría (header de grupo)
-      tableData.push([
-        { 
-          content: `${categoryName} | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 
-          colSpan: 8, 
-          styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [40, 40, 40] } 
-        }
-      ]);
+      tableData.push([{
+        content: `${categoryName} | Neto: ${fmt(catNeto)} €`,
+        colSpan: 10,
+        styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [40, 40, 40] }
+      }]);
       
-      // Agrupar items similares (mismo nombre base y unit_price) si hay 3+ repetidos
-      const groupKey = (item: typeof categoryItems[0]) => `${item.unit_price}`;
+      // Group similar items (3+ with same price)
       const grouped: Record<string, typeof categoryItems> = {};
       categoryItems.forEach(item => {
-        const key = groupKey(item);
+        const key = `${item.unit_price}`;
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(item);
       });
       
       Object.values(grouped).forEach(group => {
         if (group.length >= 3) {
-          // Agrupar: usar nombre del primero + "(xN)"
           const first = group[0];
-          const totalQty = group.reduce((s, i) => s + i.quantity, 0);
-          const groupTotal = group.reduce((s, i) => s + calculateDisplayTotal(i), 0);
+          const totalQty = group.reduce((s, i) => s + (i.quantity || 1), 0);
+          const subtotal = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
+          const ivaAmt = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * (i.iva_percentage / 100), 0);
+          const bruto = subtotal + ivaAmt;
+          const irpfAmt = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
+          const netoAPagar = bruto - irpfAmt;
           
-          let conceptoName = `${first.name} (x${group.length})`;
-          if (first.is_commission_percentage && first.commission_percentage) {
-            conceptoName += ` (${first.commission_percentage}% del fee)`;
-          }
+          let name = `${first.name} (x${group.length})`;
+          if (first.is_commission_percentage && first.commission_percentage) name += ` (${first.commission_percentage}% del fee)`;
           
           tableData.push([
-            conceptoName,
-            '-',
-            totalQty.toString(),
-            `${first.unit_price.toFixed(2)} €`,
-            `${first.iva_percentage}%`,
-            `${first.irpf_percentage ?? 15}%`,
-            `${groupTotal.toFixed(2)} €`,
+            name, '-', totalQty.toString(), `${first.unit_price.toFixed(2)} €`,
+            `${fmt(subtotal)} €`, `${fmt(ivaAmt)} €`, `${fmt(bruto)} €`,
+            `-${fmt(irpfAmt)} €`, `${fmt(netoAPagar)} €`,
             group.every(i => i.billing_status === 'pagada') ? 'Pagada' :
               group.every(i => i.billing_status === 'factura_recibida') ? 'Facturado' : 'Varios'
           ]);
         } else {
-          // Sin agrupar
           group.forEach(item => {
-            let conceptoName = item.name;
-            if (item.is_commission_percentage && item.commission_percentage) {
-              conceptoName += ` (${item.commission_percentage}% del fee)`;
-            }
+            const subtotal = item.unit_price * (item.quantity || 1);
+            const ivaAmt = subtotal * (item.iva_percentage / 100);
+            const bruto = subtotal + ivaAmt;
+            const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
+            const netoAPagar = bruto - irpfAmt;
+            
+            let name = item.name;
+            if (item.is_commission_percentage && item.commission_percentage) name += ` (${item.commission_percentage}% del fee)`;
             
             tableData.push([
-              conceptoName,
+              name,
               item.contacts?.name || '-',
-              item.quantity.toString(),
+              (item.quantity || 1).toString(),
               `${item.unit_price.toFixed(2)} €`,
-              `${item.iva_percentage}%`,
-              `${item.irpf_percentage ?? 15}%`,
-              `${calculateDisplayTotal(item).toFixed(2)} €`,
-              item.billing_status === 'factura_recibida' ? 'Facturado' : 
-                item.billing_status === 'pendiente' ? 'Pendiente' : 
+              `${fmt(subtotal)} €`,
+              `${fmt(ivaAmt)} €`,
+              `${fmt(bruto)} €`,
+              `-${fmt(irpfAmt)} €`,
+              `${fmt(netoAPagar)} €`,
+              item.billing_status === 'factura_recibida' ? 'Facturado' :
+                item.billing_status === 'pendiente' ? 'Pendiente' :
                 item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-                item.billing_status === 'pagada' ? 'Pagada' : item.billing_status
+                item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente')
             ]);
           });
         }
@@ -2519,19 +2488,97 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
     
     autoTable(doc, {
-      head: [['Concepto', 'Contacto', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', displayMode === 'con_iva' ? 'Total + IVA' : displayMode === 'liquido' ? 'Total Líquido' : 'Total Neto', 'Estado']],
+      head: [['Concepto', 'Contacto', 'Cant.', 'P.Unit.', 'Subtotal', 'IVA', 'Total Bruto', 'IRPF', 'Neto a Pagar', 'Estado']],
       body: tableData,
       startY: yPos,
-      styles: { fontSize: 7 },
+      styles: { fontSize: 6.5 },
       headStyles: { fillColor: [0, 0, 0] },
-      margin: { left: margin }
+      margin: { left: margin },
+      columnStyles: {
+        4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
+        7: { halign: 'right' }, 8: { halign: 'right' }
+      }
     });
-    
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
-    // ==========================================
-    // ANEXO VISUAL: Gráfico Circular (Donut)
-    // ==========================================
+    // ── RESUMEN FISCAL ──
+    checkPage(50);
+    doc.setDrawColor(200);
+    doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+    yPos += 6;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN FISCAL', margin, yPos);
+    yPos += 8;
+    
+    const ivaRepercutido = feeIva; // IVA on income
+    const ivaSoportado = totals.iva; // IVA on expenses
+    const ivaDiferencia = ivaRepercutido - ivaSoportado;
+    const irpfRetenidoIngresos = feeIrpf; // IRPF retained on income
+    const irpfSoportadoGastos = totals.irpf; // IRPF on expenses
+    
+    autoTable(doc, {
+      head: [['Concepto', 'Repercutido (Ingresos)', 'Soportado (Gastos)', 'Diferencia']],
+      body: [
+        ['IVA', `${fmt(ivaRepercutido)} €`, `${fmt(ivaSoportado)} €`, `${fmt(ivaDiferencia)} €`],
+        ['IRPF', `-${fmt(irpfRetenidoIngresos)} €`, `-${fmt(irpfSoportadoGastos)} €`, `${fmt(irpfSoportadoGastos - irpfRetenidoIngresos)} €`],
+      ],
+      startY: yPos,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [100, 100, 100] },
+      margin: { left: margin },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    // ── PREVISIÓN DE TESORERÍA ──
+    checkPage(40);
+    doc.setDrawColor(200);
+    doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+    yPos += 6;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PREVISIÓN DE TESORERÍA', margin, yPos);
+    yPos += 8;
+    
+    const aCobrar = feeLiquido;
+    const aPagar = totals.total; // total líquido gastos
+    const flujoCaja = aCobrar - aPagar;
+    
+    autoTable(doc, {
+      body: [
+        ['A cobrar (líquido)', `${fmt(aCobrar)} €`],
+        ['A pagar (líquido)', `${fmt(aPagar)} €`],
+        ['Flujo de caja neto', `${fmt(flujoCaja)} €`],
+      ],
+      startY: yPos,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 60 }, 1: { halign: 'right', cellWidth: 50 } },
+      margin: { left: margin },
+      didParseCell: (data: any) => {
+        if (data.row.raw?.[0] === 'Flujo de caja neto') {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 10;
+          if (flujoCaja < 0) data.cell.styles.textColor = [220, 38, 38];
+          else data.cell.styles.textColor = [34, 139, 34];
+        }
+      }
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    // ── NOTAS ──
+    checkPage(25);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100);
+    doc.text('Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto - IRPF (importe final a transferir)', margin, yPos);
+    yPos += 4;
+    doc.text(`Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin, yPos);
+    doc.setTextColor(0);
+    yPos += 12;
+    
+    // ── ANEXO: GRÁFICO DONUT ──
     const chartDataRaw = getGroupedChartData();
     const grandChartTotal = chartDataRaw.reduce((s, d) => s + d.value, 0);
     
@@ -2542,7 +2589,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       return [r, g, b] as [number, number, number];
     };
     
-    // New page for chart annex
     doc.addPage();
     yPos = 15;
     
@@ -2558,13 +2604,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setTextColor(0);
     yPos += 12;
     
-    // Draw donut chart
     const donutCenterX = margin + 30;
     const donutCenterY = yPos + 30;
     const donutOuterR = 25;
     const donutInnerR = 14;
     const segments = 72;
-    
     let startAngle = -Math.PI / 2;
     
     chartDataRaw.forEach((d) => {
@@ -2591,15 +2635,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       
       if (points.length > 2) {
         for (let i = 1; i < points.length - 1; i++) {
-          doc.triangle(
-            points[0][0], points[0][1],
-            points[i][0], points[i][1],
-            points[i + 1][0], points[i + 1][1],
-            'F'
-          );
+          doc.triangle(points[0][0], points[0][1], points[i][0], points[i][1], points[i + 1][0], points[i + 1][1], 'F');
         }
       }
-      
       startAngle = endAngle;
     });
     
@@ -2611,25 +2649,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setTextColor(60);
     doc.text(`€${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`, donutCenterX, donutCenterY + 1, { align: 'center' });
     
-    // Legend
     const legendStartX = margin + 65;
     let legendY = yPos + 5;
     
     chartDataRaw.forEach((d) => {
       const pct = grandChartTotal > 0 ? ((d.value / grandChartTotal) * 100).toFixed(1) : '0.0';
       const rgb = hexToRgb(d.color);
-      
       doc.setFillColor(...rgb);
       doc.rect(legendStartX, legendY - 3, 4, 4, 'F');
-      
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(40);
       doc.text(d.name, legendStartX + 6, legendY);
-      
       doc.setTextColor(100);
       doc.text(`€${d.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  (${pct}%)`, legendStartX + 55, legendY);
-      
       legendY += 6;
     });
     
@@ -2638,7 +2671,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setTextColor(0);
     doc.text(`Total: €${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, legendStartX + 6, legendY + 2);
     
-    // Pie de página con fecha de generación
     const finalY = Math.max(donutCenterY + donutOuterR + 15, legendY + 15);
     doc.setFontSize(8);
     doc.setTextColor(128);
