@@ -2427,82 +2427,62 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     sortedCategoryNames.forEach(categoryName => {
       const categoryItems = itemsByCategory[categoryName];
       const catNeto = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
+      const catIva = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * (i.iva_percentage / 100), 0);
+      const catIrpf = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
+      const catLiquido = catNeto + catIva - catIrpf;
+      const catRetencion = catIrpf;
       
       tableData.push([{
-        content: `${categoryName} | Neto: ${fmt(catNeto)} €`,
-        colSpan: 10,
+        content: `${categoryName} — Líquido: ${fmt(catLiquido)} € + ${fmt(catRetencion)} € ret.`,
+        colSpan: 8,
         styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [40, 40, 40] }
       }]);
       
-      // Group similar items (3+ with same price)
-      const grouped: Record<string, typeof categoryItems> = {};
       categoryItems.forEach(item => {
-        const key = `${item.unit_price}`;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(item);
-      });
-      
-      Object.values(grouped).forEach(group => {
-        if (group.length >= 3) {
-          const first = group[0];
-          const totalQty = group.reduce((s, i) => s + (i.quantity || 1), 0);
-          const subtotal = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
-          const ivaAmt = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * (i.iva_percentage / 100), 0);
-          const bruto = subtotal + ivaAmt;
-          const irpfAmt = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
-          const netoAPagar = bruto - irpfAmt;
-          
-          let name = `${first.name} (x${group.length})`;
-          if (first.is_commission_percentage && first.commission_percentage) name += ` (${first.commission_percentage}% del fee)`;
-          
-          tableData.push([
-            name, '-', totalQty.toString(), `${first.unit_price.toFixed(2)} €`,
-            `${fmt(subtotal)} €`, `${fmt(ivaAmt)} €`, `${fmt(bruto)} €`,
-            `-${fmt(irpfAmt)} €`, `${fmt(netoAPagar)} €`,
-            group.every(i => i.billing_status === 'pagada') ? 'Pagada' :
-              group.every(i => i.billing_status === 'factura_recibida') ? 'Facturado' : 'Varios'
-          ]);
-        } else {
-          group.forEach(item => {
-            const subtotal = item.unit_price * (item.quantity || 1);
-            const ivaAmt = subtotal * (item.iva_percentage / 100);
-            const bruto = subtotal + ivaAmt;
-            const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
-            const netoAPagar = bruto - irpfAmt;
-            
-            let name = item.name;
-            if (item.is_commission_percentage && item.commission_percentage) name += ` (${item.commission_percentage}% del fee)`;
-            
-            tableData.push([
-              name,
-              item.contacts?.name || '-',
-              (item.quantity || 1).toString(),
-              `${item.unit_price.toFixed(2)} €`,
-              `${fmt(subtotal)} €`,
-              `${fmt(ivaAmt)} €`,
-              `${fmt(bruto)} €`,
-              `-${fmt(irpfAmt)} €`,
-              `${fmt(netoAPagar)} €`,
-              item.billing_status === 'factura_recibida' ? 'Facturado' :
-                item.billing_status === 'pendiente' ? 'Pendiente' :
-                item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-                item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente')
-            ]);
-          });
+        const subtotal = item.unit_price * (item.quantity || 1);
+        const ivaAmt = subtotal * (item.iva_percentage / 100);
+        const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
+        const liquido = subtotal + ivaAmt - irpfAmt;
+        
+        let precio = `${item.unit_price.toFixed(2)} €`;
+        if (item.is_commission_percentage && item.commission_percentage) {
+          precio = `${item.commission_percentage}% → ${item.unit_price.toFixed(2)} €`;
+        } else if ((item.quantity || 1) > 1) {
+          precio = `${(item.quantity || 1)} x ${item.unit_price.toFixed(2)} €`;
         }
+        
+        const fechaEmision = item.fecha_emision 
+          ? new Date(item.fecha_emision).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+          : '-';
+        
+        const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
+          item.billing_status === 'pendiente' ? 'Pendiente' :
+          item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+          item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
+        
+        tableData.push([
+          item.name,
+          item.contacts?.name || '-',
+          fechaEmision,
+          precio,
+          `${item.iva_percentage}%`,
+          `${item.irpf_percentage ?? 15}%`,
+          `${fmt(liquido)} €`,
+          status
+        ]);
       });
     });
     
     autoTable(doc, {
-      head: [['Concepto', 'Contacto', 'Cant.', 'P.Unit.', 'Subtotal', 'IVA', 'Total Bruto', 'IRPF', 'Neto a Pagar', 'Estado']],
+      head: [['Concepto', 'Contacto', 'F. Emisión', 'Precio', 'IVA', 'IRPF', 'Total (€)', 'Estado']],
       body: tableData,
       startY: yPos,
-      styles: { fontSize: 6.5 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [0, 0, 0] },
       margin: { left: margin },
       columnStyles: {
-        4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
-        7: { halign: 'right' }, 8: { halign: 'right' }
+        3: { halign: 'right' }, 4: { halign: 'center' }, 5: { halign: 'center' },
+        6: { halign: 'right' }
       }
     });
     yPos = (doc as any).lastAutoTable.finalY + 10;
