@@ -2348,7 +2348,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(100);
-    doc.text('*Total a facturar a fecha de emisión del documento', margin, yPos);
+    doc.text('*Total líquido (Neto + IVA - IRPF) a fecha de emisión del documento', margin, yPos);
     doc.setTextColor(0);
     yPos += 8;
     
