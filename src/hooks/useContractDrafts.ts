@@ -35,6 +35,15 @@ export interface DraftComment {
   parent_comment_id: string | null;
   resolved: boolean;
   created_at: string;
+  // Negotiation fields
+  selected_text: string | null;
+  clause_number: string | null;
+  selection_start: number | null;
+  selection_end: number | null;
+  proposed_change: string | null;
+  comment_status: string;
+  approved_by_producer: boolean;
+  approved_by_collaborator: boolean;
 }
 
 export function useContractDrafts(filters?: { releaseId?: string; bookingId?: string; status?: DraftStatus }) {
@@ -58,62 +67,37 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
     setLoading(false);
   }, [user, filters?.releaseId, filters?.bookingId, filters?.status]);
 
-  useEffect(() => {
-    fetchDrafts();
-  }, [fetchDrafts]);
+  useEffect(() => { fetchDrafts(); }, [fetchDrafts]);
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('contract_drafts_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contract_drafts' }, () => {
-        fetchDrafts();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contract_drafts' }, () => { fetchDrafts(); })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [fetchDrafts]);
 
   const saveDraft = async (data: {
-    draftType: DraftType;
-    title: string;
-    formData: any;
-    clausesData?: any;
-    releaseId?: string;
-    bookingId?: string;
-    artistId?: string;
+    draftType: DraftType; title: string; formData: any; clausesData?: any;
+    releaseId?: string; bookingId?: string; artistId?: string;
   }): Promise<ContractDraft | null> => {
     if (!user) return null;
-
     const { data: result, error } = await supabase
       .from('contract_drafts')
       .insert({
-        draft_type: data.draftType,
-        title: data.title,
-        form_data: data.formData,
-        clauses_data: data.clausesData || null,
-        created_by: user.id,
-        release_id: data.releaseId || null,
-        booking_id: data.bookingId || null,
+        draft_type: data.draftType, title: data.title, form_data: data.formData,
+        clauses_data: data.clausesData || null, created_by: user.id,
+        release_id: data.releaseId || null, booking_id: data.bookingId || null,
         artist_id: data.artistId || null,
       })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error('Error al guardar borrador: ' + error.message);
-      return null;
-    }
+      .select().single();
+    if (error) { toast.error('Error al guardar borrador: ' + error.message); return null; }
     toast.success('Borrador guardado');
     return result as unknown as ContractDraft;
   };
 
   const updateDraft = async (draftId: string, updates: {
-    formData?: any;
-    clausesData?: any;
-    title?: string;
-    firmaFecha?: string;
-    firmaLugar?: string;
+    formData?: any; clausesData?: any; title?: string; firmaFecha?: string; firmaLugar?: string;
   }): Promise<boolean> => {
     const updateObj: any = {};
     if (updates.formData !== undefined) updateObj.form_data = updates.formData;
@@ -122,34 +106,18 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
     if (updates.firmaFecha !== undefined) updateObj.firma_fecha = updates.firmaFecha;
     if (updates.firmaLugar !== undefined) updateObj.firma_lugar = updates.firmaLugar;
 
-    const { error } = await supabase
-      .from('contract_drafts')
-      .update(updateObj)
-      .eq('id', draftId);
-
-    if (error) {
-      toast.error('Error al actualizar: ' + error.message);
-      return false;
-    }
+    const { error } = await supabase.from('contract_drafts').update(updateObj).eq('id', draftId);
+    if (error) { toast.error('Error al actualizar: ' + error.message); return false; }
     toast.success('Borrador actualizado');
     return true;
   };
 
   const updateStatus = async (draftId: string, status: DraftStatus): Promise<boolean> => {
-    const { error } = await supabase
-      .from('contract_drafts')
-      .update({ status })
-      .eq('id', draftId);
-
-    if (error) {
-      toast.error('Error al cambiar estado: ' + error.message);
-      return false;
-    }
+    const { error } = await supabase.from('contract_drafts').update({ status }).eq('id', draftId);
+    if (error) { toast.error('Error al cambiar estado: ' + error.message); return false; }
     const labels: Record<DraftStatus, string> = {
-      borrador: 'Borrador',
-      en_negociacion: 'En negociación',
-      listo_para_firma: 'Listo para firma',
-      firmado: 'Firmado',
+      borrador: 'Borrador', en_negociacion: 'En negociación',
+      listo_para_firma: 'Listo para firma', firmado: 'Firmado',
     };
     toast.success(`Estado: ${labels[status]}`);
     return true;
@@ -157,10 +125,7 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
 
   const deleteDraft = async (draftId: string): Promise<boolean> => {
     const { error } = await supabase.from('contract_drafts').delete().eq('id', draftId);
-    if (error) {
-      toast.error('Error al eliminar: ' + error.message);
-      return false;
-    }
+    if (error) { toast.error('Error al eliminar: ' + error.message); return false; }
     toast.success('Borrador eliminado');
     return true;
   };
@@ -168,7 +133,7 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
   return { drafts, loading, fetchDrafts, saveDraft, updateDraft, updateStatus, deleteDraft };
 }
 
-// Hook for public draft view (by token, no auth required)
+// ── Public draft view (by token, no auth required) ─────────────────────
 export function usePublicDraft(token: string | undefined) {
   const [draft, setDraft] = useState<ContractDraft | null>(null);
   const [comments, setComments] = useState<DraftComment[]>([]);
@@ -181,7 +146,6 @@ export function usePublicDraft(token: string | undefined) {
       .select('*')
       .eq('share_token', token)
       .single();
-
     if (!error && data) setDraft(data as unknown as ContractDraft);
     setLoading(false);
   }, [token]);
@@ -193,26 +157,20 @@ export function usePublicDraft(token: string | undefined) {
       .select('*')
       .eq('draft_id', draft.id)
       .order('created_at', { ascending: true });
-
     if (data) setComments(data as unknown as DraftComment[]);
   }, [draft?.id]);
 
   useEffect(() => { fetchDraft(); }, [fetchDraft]);
   useEffect(() => { fetchComments(); }, [fetchComments]);
 
-  // Realtime for draft changes
+  // Realtime
   useEffect(() => {
     if (!draft) return;
     const channel = supabase
       .channel(`draft_${draft.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contract_drafts', filter: `id=eq.${draft.id}` }, () => {
-        fetchDraft();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contract_draft_comments', filter: `draft_id=eq.${draft.id}` }, () => {
-        fetchComments();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contract_drafts', filter: `id=eq.${draft.id}` }, () => { fetchDraft(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contract_draft_comments', filter: `draft_id=eq.${draft.id}` }, () => { fetchComments(); })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [draft?.id, fetchDraft, fetchComments]);
 
@@ -223,13 +181,103 @@ export function usePublicDraft(token: string | undefined) {
       message,
       author_name: authorName,
       parent_comment_id: parentId || null,
-    });
+    } as any);
     if (error) toast.error('Error al añadir comentario');
   };
 
-  const resolveComment = async (commentId: string) => {
-    await supabase.from('contract_draft_comments').update({ resolved: true }).eq('id', commentId);
+  const addSelectionComment = async (data: {
+    sectionKey: string; message: string; authorName: string;
+    selectedText: string; clauseNumber: string; selectionStart: number; selectionEnd: number;
+  }) => {
+    const { error } = await supabase.from('contract_draft_comments').insert({
+      draft_id: draft!.id,
+      section_key: data.sectionKey,
+      message: data.message,
+      author_name: data.authorName,
+      selected_text: data.selectedText,
+      clause_number: data.clauseNumber,
+      selection_start: data.selectionStart,
+      selection_end: data.selectionEnd,
+      comment_status: 'open',
+    } as any);
+    if (error) toast.error('Error al añadir comentario');
   };
 
-  return { draft, comments, loading, addComment, resolveComment, refetch: fetchDraft };
+  const proposeChange = async (commentId: string, proposedText: string) => {
+    const { error } = await supabase.from('contract_draft_comments')
+      .update({ proposed_change: proposedText, comment_status: 'pending_approval' } as any)
+      .eq('id', commentId);
+    if (error) toast.error('Error al proponer cambio');
+    else toast.success('Propuesta de cambio enviada');
+  };
+
+  const approveChange = async (commentId: string, role: 'producer' | 'collaborator') => {
+    const field = role === 'producer' ? 'approved_by_producer' : 'approved_by_collaborator';
+    const { error } = await supabase.from('contract_draft_comments')
+      .update({ [field]: true } as any)
+      .eq('id', commentId);
+    if (error) { toast.error('Error al aprobar'); return; }
+
+    // Check if both approved
+    const { data: updated } = await supabase.from('contract_draft_comments')
+      .select('*').eq('id', commentId).single();
+    if (updated) {
+      const comment = updated as unknown as DraftComment;
+      if (comment.approved_by_producer && comment.approved_by_collaborator) {
+        await applyChange(comment);
+      }
+    }
+    toast.success('Cambio aprobado');
+  };
+
+  const applyChange = async (comment: DraftComment) => {
+    if (!draft || !comment.proposed_change || !comment.selected_text) return;
+
+    // Update clauses_data by replacing old text with new
+    const clausesData = { ...draft.clauses_data };
+    let applied = false;
+    for (const key of Object.keys(clausesData)) {
+      if (typeof clausesData[key] === 'string' && clausesData[key].includes(comment.selected_text)) {
+        clausesData[key] = clausesData[key].replace(comment.selected_text, comment.proposed_change);
+        applied = true;
+        break;
+      }
+    }
+
+    if (applied) {
+      await supabase.from('contract_drafts').update({ clauses_data: clausesData } as any).eq('id', draft.id);
+    }
+
+    await supabase.from('contract_draft_comments')
+      .update({ comment_status: 'approved', resolved: true } as any)
+      .eq('id', comment.id);
+
+    toast.success('✅ Cambio aplicado — El contrato se ha actualizado');
+  };
+
+  const rejectChange = async (commentId: string) => {
+    const { error } = await supabase.from('contract_draft_comments')
+      .update({
+        proposed_change: null,
+        comment_status: 'open',
+        approved_by_producer: false,
+        approved_by_collaborator: false,
+      } as any)
+      .eq('id', commentId);
+    if (error) toast.error('Error al rechazar');
+    else toast.success('Propuesta rechazada');
+  };
+
+  const resolveComment = async (commentId: string) => {
+    await supabase.from('contract_draft_comments')
+      .update({ resolved: true, comment_status: 'resolved' } as any)
+      .eq('id', commentId);
+  };
+
+  return {
+    draft, comments, loading,
+    addComment, addSelectionComment,
+    resolveComment, proposeChange, approveChange, rejectChange,
+    refetch: fetchDraft,
+  };
 }

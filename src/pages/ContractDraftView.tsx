@@ -1,11 +1,14 @@
+import { useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePublicDraft } from '@/hooks/useContractDrafts';
 import { useAuth } from '@/hooks/useAuth';
 import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
 import { DraftCommentsSidebar } from '@/components/contract-drafts/DraftCommentsSidebar';
+import { TextSelectionHandler, type TextSelection } from '@/components/contract-drafts/TextSelectionHandler';
+import { NegotiationBanner } from '@/components/contract-drafts/NegotiationBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Clock, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,7 +22,6 @@ function formatTimeAgo(dateStr: string) {
   return `Hace ${Math.floor(hours / 24)} días`;
 }
 
-// ── Helpers for rendering ──────────────────────────────────────────────
 function s(val: string | undefined): string {
   return val?.trim() || '___________';
 }
@@ -48,7 +50,6 @@ function resolveClause(text: string, d: any): string {
     .replace(/\{\{colaboradora_email\}\}/g, s(d.colaboradora_email));
 }
 
-// ── Clause defaults (same as IPLicenseGenerator) ────────────────────────
 const DEFAULT_IP_CLAUSES: Record<string, string> = {
   objeto_1_1: '1.1. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos de propiedad intelectual que recaen sobre su interpretación musical, fijada en la Grabación que se detalla a continuación:',
   objeto_1_2: '1.2. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos que recaen sobre su imagen personal, incluyendo nombre civil o artístico, con propósito de mención e información relacionada con la Grabación, y, en especial los relativos a su imagen personal vinculada a su interpretación en el caso de que exista una grabación audiovisual (en la forma de un videoclip o similar) vinculada a la Grabación.',
@@ -72,13 +73,44 @@ const DEFAULT_IP_CLAUSES: Record<string, string> = {
 
 export default function ContractDraftView() {
   const { token } = useParams<{ token: string }>();
-  const { draft, comments, loading, addComment, resolveComment } = usePublicDraft(token);
+  const {
+    draft, comments, loading,
+    addComment, addSelectionComment,
+    resolveComment, proposeChange, approveChange, rejectChange,
+  } = usePublicDraft(token);
   const { user } = useAuth();
+
+  const [pendingSelection, setPendingSelection] = useState<TextSelection | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const contractRef = useRef<HTMLDivElement>(null);
 
   const isOwner = !!(user && draft && draft.created_by === user.id);
 
+  const hasPendingNegotiations = comments.some(c =>
+    c.comment_status === 'open' || c.comment_status === 'proposing_change' || c.comment_status === 'pending_approval'
+  );
+
+  const handleTextSelected = useCallback((selection: TextSelection) => {
+    setPendingSelection(selection);
+    setShowSidebar(true);
+  }, []);
+
+  const handleScrollToClause = useCallback((clauseNumber: string) => {
+    const el = contractRef.current?.querySelector(`[data-clause="${clauseNumber}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('bg-amber-100');
+      setTimeout(() => el.classList.remove('bg-amber-100'), 2000);
+    }
+  }, []);
+
   const handleMarkReady = async () => {
     if (!draft) return;
+    if (hasPendingNegotiations) {
+      toast.error('Resuelve todos los comentarios pendientes antes de marcar como listo.');
+      return;
+    }
     const { error } = await supabase
       .from('contract_drafts')
       .update({ status: 'listo_para_firma' })
@@ -110,6 +142,9 @@ export default function ContractDraftView() {
   const formData = draft.form_data || {};
   const isIPLicense = draft.draft_type === 'ip_license';
 
+  // Get comments with selection for highlighting
+  const selectionComments = comments.filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved');
+
   return (
     <div className="min-h-screen bg-muted/40 flex">
       {/* Main content */}
@@ -121,6 +156,11 @@ export default function ContractDraftView() {
             <Badge variant="outline" className="text-xs">
               {isIPLicense ? 'Licencia de Propiedad Intelectual' : 'Contrato de Booking'}
             </Badge>
+            {/* Mobile sidebar toggle */}
+            <Button variant="outline" size="sm" className="lg:hidden ml-auto" onClick={() => setShowSidebar(!showSidebar)}>
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Comentarios ({comments.filter(c => !c.parent_comment_id).length})
+            </Button>
           </div>
           <h1 className="text-2xl font-bold">{draft.title}</h1>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -128,8 +168,11 @@ export default function ContractDraftView() {
             <span>Última actualización: {formatTimeAgo(draft.updated_at)}</span>
           </div>
 
+          {/* Negotiation banner */}
+          <NegotiationBanner comments={comments} status={draft.status} />
+
           {draft.status === 'listo_para_firma' && (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3">
+            <div className="bg-green-50 border border-green-300 rounded-lg p-4 flex items-center gap-3">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
               <div>
                 <p className="font-semibold text-green-700 text-sm">✓ Acuerdo alcanzado - Listo para firmar</p>
@@ -139,39 +182,59 @@ export default function ContractDraftView() {
           )}
 
           {isOwner && (draft.status === 'borrador' || draft.status === 'en_negociacion') && (
-            <Button variant="outline" size="sm" onClick={handleMarkReady}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkReady}
+              disabled={hasPendingNegotiations}
+              title={hasPendingNegotiations ? 'Resuelve los comentarios pendientes primero' : ''}
+            >
               <CheckCircle2 className="h-4 w-4 mr-1" />
               Marcar como listo para firma
             </Button>
           )}
         </div>
 
-        {/* Document – A4-like page */}
-        <div
-          className="max-w-[794px] mx-auto bg-white shadow-lg border rounded"
-          style={{
-            fontFamily: "Georgia, 'Times New Roman', Times, serif",
-            fontSize: '11pt',
-            lineHeight: 1.7,
-            color: '#1a1a1a',
-            padding: '60px 80px',
-            textAlign: 'justify',
-          }}
+        {/* Document – A4-like page with text selection */}
+        <TextSelectionHandler
+          onTextSelected={handleTextSelected}
+          enabled={draft.status === 'borrador' || draft.status === 'en_negociacion'}
         >
-          {isIPLicense
-            ? renderIPLicenseContent(formData, draft.clauses_data)
-            : renderBookingContent(formData, draft.clauses_data)}
-        </div>
+          <div
+            ref={contractRef}
+            className="max-w-[794px] mx-auto bg-white shadow-lg border rounded"
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', Times, serif",
+              fontSize: '11pt',
+              lineHeight: 1.7,
+              color: '#1a1a1a',
+              padding: '60px 80px',
+              textAlign: 'justify',
+            }}
+          >
+            {isIPLicense
+              ? renderIPLicenseContent(formData, draft.clauses_data, selectionComments)
+              : renderBookingContent(formData, draft.clauses_data)}
+          </div>
+        </TextSelectionHandler>
       </div>
 
       {/* Comments sidebar */}
-      <div className="hidden lg:block w-80 border-l bg-muted/30 sticky top-0 h-screen overflow-hidden">
+      <div className={`${showSidebar ? 'block' : 'hidden'} lg:block w-80 border-l bg-muted/30 sticky top-0 h-screen overflow-hidden flex-shrink-0`}>
         <DraftCommentsSidebar
           comments={comments}
           onAddComment={addComment}
+          onAddSelectionComment={addSelectionComment}
           onResolve={resolveComment}
+          onProposeChange={proposeChange}
+          onApproveChange={approveChange}
+          onRejectChange={rejectChange}
           isOwner={isOwner}
           defaultAuthorName={isOwner ? 'Equipo' : ''}
+          pendingSelection={pendingSelection}
+          onClearSelection={() => setPendingSelection(null)}
+          onScrollToClause={handleScrollToClause}
+          activeCommentId={activeCommentId}
         />
       </div>
     </div>
@@ -180,42 +243,49 @@ export default function ContractDraftView() {
 
 // ── Shared style objects ────────────────────────────────────────────────
 const sectionTitle: React.CSSProperties = {
-  textAlign: 'center',
-  fontWeight: 'bold',
-  fontSize: '12pt',
-  textTransform: 'uppercase',
-  marginTop: '32px',
-  marginBottom: '16px',
-  letterSpacing: '0.5px',
+  textAlign: 'center', fontWeight: 'bold', fontSize: '12pt',
+  textTransform: 'uppercase', marginTop: '32px', marginBottom: '16px', letterSpacing: '0.5px',
 };
 
 const clauseTitle: React.CSSProperties = {
-  fontWeight: 'bold',
-  fontSize: '11pt',
-  marginTop: '28px',
-  marginBottom: '12px',
+  fontWeight: 'bold', fontSize: '11pt', marginTop: '28px', marginBottom: '12px',
 };
 
 const paragraph: React.CSSProperties = {
-  marginBottom: '12px',
-  textAlign: 'justify',
-  textIndent: '24px',
+  marginBottom: '12px', textAlign: 'justify', textIndent: '24px',
 };
 
 const subItem: React.CSSProperties = {
-  marginLeft: '40px',
-  marginBottom: '4px',
+  marginLeft: '40px', marginBottom: '4px',
 };
 
 const romanItem: React.CSSProperties = {
-  marginBottom: '12px',
-  textAlign: 'justify',
-  paddingLeft: '32px',
-  textIndent: '-32px',
+  marginBottom: '12px', textAlign: 'justify', paddingLeft: '32px', textIndent: '-32px',
 };
 
+// Helper to render a highlighted clause paragraph
+function ClauseParagraph({ clauseKey, text, style, comments }: {
+  clauseKey: string; text: string; style?: React.CSSProperties;
+  comments?: Array<{ selected_text: string | null; id: string }>;
+}) {
+  const hasComments = comments?.some(c => c.selected_text && text.includes(c.selected_text));
+
+  return (
+    <p data-clause={clauseKey} style={{ ...paragraph, ...style, transition: 'background 0.3s' }}>
+      {text}
+      {hasComments && (
+        <span style={{ marginLeft: '4px', cursor: 'pointer' }} title="Tiene comentarios">💬</span>
+      )}
+    </p>
+  );
+}
+
 // ── IP License ──────────────────────────────────────────────────────────
-function renderIPLicenseContent(formData: any, clausesData: any) {
+function renderIPLicenseContent(
+  formData: any,
+  clausesData: any,
+  selectionComments: Array<{ selected_text: string | null; id: string }>,
+) {
   const d = formData;
   const rawClauses = { ...DEFAULT_IP_CLAUSES, ...(clausesData || {}) };
   const c: Record<string, string> = {};
@@ -225,73 +295,65 @@ function renderIPLicenseContent(formData: any, clausesData: any) {
 
   return (
     <>
-      {/* Title */}
       <h2 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '32px' }}>
         Licencia de Cesión de Derechos de Propiedad Intelectual
       </h2>
 
-      {/* Date & place */}
       <p style={{ textAlign: 'left', marginBottom: '28px' }}>
         En Barcelona, a {s(d.fecha_dia)} de {s(d.fecha_mes)} de {s(d.fecha_anio)}
       </p>
 
-      {/* REUNIDOS */}
       <p style={sectionTitle}>REUNIDOS</p>
 
-      <p style={paragraph}>
+      <p data-clause="reunidos" style={paragraph}>
         <strong>DE UNA PARTE, </strong>
         {s(d.productora_nombre)}, mayor de edad, con {s(d.productora_doc_tipo)} {s(d.productora_dni)} y domicilio a estos efectos en {s(d.productora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará la PRODUCTORA.
       </p>
 
-      <p style={paragraph}>
+      <p data-clause="reunidos" style={paragraph}>
         <strong>DE OTRA PARTE, </strong>
         {s(d.colaboradora_nombre)}, mayor de edad, con {s(d.colaboradora_doc_tipo)} {s(d.colaboradora_dni)} y domicilio a estos efectos en {s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará el COLABORADOR o la COLABORADORA indistintamente.
       </p>
 
-      <p style={{ ...paragraph, textIndent: '24px' }}>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>
         En adelante, ambas partes, serán denominadas conjuntamente como las Partes.
       </p>
-
-      <p style={{ ...paragraph, textIndent: '24px' }}>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>
         Las Partes se reconocen recíprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,
       </p>
 
-      {/* MANIFIESTAN */}
       <p style={sectionTitle}>MANIFIESTAN</p>
 
-      <p style={romanItem}>
+      <p data-clause="manifiestan-I" style={romanItem}>
         <strong>I) </strong>
         Que la PRODUCTORA, es una compositora, intérprete y productora fonográfica que, en su calidad de productora fonográfica, está produciendo un sencillo fonográfico titulado tentativamente "{s(d.grabacion_titulo)}" (el Sencillo) que será explotado comercialmente bajo su nombre artístico "{s(d.productora_nombre_artistico)}", por sí o por terceros.
       </p>
 
-      <p style={romanItem}>
+      <p data-clause="manifiestan-II" style={romanItem}>
         <strong>II) </strong>
         Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en una o más obras musicales (la/s Grabación/es), las cuales se detallarán, o para su explotación en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.
       </p>
 
-      <p style={romanItem}>
+      <p data-clause="manifiestan-III" style={romanItem}>
         <strong>III) </strong>
         Que la COLABORADORA, conocida artísticamente como "{s(d.colaboradora_nombre_artistico)}", es una intérprete musical independiente, facultada para aceptar la propuesta de colaboración de la PRODUCTORA, en los términos que se dirán, que no está sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptación y posterior cesión de derechos de propiedad intelectual sobre sus interpretaciones musicales.
       </p>
 
-      <p style={romanItem}>
+      <p data-clause="manifiestan-IV" style={romanItem}>
         <strong>IV) </strong>
         Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en la/s Grabación/es a satisfacción de las Partes.
       </p>
 
-      <p style={{ ...paragraph, textIndent: '24px' }}>
+      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>
         Con la finalidad de acordar los términos y condiciones de la colaboración entre las Partes y formalizar la cesión de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes
       </p>
 
-      {/* CLÁUSULAS */}
       <p style={sectionTitle}>CLÁUSULAS</p>
 
-      {/* 1. OBJETO */}
       <p style={clauseTitle}>1. OBJETO</p>
+      <ClauseParagraph clauseKey="1.1" text={c.objeto_1_1} comments={selectionComments} />
 
-      <p style={paragraph}>{c.objeto_1_1}</p>
-
-      <div style={{ marginLeft: '40px', marginBottom: '16px' }}>
+      <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
         <p style={subItem}><strong>a. </strong><strong>Título de la obra Grabación: </strong>{s(d.grabacion_titulo)}</p>
         <p style={subItem}><strong>b. </strong><strong>Calidad en que interviene la COLABORADORA: </strong>{s(d.grabacion_calidad)}</p>
         <p style={subItem}><strong>c. </strong><strong>Duración de la Grabación: </strong>{s(d.grabacion_duracion)}</p>
@@ -300,70 +362,56 @@ function renderIPLicenseContent(formData: any, clausesData: any) {
         <p style={subItem}><strong>f. </strong><strong>Carácter de la intervención: </strong>{s(d.grabacion_caracter)}</p>
       </div>
 
-      <p style={paragraph}>{c.objeto_1_2}</p>
+      <ClauseParagraph clauseKey="1.2" text={c.objeto_1_2} comments={selectionComments} />
 
-      {/* 2. ALCANCE DE LA CESIÓN */}
       <p style={clauseTitle}>2. ALCANCE DE LA CESIÓN DE DERECHOS</p>
+      <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} />
 
-      <p style={paragraph}>{c.alcance_2_1}</p>
-
-      <div style={{ marginLeft: '48px', marginBottom: '16px' }}>
+      <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
         <p style={{ marginBottom: '4px' }}><strong>a. PERIODO: </strong>A perpetuidad.</p>
         <p style={{ marginBottom: '4px' }}><strong>b. TERRITORIO: </strong>El Universo.</p>
         <p style={{ marginBottom: '4px' }}><strong>c. MEDIOS: </strong>Todos los medios existentes durante la vigencia de este contrato.</p>
       </div>
 
-      <p style={paragraph}>{c.alcance_2_2}</p>
+      <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} />
 
-      <p style={paragraph}>{c.alcance_2_3}</p>
-
-      <div style={{ marginLeft: '40px', marginBottom: '16px' }}>
+      <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
         <p style={subItem}><strong>a. </strong><strong>Nombre artístico: </strong>{s(d.acreditacion_nombre)}</p>
         <p style={subItem}><strong>b. </strong><strong>Carácter de la intervención: </strong>{s(d.acreditacion_caracter)}</p>
       </div>
 
-      <p style={paragraph}>{c.alcance_2_4}</p>
+      <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.5" text={c.alcance_2_5} comments={selectionComments} />
 
-      <p style={paragraph}>{c.alcance_2_5}</p>
-
-      {/* 3. CONTRAPRESTACIÓN */}
       <p style={clauseTitle}>3. CONTRAPRESTACIÓN</p>
+      <ClauseParagraph clauseKey="3.1" text={c.contraprestacion_3_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="3.2" text={c.contraprestacion_3_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="3.3" text={c.contraprestacion_3_3} comments={selectionComments} />
+      <ClauseParagraph clauseKey="3.4" text={c.contraprestacion_3_4} comments={selectionComments} />
+      <ClauseParagraph clauseKey="3.5" text={c.contraprestacion_3_5} comments={selectionComments} />
 
-      <p style={paragraph}>{c.contraprestacion_3_1}</p>
-      <p style={paragraph}>{c.contraprestacion_3_2}</p>
-      <p style={paragraph}>{c.contraprestacion_3_3}</p>
-      <p style={paragraph}>{c.contraprestacion_3_4}</p>
-      <p style={paragraph}>{c.contraprestacion_3_5}</p>
-
-      {/* 4. NOTIFICACIONES */}
       <p style={clauseTitle}>4. NOTIFICACIONES</p>
+      <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} />
 
-      <p style={paragraph}>{c.notificaciones_4_1}</p>
-
-      <div style={{ marginLeft: '40px', marginBottom: '16px' }}>
+      <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
         <p style={subItem}><strong>a. </strong><strong>De la PRODUCTORA: </strong>{s(d.productora_email)}</p>
         <p style={subItem}><strong>b. </strong><strong>De la COLABORADORA: </strong>{s(d.colaboradora_email)}</p>
       </div>
 
-      {/* 5. CONFIDENCIALIDAD */}
       <p style={clauseTitle}>5. CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS</p>
+      <ClauseParagraph clauseKey="5.1" text={c.confidencialidad_5_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="5.2" text={c.confidencialidad_5_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="5.2b" text={c.confidencialidad_5_2b} comments={selectionComments} />
 
-      <p style={paragraph}>{c.confidencialidad_5_1}</p>
-      <p style={paragraph}>{c.confidencialidad_5_2}</p>
-      <p style={paragraph}>{c.confidencialidad_5_2b}</p>
-
-      {/* 6. LEY APLICABLE */}
       <p style={clauseTitle}>6. LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS</p>
+      <ClauseParagraph clauseKey="6.1" text={c.ley_6_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="6.2" text={c.ley_6_2} comments={selectionComments} />
 
-      <p style={paragraph}>{c.ley_6_1}</p>
-      <p style={paragraph}>{c.ley_6_2}</p>
-
-      {/* Closing */}
-      <p style={{ ...paragraph, marginTop: '28px' }}>
+      <p data-clause="cierre" style={{ ...paragraph, marginTop: '28px' }}>
         Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.
       </p>
 
-      {/* Signatures */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', textAlign: 'center', marginTop: '60px' }}>
         <div>
           <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>La PRODUCTORA</p>
@@ -419,7 +467,7 @@ function renderBookingContent(formData: any, clauses: any) {
         <>
           <p style={clauseTitle}>CLÁUSULAS</p>
           {Object.entries(legal).map(([key, value]) => (
-            <p key={key} style={paragraph}>{String(value)}</p>
+            <p key={key} data-clause={key} style={paragraph}>{String(value)}</p>
           ))}
         </>
       )}
