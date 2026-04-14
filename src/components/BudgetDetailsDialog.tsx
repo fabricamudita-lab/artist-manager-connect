@@ -2276,17 +2276,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
     
-    // ── RESUMEN EJECUTIVO ──
+    // ── RESUMEN FINANCIERO ──
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN EJECUTIVO', margin, yPos);
+    doc.text('RESUMEN FINANCIERO', margin, yPos);
     yPos += 8;
+    
+    // Fee breakdown for income
+    const feeIvaRate = 21;
+    const feeIrpfRate = 15;
+    const feeNeto = budgetAmount;
+    const feeIva = feeNeto * (feeIvaRate / 100);
+    const feeBruto = feeNeto + feeIva;
+    const feeIrpf = feeNeto * (feeIrpfRate / 100);
+    const feeLiquido = feeBruto - feeIrpf;
     
     const summaryData = [
       [budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital', `${fmt(budgetAmount)} €`],
       ['Presupuesto Gastos', `${fmt(expenseBudget)} €`],
       ['Gastos Reales (Neto)', `${fmt(totals.neto)} €`],
-      ['Beneficio Neto', `${fmt(beneficio)} €`],
+      ['IVA Repercutido (+)', `${fmt(feeIva)} €`],
+      ['IRPF Retenido (−)', `-${fmt(feeIrpf)} €`],
+      ['Total a Facturar*', `${fmt(feeLiquido)} €`],
+      ['Beneficio', `${fmt(beneficio)} €`],
       ['Margen', `${margen.toFixed(1)}%`],
     ];
     
@@ -2295,12 +2307,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       startY: yPos,
       theme: 'plain',
       styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { halign: 'right', cellWidth: 50 } },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 }, 1: { halign: 'right', cellWidth: 50 } },
       margin: { left: margin },
       didParseCell: (data: any) => {
         const label = data.row.raw?.[0];
-        if (label === 'Beneficio Neto' && beneficio < 0) {
+        if (label === 'Beneficio' && beneficio < 0) {
           data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+        if (label === 'Total a Facturar*') {
           data.cell.styles.fontStyle = 'bold';
         }
       }
@@ -2316,15 +2331,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFont('helvetica', 'bold');
     doc.text('INGRESOS', margin, yPos);
     yPos += 8;
-    
-    // Fee / Caché breakdown
-    const feeIvaRate = 21;
-    const feeIrpfRate = 15;
-    const feeNeto = budgetAmount;
-    const feeIva = feeNeto * (feeIvaRate / 100);
-    const feeBruto = feeNeto + feeIva;
-    const feeIrpf = feeNeto * (feeIrpfRate / 100);
-    const feeLiquido = feeBruto - feeIrpf;
     
     autoTable(doc, {
       head: [['Concepto', 'Neto', `IVA (${feeIvaRate}%)`, 'Bruto', `IRPF (${feeIrpfRate}%)`, 'Líquido']],
@@ -2421,82 +2427,62 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     sortedCategoryNames.forEach(categoryName => {
       const categoryItems = itemsByCategory[categoryName];
       const catNeto = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
+      const catIva = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * (i.iva_percentage / 100), 0);
+      const catIrpf = categoryItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
+      const catLiquido = catNeto + catIva - catIrpf;
+      const catRetencion = catIrpf;
       
       tableData.push([{
-        content: `${categoryName} | Neto: ${fmt(catNeto)} €`,
-        colSpan: 10,
+        content: `${categoryName} — Líquido: ${fmt(catLiquido)} € + ${fmt(catRetencion)} € ret.`,
+        colSpan: 8,
         styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [40, 40, 40] }
       }]);
       
-      // Group similar items (3+ with same price)
-      const grouped: Record<string, typeof categoryItems> = {};
       categoryItems.forEach(item => {
-        const key = `${item.unit_price}`;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(item);
-      });
-      
-      Object.values(grouped).forEach(group => {
-        if (group.length >= 3) {
-          const first = group[0];
-          const totalQty = group.reduce((s, i) => s + (i.quantity || 1), 0);
-          const subtotal = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
-          const ivaAmt = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * (i.iva_percentage / 100), 0);
-          const bruto = subtotal + ivaAmt;
-          const irpfAmt = group.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
-          const netoAPagar = bruto - irpfAmt;
-          
-          let name = `${first.name} (x${group.length})`;
-          if (first.is_commission_percentage && first.commission_percentage) name += ` (${first.commission_percentage}% del fee)`;
-          
-          tableData.push([
-            name, '-', totalQty.toString(), `${first.unit_price.toFixed(2)} €`,
-            `${fmt(subtotal)} €`, `${fmt(ivaAmt)} €`, `${fmt(bruto)} €`,
-            `-${fmt(irpfAmt)} €`, `${fmt(netoAPagar)} €`,
-            group.every(i => i.billing_status === 'pagada') ? 'Pagada' :
-              group.every(i => i.billing_status === 'factura_recibida') ? 'Facturado' : 'Varios'
-          ]);
-        } else {
-          group.forEach(item => {
-            const subtotal = item.unit_price * (item.quantity || 1);
-            const ivaAmt = subtotal * (item.iva_percentage / 100);
-            const bruto = subtotal + ivaAmt;
-            const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
-            const netoAPagar = bruto - irpfAmt;
-            
-            let name = item.name;
-            if (item.is_commission_percentage && item.commission_percentage) name += ` (${item.commission_percentage}% del fee)`;
-            
-            tableData.push([
-              name,
-              item.contacts?.name || '-',
-              (item.quantity || 1).toString(),
-              `${item.unit_price.toFixed(2)} €`,
-              `${fmt(subtotal)} €`,
-              `${fmt(ivaAmt)} €`,
-              `${fmt(bruto)} €`,
-              `-${fmt(irpfAmt)} €`,
-              `${fmt(netoAPagar)} €`,
-              item.billing_status === 'factura_recibida' ? 'Facturado' :
-                item.billing_status === 'pendiente' ? 'Pendiente' :
-                item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-                item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente')
-            ]);
-          });
+        const subtotal = item.unit_price * (item.quantity || 1);
+        const ivaAmt = subtotal * (item.iva_percentage / 100);
+        const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
+        const liquido = subtotal + ivaAmt - irpfAmt;
+        
+        let precio = `${item.unit_price.toFixed(2)} €`;
+        if (item.is_commission_percentage && item.commission_percentage) {
+          precio = `${item.commission_percentage}% → ${item.unit_price.toFixed(2)} €`;
+        } else if ((item.quantity || 1) > 1) {
+          precio = `${(item.quantity || 1)} x ${item.unit_price.toFixed(2)} €`;
         }
+        
+        const fechaEmision = item.fecha_emision 
+          ? new Date(item.fecha_emision).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+          : '-';
+        
+        const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
+          item.billing_status === 'pendiente' ? 'Pendiente' :
+          item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+          item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
+        
+        tableData.push([
+          item.name,
+          item.contacts?.name || '-',
+          fechaEmision,
+          precio,
+          `${item.iva_percentage}%`,
+          `${item.irpf_percentage ?? 15}%`,
+          `${fmt(liquido)} €`,
+          status
+        ]);
       });
     });
     
     autoTable(doc, {
-      head: [['Concepto', 'Contacto', 'Cant.', 'P.Unit.', 'Subtotal', 'IVA', 'Total Bruto', 'IRPF', 'Neto a Pagar', 'Estado']],
+      head: [['Concepto', 'Contacto', 'F. Emisión', 'Precio', 'IVA', 'IRPF', 'Total (€)', 'Estado']],
       body: tableData,
       startY: yPos,
-      styles: { fontSize: 6.5 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [0, 0, 0] },
       margin: { left: margin },
       columnStyles: {
-        4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
-        7: { halign: 'right' }, 8: { halign: 'right' }
+        3: { halign: 'right' }, 4: { halign: 'center' }, 5: { halign: 'center' },
+        6: { halign: 'right' }
       }
     });
     yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -2572,7 +2558,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(100);
-    doc.text('Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto - IRPF (importe final a transferir)', margin, yPos);
+    doc.text('* Total a Facturar = Neto + IVA − IRPF (Líquido, importe final a transferir)', margin, yPos);
+    yPos += 4;
+    doc.text('Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto − IRPF', margin, yPos);
     yPos += 4;
     doc.text(`Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin, yPos);
     doc.setTextColor(0);
@@ -2705,22 +2693,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     if (budgetData.country) csv += `País,"${budgetData.country}"\n`;
     csv += "\n";
     
-    // Resumen ejecutivo
-    csv += "RESUMEN EJECUTIVO\n";
+    // Resumen financiero
+    csv += "RESUMEN FINANCIERO\n";
+    const feeIvaCsv = budgetAmount * 0.21;
+    const feeBrutoCsv = budgetAmount + feeIvaCsv;
+    const feeIrpfCsv = budgetAmount * 0.15;
+    const feeLiquidoCsv = feeBrutoCsv - feeIrpfCsv;
     csv += `${budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital'},"${fmt(budgetAmount)} €"\n`;
     csv += `Presupuesto Gastos,"${fmt(expenseBudget)} €"\n`;
     csv += `Gastos Reales (Neto),"${fmt(totals.neto)} €"\n`;
-    csv += `Beneficio Neto,"${fmt(beneficio)} €"\n`;
+    csv += `IVA Repercutido (+),"${fmt(feeIvaCsv)} €"\n`;
+    csv += `IRPF Retenido (−),"-${fmt(feeIrpfCsv)} €"\n`;
+    csv += `Total a Facturar*,"${fmt(feeLiquidoCsv)} €"\n`;
+    csv += `Beneficio,"${fmt(beneficio)} €"\n`;
     csv += `Margen,"${margen.toFixed(1)}%"\n\n`;
     
     // Ingresos
     csv += "INGRESOS\n";
     csv += "Concepto,Neto,IVA (21%),Bruto,IRPF (15%),Líquido\n";
-    const feeIva = budgetAmount * 0.21;
-    const feeBruto = budgetAmount + feeIva;
-    const feeIrpf = budgetAmount * 0.15;
-    const feeLiquido = feeBruto - feeIrpf;
-    csv += `${budget.type === 'concierto' ? 'Caché' : 'Capital'},"${fmt(budgetAmount)} €","${fmt(feeIva)} €","${fmt(feeBruto)} €","-${fmt(feeIrpf)} €","${fmt(feeLiquido)} €"\n\n`;
+    csv += `${budget.type === 'concierto' ? 'Caché' : 'Capital'},"${fmt(budgetAmount)} €","${fmt(feeIvaCsv)} €","${fmt(feeBrutoCsv)} €","-${fmt(feeIrpfCsv)} €","${fmt(feeLiquidoCsv)} €"\n\n`;
     
     // Gastos por categoría
     csv += "GASTOS POR CATEGORÍA\n";
@@ -2750,9 +2741,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       });
     csv += "\n";
     
-    // Detalle con todas las columnas fiscales
+    // Detalle alineado con la UI
     csv += "DETALLE DE GASTOS\n";
-    csv += "Concepto,Contacto,Cantidad,P.Unitario,Subtotal,IVA,Total Bruto,IRPF,Neto a Pagar,Estado,Fecha Emisión,Enlace Factura\n";
+    csv += "Concepto,Contacto,Fecha Emisión,Precio,IVA (%),IRPF (%),Total Líquido (€),Retención IRPF (€),Estado\n";
     
     const itemsByCat: Record<string, typeof items> = {};
     items.forEach(item => {
@@ -2765,8 +2756,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       .sort((a, b) => (catOrder[a] ?? 999) - (catOrder[b] ?? 999))
       .forEach(categoryName => {
         const catItems = itemsByCat[categoryName];
-        const catNeto = catItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
-        csv += `"${categoryName} | Neto: ${fmt(catNeto)} €",,,,,,,,,,\n`;
+        const catLiquido = catItems.reduce((s, i) => {
+          const sub = i.unit_price * (i.quantity || 1);
+          return s + sub + sub * (i.iva_percentage / 100) - sub * ((i.irpf_percentage ?? 15) / 100);
+        }, 0);
+        const catRet = catItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
+        csv += `"${categoryName} — Líquido: ${fmt(catLiquido)} € + ${fmt(catRet)} € ret.",,,,,,,\n`;
         
         catItems.forEach(item => {
           let name = item.name;
@@ -2774,9 +2769,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           
           const subtotal = item.unit_price * (item.quantity || 1);
           const ivaAmt = subtotal * (item.iva_percentage / 100);
-          const bruto = subtotal + ivaAmt;
           const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
-          const netoAPagar = bruto - irpfAmt;
+          const liquido = subtotal + ivaAmt - irpfAmt;
+          
+          let precio = `${item.unit_price.toFixed(2)} €`;
+          if (item.is_commission_percentage && item.commission_percentage) {
+            precio = `${item.commission_percentage}% → ${item.unit_price.toFixed(2)} €`;
+          } else if ((item.quantity || 1) > 1) {
+            precio = `${(item.quantity || 1)} x ${item.unit_price.toFixed(2)} €`;
+          }
+          
+          const fechaEmision = item.fecha_emision 
+            ? new Date(item.fecha_emision).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : '-';
           
           const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
             item.billing_status === 'pendiente' ? 'Pendiente' :
@@ -2784,31 +2789,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
           
           csv += [
-            `"${name}"`, `"${item.contacts?.name || '-'}"`, item.quantity || 1,
-            `"${item.unit_price.toFixed(2)} €"`, `"${fmt(subtotal)} €"`,
-            `"${fmt(ivaAmt)} €"`, `"${fmt(bruto)} €"`,
-            `"-${fmt(irpfAmt)} €"`, `"${fmt(netoAPagar)} €"`,
-            status, item.fecha_emision || '', `"${item.invoice_link || ''}"`
+            `"${name}"`, `"${item.contacts?.name || '-'}"`, `"${fechaEmision}"`,
+            `"${precio}"`, `${item.iva_percentage}%`, `${item.irpf_percentage ?? 15}%`,
+            `"${fmt(liquido)} €"`, `"${fmt(irpfAmt)} €"`, status
           ].join(',') + "\n";
         });
       });
     
     // Totales
     csv += "\n";
-    csv += `Total Neto,,,,"${fmt(totals.neto)} €"\n`;
-    csv += `Total IVA,,,,,"${fmt(totals.iva)} €"\n`;
-    csv += `Total IRPF,,,,,,"${fmt(totals.irpf)} €"\n`;
+    csv += `Total Neto,,,,,,,"${fmt(totals.neto)} €"\n`;
+    csv += `Total IVA,,,,,,,"${fmt(totals.iva)} €"\n`;
+    csv += `Total IRPF,,,,,,,"${fmt(totals.irpf)} €"\n`;
     csv += `Total Líquido,,,,,,,"${fmt(totals.total)} €"\n\n`;
     
     // Resumen fiscal
     csv += "RESUMEN FISCAL\n";
     csv += "Concepto,Repercutido (Ingresos),Soportado (Gastos),Diferencia\n";
-    csv += `IVA,"${fmt(feeIva)} €","${fmt(totals.iva)} €","${fmt(feeIva - totals.iva)} €"\n`;
-    csv += `IRPF,"-${fmt(feeIrpf)} €","-${fmt(totals.irpf)} €","${fmt(totals.irpf - feeIrpf)} €"\n\n`;
+    csv += `IVA,"${fmt(feeIvaCsv)} €","${fmt(totals.iva)} €","${fmt(feeIvaCsv - totals.iva)} €"\n`;
+    csv += `IRPF,"-${fmt(feeIrpfCsv)} €","-${fmt(totals.irpf)} €","${fmt(totals.irpf - feeIrpfCsv)} €"\n\n`;
     
     // Previsión de tesorería
     csv += "PREVISIÓN DE TESORERÍA\n";
-    const aCobrar = feeLiquido;
+    const aCobrar = feeLiquidoCsv;
     const aPagar = totals.total;
     csv += `A cobrar (líquido),"${fmt(aCobrar)} €"\n`;
     csv += `A pagar (líquido),"${fmt(aPagar)} €"\n`;
