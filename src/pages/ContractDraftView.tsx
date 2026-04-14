@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePublicDraft } from '@/hooks/useContractDrafts';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,6 +8,8 @@ import { TextSelectionHandler, type TextSelection } from '@/components/contract-
 import { NegotiationBanner } from '@/components/contract-drafts/NegotiationBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -71,6 +73,11 @@ const DEFAULT_IP_CLAUSES: Record<string, string> = {
   ley_6_2: '6.2. Ante cualquier incumplimiento, discrepancia o conflicto que pueda surgir entre las Partes, ambas se comprometen, en primer lugar, a intentar resolverlo de forma amistosa, otorgando a la otra parte un plazo de al menos diez (10) días a contar desde la fecha en la que la parte perjudicada remita a la otra los motivos en los que se basa el incumplimiento o el conflicto. Una vez agotada la vía amistosa, las Partes, con renuncia expresa a cualquier fuero que pudiere corresponderles, acuerdan someterse al Tribunal Arbitral de Barcelona (TAB).',
 };
 
+interface UserIdentity {
+  name: string;
+  email: string;
+}
+
 export default function ContractDraftView() {
   const { token } = useParams<{ token: string }>();
   const {
@@ -84,6 +91,41 @@ export default function ContractDraftView() {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const contractRef = useRef<HTMLDivElement>(null);
+  const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null);
+  const [showIdentityModal, setShowIdentityModal] = useState(false);
+  const [identityName, setIdentityName] = useState('');
+  const [identityEmail, setIdentityEmail] = useState('');
+
+  // Load identity from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('contract_user_identity');
+    if (stored) {
+      try { setUserIdentity(JSON.parse(stored)); } catch {}
+    } else {
+      setShowIdentityModal(true);
+    }
+  }, []);
+
+  const handleIdentitySubmit = () => {
+    if (!identityName.trim() || !identityEmail.trim()) return;
+    const identity = { name: identityName.trim(), email: identityEmail.trim().toLowerCase() };
+    localStorage.setItem('contract_user_identity', JSON.stringify(identity));
+    setUserIdentity(identity);
+    setShowIdentityModal(false);
+  };
+
+  // Determine role from email
+  const userRole = useMemo<'producer' | 'collaborator' | 'viewer'>(() => {
+    if (!userIdentity || !draft) return 'viewer';
+    const draftAny = draft as any;
+    if (draftAny.producer_email && userIdentity.email === draftAny.producer_email.toLowerCase()) return 'producer';
+    if (draftAny.collaborator_email && userIdentity.email === draftAny.collaborator_email.toLowerCase()) return 'collaborator';
+    // Fallback: check form_data emails
+    const fd = draft.form_data || {};
+    if (fd.productora_email && userIdentity.email === fd.productora_email.toLowerCase()) return 'producer';
+    if (fd.colaboradora_email && userIdentity.email === fd.colaboradora_email.toLowerCase()) return 'collaborator';
+    return 'viewer';
+  }, [userIdentity, draft]);
 
   const isOwner = !!(user && draft && draft.created_by === user.id);
 
