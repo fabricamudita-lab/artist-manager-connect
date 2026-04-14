@@ -2745,9 +2745,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       });
     csv += "\n";
     
-    // Detalle con todas las columnas fiscales
+    // Detalle alineado con la UI
     csv += "DETALLE DE GASTOS\n";
-    csv += "Concepto,Contacto,Cantidad,P.Unitario,Subtotal,IVA,Total Bruto,IRPF,Neto a Pagar,Estado,Fecha Emisión,Enlace Factura\n";
+    csv += "Concepto,Contacto,Fecha Emisión,Precio,IVA (%),IRPF (%),Total Líquido (€),Retención IRPF (€),Estado\n";
     
     const itemsByCat: Record<string, typeof items> = {};
     items.forEach(item => {
@@ -2760,8 +2760,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       .sort((a, b) => (catOrder[a] ?? 999) - (catOrder[b] ?? 999))
       .forEach(categoryName => {
         const catItems = itemsByCat[categoryName];
-        const catNeto = catItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
-        csv += `"${categoryName} | Neto: ${fmt(catNeto)} €",,,,,,,,,,\n`;
+        const catLiquido = catItems.reduce((s, i) => {
+          const sub = i.unit_price * (i.quantity || 1);
+          return s + sub + sub * (i.iva_percentage / 100) - sub * ((i.irpf_percentage ?? 15) / 100);
+        }, 0);
+        const catRet = catItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1) * ((i.irpf_percentage ?? 15) / 100), 0);
+        csv += `"${categoryName} — Líquido: ${fmt(catLiquido)} € + ${fmt(catRet)} € ret.",,,,,,,\n`;
         
         catItems.forEach(item => {
           let name = item.name;
@@ -2769,9 +2773,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           
           const subtotal = item.unit_price * (item.quantity || 1);
           const ivaAmt = subtotal * (item.iva_percentage / 100);
-          const bruto = subtotal + ivaAmt;
           const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
-          const netoAPagar = bruto - irpfAmt;
+          const liquido = subtotal + ivaAmt - irpfAmt;
+          
+          let precio = `${item.unit_price.toFixed(2)} €`;
+          if (item.is_commission_percentage && item.commission_percentage) {
+            precio = `${item.commission_percentage}% → ${item.unit_price.toFixed(2)} €`;
+          } else if ((item.quantity || 1) > 1) {
+            precio = `${(item.quantity || 1)} x ${item.unit_price.toFixed(2)} €`;
+          }
+          
+          const fechaEmision = item.fecha_emision 
+            ? new Date(item.fecha_emision).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : '-';
           
           const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
             item.billing_status === 'pendiente' ? 'Pendiente' :
@@ -2779,20 +2793,18 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
           
           csv += [
-            `"${name}"`, `"${item.contacts?.name || '-'}"`, item.quantity || 1,
-            `"${item.unit_price.toFixed(2)} €"`, `"${fmt(subtotal)} €"`,
-            `"${fmt(ivaAmt)} €"`, `"${fmt(bruto)} €"`,
-            `"-${fmt(irpfAmt)} €"`, `"${fmt(netoAPagar)} €"`,
-            status, item.fecha_emision || '', `"${item.invoice_link || ''}"`
+            `"${name}"`, `"${item.contacts?.name || '-'}"`, `"${fechaEmision}"`,
+            `"${precio}"`, `${item.iva_percentage}%`, `${item.irpf_percentage ?? 15}%`,
+            `"${fmt(liquido)} €"`, `"${fmt(irpfAmt)} €"`, status
           ].join(',') + "\n";
         });
       });
     
     // Totales
     csv += "\n";
-    csv += `Total Neto,,,,"${fmt(totals.neto)} €"\n`;
-    csv += `Total IVA,,,,,"${fmt(totals.iva)} €"\n`;
-    csv += `Total IRPF,,,,,,"${fmt(totals.irpf)} €"\n`;
+    csv += `Total Neto,,,,,,,"${fmt(totals.neto)} €"\n`;
+    csv += `Total IVA,,,,,,,"${fmt(totals.iva)} €"\n`;
+    csv += `Total IRPF,,,,,,,"${fmt(totals.irpf)} €"\n`;
     csv += `Total Líquido,,,,,,,"${fmt(totals.total)} €"\n\n`;
     
     // Resumen fiscal
