@@ -1,26 +1,36 @@
 
 
-## Plan: Arreglar 3 bugs en el Generador de Licencias IP
+## Plan: Clarificar correctamente Neto / IVA / Líquido en el PDF del presupuesto
 
-### 1. Contactos duplicados en el buscador
+### Problema
+El PDF exportado no indica claramente qué tipo de importe se muestra en cada sección:
+- La columna "Total" en el detalle de elementos calcula el **líquido** (neto + IVA - IRPF) pero no lo indica
+- No hay coherencia con el modo de visualización (`displayMode`) que el usuario tiene seleccionado en la UI
+- Falta contexto claro para que el lector del PDF sepa qué está viendo
 
-**Causa**: La BD tiene registros duplicados reales (2 artistas "Leyre Estruch" + 2 contactos). El componente los muestra todos.
+### Solución
 
-**Fix en `PersonSearchInput.tsx`**: Deduplicar resultados por `(legal_name || name) + source`, quedándose con el registro que tenga más campos rellenos (nif, address, email, stage_name).
+**Archivo: `src/components/BudgetDetailsDialog.tsx`** — función `downloadPDF` (~línea 2241)
 
-### 2. Duración no se actualiza al seleccionar track
+1. **Respetar el `displayMode` activo**: El PDF debe exportar los totales según el modo que el usuario tiene seleccionado (neto, con_iva, liquido), igual que la UI.
 
-**Causa**: La query usa `.order('version_number')` pero esa columna no existe en `track_versions`. Las columnas disponibles son: `id, track_id, version_name, file_url, file_bucket, is_current_version, uploaded_by, notes, created_at`.
+2. **Añadir subtítulo indicativo al inicio del PDF**: Justo debajo del título, añadir una línea como:
+   - `"Importes mostrados en: NETO (sin IVA ni IRPF)"`
+   - `"Importes mostrados en: CON IVA (sin IRPF)"`
+   - `"Importes mostrados en: LÍQUIDO (Neto + IVA - IRPF)"`
 
-**Fix en `IPLicenseGenerator.tsx` (~línea 803)**: Cambiar `.order('version_number', { ascending: false })` por `.eq('is_current_version', true)` o `.order('created_at', { ascending: false })`. También cambiar el placeholder de "3:45" a "MM:SS" (línea 849).
+3. **Renombrar cabecera de columna "Total"** en la tabla de detalle (línea 2509):
+   - Modo neto: `"Total Neto"`
+   - Modo con_iva: `"Total + IVA"`
+   - Modo líquido: `"Total Líquido"`
 
-### 3. Fecha de fijación sin calendario
+4. **Usar `calculateDisplayTotal` en vez de `calculateTotal`** en la tabla de detalle (líneas 2464, 2497) para que los importes coincidan con el modo seleccionado.
 
-**Causa**: Es un `<Input>` plano (línea 859).
+5. **Resumen financiero**: Mantener el desglose completo (neto, IVA, IRPF, total) pero marcar claramente cuál es cuál — ya está bastante bien, solo ajustar la etiqueta "Total a Facturar*" por "Total Líquido (a transferir)*".
 
-**Fix en `IPLicenseGenerator.tsx` (línea 859)**: Reemplazar por un `Popover` + `Calendar` + `Button` (patrón DatePicker de shadcn), formateando la fecha como `dd/mm/yyyy`. Importar `Calendar`, `Popover`, `format`/`parse` de date-fns.
+6. **Donut chart**: Ya dice "Importes netos" — correcto, no cambiar.
 
-### Archivos a modificar
-- `src/components/PersonSearchInput.tsx` — deduplicación
-- `src/components/IPLicenseGenerator.tsx` — fix query duración + calendario fecha fijación
+### Cambios concretos
+- ~15 líneas modificadas en la función `downloadPDF`
+- Sin nuevos archivos ni dependencias
 
