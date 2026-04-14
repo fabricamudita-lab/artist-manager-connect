@@ -1,52 +1,42 @@
 
 
-## Plan: Auto-rellenar duración extrayéndola del audio cuando la BD no la tiene
+## Plan: Auto-completar datos de Productora y Colaborador/a desde la BD
 
 ### Problema
-Todos los tracks existentes tienen `duration = null` en la BD porque el código anterior no la extraía. El fix de `ReleaseAudio.tsx` solo aplica a **futuras** subidas. Cuando seleccionas un track en el generador de licencias IP, `track.duration` es null y no se rellena nada.
+Los campos de Productora (paso 1) y Colaborador/a (paso 2) se rellenan manualmente. Si la persona ya existe en la base de datos (tabla `artists` o `contacts`), debería auto-completarse al seleccionar o escribir el nombre.
 
 ### Solución
-Dos cambios en `src/components/IPLicenseGenerator.tsx`:
 
-1. **Fallback client-side**: Cuando se selecciona un track y `track.duration` es null, buscar su `track_version` más reciente, cargar el audio con `new Audio(fileUrl)`, extraer la duración con `loadedmetadata`, y:
-   - Rellenar `grabacion_duracion` en el formulario
-   - Actualizar la BD (`tracks.update({ duration })`) para que la próxima vez ya esté disponible
+**Archivo: `src/components/IPLicenseGenerator.tsx`**
 
-2. **Cargar track_versions junto con tracks**: Usar la query existente o hacer una query adicional para obtener el `file_url` de la versión más reciente de cada track, de modo que el componente tenga acceso a la URL del audio.
+1. **Añadir un selector de búsqueda en "Nombre completo" para ambos pasos** que busque en `artists` y `contacts`:
+   - Usar un combo input + dropdown: al escribir, se filtran coincidencias de ambas tablas
+   - Al seleccionar una persona, se auto-rellenan todos los campos disponibles
+
+2. **Queries de datos**:
+   - Query `artists`: campos `name`, `legal_name`, `stage_name`, `nif`, `address`, `email`
+   - Query `contacts`: campos `name`, `legal_name`, `stage_name`, `address`, `email` (no tienen `nif` pero sí datos útiles)
+   - Usar `useQuery` para cargar ambas listas al abrir el diálogo
+
+3. **Mapping de campos al seleccionar**:
+
+   | Campo BD (artists) | Campo formulario (Productora) | Campo formulario (Colaborador/a) |
+   |---|---|---|
+   | `legal_name` o `name` | `productora_nombre` | `colaboradora_nombre` |
+   | `nif` / `tax_id` | `productora_dni` | `colaboradora_dni` |
+   | `address` | `productora_domicilio` | `colaboradora_domicilio` |
+   | `stage_name` | `productora_nombre_artistico` | `colaboradora_nombre_artistico` |
+   | `email` | `productora_email` | `colaboradora_email` |
+
+   Para contacts: mismo mapping pero sin `nif`.
+
+4. **UI**: Reemplazar los `<Input>` de "Nombre completo" por un componente con lista desplegable filtrable (similar a un combobox). Al escribir texto, se muestran coincidencias. Si se selecciona una, se auto-rellenan los campos. Si no se selecciona ninguna, el texto libre queda como nombre manual.
+
+5. **Importar `useQuery`** de tanstack y `Popover`/`Command` de shadcn para el buscador.
 
 ### Cambios concretos
-
-| Archivo | Cambio |
-|---------|--------|
-| `IPLicenseGenerator.tsx` | En el `onValueChange` del Select de tracks (~línea 753), añadir lógica: si `track.duration` es null, buscar el file_url de la versión más reciente del track, crear un `Audio` element, extraer duración, actualizar formulario y BD |
-| `IPLicenseGenerator.tsx` | Añadir query para obtener `track_versions` (file_url) de los tracks del release seleccionado, o hacer fetch inline al seleccionar |
-
-### Detalle técnico
-```typescript
-// En onValueChange del select de track:
-if (track && track.duration) {
-  update('grabacion_duracion', formatDuration(track.duration));
-} else if (track) {
-  // Fetch latest version URL and extract duration
-  const { data: versions } = await supabase
-    .from('track_versions')
-    .select('file_url')
-    .eq('track_id', track.id)
-    .order('version_number', { ascending: false })
-    .limit(1);
-  if (versions?.[0]?.file_url) {
-    const audio = new Audio(versions[0].file_url);
-    audio.addEventListener('loadedmetadata', async () => {
-      const dur = Math.round(audio.duration);
-      if (dur && isFinite(dur)) {
-        update('grabacion_duracion', formatDuration(dur));
-        await supabase.from('tracks').update({ duration: dur }).eq('id', track.id);
-      }
-    });
-    audio.load();
-  }
-}
-```
-
-Esto resuelve tanto los tracks existentes (sin duración) como asegura que futuros tracks ya tengan el dato en BD.
+- Añadir queries para `artists` y `contacts` (~10 líneas)
+- Crear función `handleSelectPerson(person, target: 'productora' | 'colaboradora')` que rellena los campos (~15 líneas)
+- Reemplazar `<Input>` de nombre en caso 0 y caso 1 por un combobox con búsqueda (~30 líneas cada uno)
+- Los campos siguen siendo editables manualmente después del auto-completado
 
