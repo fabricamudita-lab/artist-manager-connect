@@ -2558,7 +2558,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(100);
-    doc.text('Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto - IRPF (importe final a transferir)', margin, yPos);
+    doc.text('* Total a Facturar = Neto + IVA − IRPF (Líquido, importe final a transferir)', margin, yPos);
+    yPos += 4;
+    doc.text('Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto − IRPF', margin, yPos);
     yPos += 4;
     doc.text(`Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin, yPos);
     doc.setTextColor(0);
@@ -2691,12 +2693,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     if (budgetData.country) csv += `País,"${budgetData.country}"\n`;
     csv += "\n";
     
-    // Resumen ejecutivo
-    csv += "RESUMEN EJECUTIVO\n";
+    // Resumen financiero
+    csv += "RESUMEN FINANCIERO\n";
+    const feeIvaCsv = budgetAmount * 0.21;
+    const feeBrutoCsv = budgetAmount + feeIvaCsv;
+    const feeIrpfCsv = budgetAmount * 0.15;
+    const feeLiquidoCsv = feeBrutoCsv - feeIrpfCsv;
     csv += `${budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital'},"${fmt(budgetAmount)} €"\n`;
     csv += `Presupuesto Gastos,"${fmt(expenseBudget)} €"\n`;
     csv += `Gastos Reales (Neto),"${fmt(totals.neto)} €"\n`;
-    csv += `Beneficio Neto,"${fmt(beneficio)} €"\n`;
+    csv += `IVA Repercutido (+),"${fmt(feeIvaCsv)} €"\n`;
+    csv += `IRPF Retenido (−),"-${fmt(feeIrpfCsv)} €"\n`;
+    csv += `Total a Facturar*,"${fmt(feeLiquidoCsv)} €"\n`;
+    csv += `Beneficio,"${fmt(beneficio)} €"\n`;
     csv += `Margen,"${margen.toFixed(1)}%"\n\n`;
     
     // Ingresos
