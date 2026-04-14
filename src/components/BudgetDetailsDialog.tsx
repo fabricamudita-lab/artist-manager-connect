@@ -2810,12 +2810,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     // Resumen fiscal
     csv += "RESUMEN FISCAL\n";
     csv += "Concepto,Repercutido (Ingresos),Soportado (Gastos),Diferencia\n";
-    csv += `IVA,"${fmt(feeIva)} €","${fmt(totals.iva)} €","${fmt(feeIva - totals.iva)} €"\n`;
-    csv += `IRPF,"-${fmt(feeIrpf)} €","-${fmt(totals.irpf)} €","${fmt(totals.irpf - feeIrpf)} €"\n\n`;
+    csv += `IVA,"${fmt(feeIvaCsv)} €","${fmt(totals.iva)} €","${fmt(feeIvaCsv - totals.iva)} €"\n`;
+    csv += `IRPF,"-${fmt(feeIrpfCsv)} €","-${fmt(totals.irpf)} €","${fmt(totals.irpf - feeIrpfCsv)} €"\n\n`;
     
     // Previsión de tesorería
     csv += "PREVISIÓN DE TESORERÍA\n";
-    const aCobrar = feeLiquido;
+    const aCobrar = feeLiquidoCsv;
     const aPagar = totals.total;
     csv += `A cobrar (líquido),"${fmt(aCobrar)} €"\n`;
     csv += `A pagar (líquido),"${fmt(aPagar)} €"\n`;
