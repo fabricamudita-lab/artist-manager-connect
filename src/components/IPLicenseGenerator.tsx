@@ -231,6 +231,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
       pdf.addPage();
       pageNum++;
       y = 20;
+      pdf.setFont('times', 'normal');
+      pdf.setFontSize(fontSize);
     }
   };
 
@@ -344,7 +346,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     const valX = x + letterW + titleW;
     const remaining = cw - indentSub - letterW - titleW;
     if (remaining > 0 && pdf.getTextWidth(value) <= remaining) {
-      drawJustifiedLine(value, valX, y, remaining);
+      pdf.text(value, valX, y);
       y += subItemSpace;
     } else {
       y += interline;
@@ -364,7 +366,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     pdf.setFont('times', 'normal');
     const valLines: string[] = pdf.splitTextToSize(normalPart, maxW - bw);
     if (valLines.length > 0) {
-      drawJustifiedLine(valLines[0], x + bw, y, maxW - bw);
+      pdf.text(valLines[0], x + bw, y);
       y += interline;
       for (let i = 1; i < valLines.length; i++) {
         checkPage();
