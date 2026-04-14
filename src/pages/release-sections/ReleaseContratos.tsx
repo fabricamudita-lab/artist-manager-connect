@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileSignature, Trash2, Eye, ChevronDown, StickyNote, FileText, Download, X, FileWarning } from 'lucide-react';
+import { ArrowLeft, Upload, FileSignature, Trash2, Eye, ChevronDown, StickyNote, FileText, Download, X, FileWarning, FileEdit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,8 @@ import { es } from 'date-fns/locale';
 import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
-
+import { useContractDrafts, type ContractDraft } from '@/hooks/useContractDrafts';
+import { DraftsList } from '@/components/contract-drafts/DraftsList';
 interface ReleaseDocument {
   id: string;
   release_id: string;
