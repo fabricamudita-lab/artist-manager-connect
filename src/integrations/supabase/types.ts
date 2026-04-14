@@ -2784,6 +2784,143 @@ export type Database = {
           },
         ]
       }
+      contract_draft_comments: {
+        Row: {
+          author_name: string
+          author_profile_id: string | null
+          created_at: string | null
+          draft_id: string
+          id: string
+          message: string
+          parent_comment_id: string | null
+          resolved: boolean | null
+          section_key: string
+        }
+        Insert: {
+          author_name: string
+          author_profile_id?: string | null
+          created_at?: string | null
+          draft_id: string
+          id?: string
+          message: string
+          parent_comment_id?: string | null
+          resolved?: boolean | null
+          section_key: string
+        }
+        Update: {
+          author_name?: string
+          author_profile_id?: string | null
+          created_at?: string | null
+          draft_id?: string
+          id?: string
+          message?: string
+          parent_comment_id?: string | null
+          resolved?: boolean | null
+          section_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_draft_comments_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_draft_comments_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "contract_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_draft_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "contract_draft_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_drafts: {
+        Row: {
+          artist_id: string | null
+          booking_id: string | null
+          clauses_data: Json | null
+          created_at: string | null
+          created_by: string
+          draft_type: string
+          firma_fecha: string | null
+          firma_lugar: string | null
+          form_data: Json
+          id: string
+          release_id: string | null
+          share_token: string | null
+          signed_pdf_url: string | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          booking_id?: string | null
+          clauses_data?: Json | null
+          created_at?: string | null
+          created_by: string
+          draft_type?: string
+          firma_fecha?: string | null
+          firma_lugar?: string | null
+          form_data: Json
+          id?: string
+          release_id?: string | null
+          share_token?: string | null
+          signed_pdf_url?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          booking_id?: string | null
+          clauses_data?: Json | null
+          created_at?: string | null
+          created_by?: string
+          draft_type?: string
+          firma_fecha?: string | null
+          firma_lugar?: string | null
+          form_data?: Json
+          id?: string
+          release_id?: string | null
+          share_token?: string | null
+          signed_pdf_url?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_drafts_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_drafts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_drafts_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_signers: {
         Row: {
           created_at: string
