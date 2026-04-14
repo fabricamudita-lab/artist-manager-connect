@@ -696,7 +696,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
               <div><Label>Mes</Label><Input value={formData.fecha_mes} onChange={e => update('fecha_mes', e.target.value)} placeholder="enero" /></div>
               <div><Label>Año</Label><Input value={formData.fecha_anio} onChange={e => update('fecha_anio', e.target.value)} /></div>
             </div>
-            <div><Label>Nombre completo</Label><Input value={formData.productora_nombre} onChange={e => update('productora_nombre', e.target.value)} placeholder="Nombre legal de la productora" /></div>
+            <div><Label>Nombre completo</Label><PersonSearchInput value={formData.productora_nombre} onChange={v => update('productora_nombre', v)} onSelect={p => handleSelectPerson(p, 'productora')} placeholder="Buscar o escribir nombre..." /></div>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label>Tipo documento</Label>
@@ -723,7 +723,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Datos del Colaborador/a</h3>
-            <div><Label>Nombre completo</Label><Input value={formData.colaboradora_nombre} onChange={e => update('colaboradora_nombre', e.target.value)} /></div>
+            <div><Label>Nombre completo</Label><PersonSearchInput value={formData.colaboradora_nombre} onChange={v => update('colaboradora_nombre', v)} onSelect={p => handleSelectPerson(p, 'colaboradora')} placeholder="Buscar o escribir nombre..." /></div>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label>Tipo documento</Label>
