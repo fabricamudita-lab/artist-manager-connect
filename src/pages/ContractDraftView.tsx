@@ -305,19 +305,80 @@ const romanItem: React.CSSProperties = {
   marginBottom: '12px', textAlign: 'justify', paddingLeft: '32px', textIndent: '-32px',
 };
 
-// Helper to render a highlighted clause paragraph
-function ClauseParagraph({ clauseKey, text, style, comments }: {
+// Helper to render a highlighted clause paragraph with inline yellow highlights
+function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   clauseKey: string; text: string; style?: React.CSSProperties;
   comments?: Array<{ selected_text: string | null; id: string }>;
+  onCommentClick?: (commentId: string) => void;
 }) {
-  const hasComments = comments?.some(c => c.selected_text && text.includes(c.selected_text));
+  const relevantComments = comments?.filter(c => c.selected_text && text.includes(c.selected_text)) || [];
+
+  if (relevantComments.length === 0) {
+    return (
+      <p data-clause={clauseKey} style={{ ...paragraph, ...style, transition: 'background 0.3s' }}>
+        {text}
+      </p>
+    );
+  }
+
+  // Build highlighted segments
+  const renderHighlightedText = () => {
+    let remaining = text;
+    const parts: React.ReactNode[] = [];
+    let idx = 0;
+
+    // Sort comments by position in text (earliest first)
+    const sorted = [...relevantComments].sort((a, b) => {
+      const posA = remaining.indexOf(a.selected_text!);
+      const posB = remaining.indexOf(b.selected_text!);
+      return posA - posB;
+    });
+
+    for (const comment of sorted) {
+      const selectedText = comment.selected_text!;
+      const pos = remaining.indexOf(selectedText);
+      if (pos === -1) continue;
+
+      // Text before the highlight
+      if (pos > 0) {
+        parts.push(<span key={`t-${idx++}`}>{remaining.slice(0, pos)}</span>);
+      }
+
+      // Highlighted text
+      parts.push(
+        <span
+          key={`h-${comment.id}`}
+          style={{
+            backgroundColor: '#FFF9C4',
+            borderBottom: '2px solid #F59E0B',
+            cursor: 'pointer',
+            borderRadius: '2px',
+            padding: '0 1px',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCommentClick?.(comment.id);
+          }}
+          title="💬 Ver comentario"
+        >
+          {selectedText}
+        </span>
+      );
+
+      remaining = remaining.slice(pos + selectedText.length);
+    }
+
+    // Remaining text
+    if (remaining) {
+      parts.push(<span key={`t-${idx++}`}>{remaining}</span>);
+    }
+
+    return parts;
+  };
 
   return (
     <p data-clause={clauseKey} style={{ ...paragraph, ...style, transition: 'background 0.3s' }}>
-      {text}
-      {hasComments && (
-        <span style={{ marginLeft: '4px', cursor: 'pointer' }} title="Tiene comentarios">💬</span>
-      )}
+      {renderHighlightedText()}
     </p>
   );
 }
