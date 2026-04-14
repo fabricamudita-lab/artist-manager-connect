@@ -290,6 +290,27 @@ export default function ReleaseContratos() {
         </div>
       </div>
 
+      {/* Borradores de contratos */}
+      {drafts.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <FileEdit className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Borradores en negociación</h2>
+          </div>
+          <DraftsList
+            drafts={drafts}
+            loading={draftsLoading}
+            onEdit={(draft) => {
+              setEditingDraft(draft);
+              if (draft.draft_type === 'ip_license') setShowIPLicenseGenerator(true);
+              else setShowBookingGenerator(true);
+            }}
+            onDelete={deleteDraft}
+            onStatusChange={updateStatus}
+          />
+        </div>
+      )}
+
       {/* Document list */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Cargando...</div>
