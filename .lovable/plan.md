@@ -1,36 +1,49 @@
 
 
-## Plan: Clarificar correctamente Neto / IVA / Líquido en el PDF del presupuesto
+## Plan: Rediseñar exportaciones PDF y Excel/CSV del presupuesto
 
-### Problema
-El PDF exportado no indica claramente qué tipo de importe se muestra en cada sección:
-- La columna "Total" en el detalle de elementos calcula el **líquido** (neto + IVA - IRPF) pero no lo indica
-- No hay coherencia con el modo de visualización (`displayMode`) que el usuario tiene seleccionado en la UI
-- Falta contexto claro para que el lector del PDF sepa qué está viendo
+### Problemas detectados
 
-### Solución
+1. **Gráfico donut dice "Importes netos" pero muestra líquido**: `getCategoryChartData()` (línea 1024) usa `calculateTotal()` que devuelve neto+IVA-IRPF (líquido), no neto.
+2. **PDF no muestra todas las columnas fiscales**: El detalle solo muestra una columna "Total" según el displayMode. El usuario quiere ver SIEMPRE: Subtotal Neto, IVA, Total Bruto, IRPF, Neto a Pagar — como en su referencia.
+3. **PDF no tiene sección de Ingresos**: El usuario quiere ver el caché desglosado (Neto → IVA → Bruto → IRPF → Líquido).
+4. **PDF no tiene sección de Resumen Fiscal ni Previsión de Tesorería**: Diferencia IVA repercutido/soportado, diferencia IRPF, flujo de caja neto.
+5. **Gastos por categoría sin columnas pagado/pendiente/estado**.
+6. **Excel/CSV**: Usa `calculateTotal()` (líquido) en la columna "Total" sin desglose. Debe incluir columnas: Subtotal, IVA, Total Bruto, IRPF, Neto a Pagar, Estado.
 
-**Archivo: `src/components/BudgetDetailsDialog.tsx`** — función `downloadPDF` (~línea 2241)
+### Cambios
 
-1. **Respetar el `displayMode` activo**: El PDF debe exportar los totales según el modo que el usuario tiene seleccionado (neto, con_iva, liquido), igual que la UI.
+**Archivo: `src/components/BudgetDetailsDialog.tsx`**
 
-2. **Añadir subtítulo indicativo al inicio del PDF**: Justo debajo del título, añadir una línea como:
-   - `"Importes mostrados en: NETO (sin IVA ni IRPF)"`
-   - `"Importes mostrados en: CON IVA (sin IRPF)"`
-   - `"Importes mostrados en: LÍQUIDO (Neto + IVA - IRPF)"`
+#### A. Fix gráfico donut (~línea 1024)
+Cambiar `calculateTotal(item)` por cálculo neto (`item.unit_price * item.quantity`) en `getCategoryChartData()`. Así el gráfico será coherente con su etiqueta "Importes netos".
 
-3. **Renombrar cabecera de columna "Total"** en la tabla de detalle (línea 2509):
-   - Modo neto: `"Total Neto"`
-   - Modo con_iva: `"Total + IVA"`
-   - Modo líquido: `"Total Líquido"`
+#### B. Rediseñar `downloadPDF()` (~líneas 2241-2653)
 
-4. **Usar `calculateDisplayTotal` en vez de `calculateTotal`** en la tabla de detalle (líneas 2464, 2497) para que los importes coincidan con el modo seleccionado.
+Estructura nueva del PDF (siguiendo la referencia del usuario):
 
-5. **Resumen financiero**: Mantener el desglose completo (neto, IVA, IRPF, total) pero marcar claramente cuál es cuál — ya está bastante bien, solo ajustar la etiqueta "Total a Facturar*" por "Total Líquido (a transferir)*".
+1. **Cabecera**: Título + ubicación + fecha (ya existe, mantener)
+2. **Resumen ejecutivo**: Caché, Presupuesto Gastos, Beneficio Neto, Margen
+3. **Ingresos** (NUEVO): Tabla con Concepto | Neto | IVA (21%) | Bruto | IRPF (15%) | Líquido
+4. **Gastos por categoría** (MEJORADO): Categoría | Presupuestado | Pagado | Pendiente | Estado (con check pagado)
+5. **Detalle de gastos** (MEJORADO): Concepto | Contacto | Cant. | P.Unit. | Subtotal | IVA | Total Bruto | IRPF | Neto a Pagar | Estado — TODAS las columnas siempre visibles
+6. **Resumen fiscal** (NUEVO): IVA repercutido/soportado/diferencia, IRPF retenido/soportado/diferencia
+7. **Previsión de tesorería** (NUEVO): A cobrar (líquido), A pagar (líquido), Flujo de caja neto
+8. **Notas** (NUEVO): Explicación de Neto/Bruto/Líquido
+9. **Eliminar subtítulo de displayMode** — ya no aplica porque se muestran todas las columnas
 
-6. **Donut chart**: Ya dice "Importes netos" — correcto, no cambiar.
+#### C. Rediseñar `downloadExcel()` (~líneas 2656-2801)
 
-### Cambios concretos
-- ~15 líneas modificadas en la función `downloadPDF`
-- Sin nuevos archivos ni dependencias
+Estructura nueva del CSV (siguiendo la referencia XLSX del usuario):
+
+1. Cabecera + Resumen ejecutivo
+2. Ingresos (con desglose completo)
+3. Gastos por categoría (con Presupuestado | Pagado Real | Pendiente | Estado)
+4. Detalle con TODAS las columnas: Concepto | Contacto | Cant. | P.Unit. | Subtotal | IVA | Total Bruto | IRPF | Neto a Pagar | Estado
+5. Resumen fiscal (IVA/IRPF repercutido vs soportado)
+6. Previsión de tesorería
+7. Notas explicativas
+
+### Archivos a modificar
+- `src/components/BudgetDetailsDialog.tsx` — fix donut, rediseño completo de `downloadPDF()` y `downloadExcel()`
 
