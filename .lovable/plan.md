@@ -1,42 +1,26 @@
 
 
-## Plan: Auto-completar datos de Productora y Colaborador/a desde la BD
+## Plan: Arreglar 3 bugs en el Generador de Licencias IP
 
-### Problema
-Los campos de Productora (paso 1) y Colaborador/a (paso 2) se rellenan manualmente. Si la persona ya existe en la base de datos (tabla `artists` o `contacts`), debería auto-completarse al seleccionar o escribir el nombre.
+### 1. Contactos duplicados en el buscador
 
-### Solución
+**Causa**: La BD tiene registros duplicados reales (2 artistas "Leyre Estruch" + 2 contactos). El componente los muestra todos.
 
-**Archivo: `src/components/IPLicenseGenerator.tsx`**
+**Fix en `PersonSearchInput.tsx`**: Deduplicar resultados por `(legal_name || name) + source`, quedándose con el registro que tenga más campos rellenos (nif, address, email, stage_name).
 
-1. **Añadir un selector de búsqueda en "Nombre completo" para ambos pasos** que busque en `artists` y `contacts`:
-   - Usar un combo input + dropdown: al escribir, se filtran coincidencias de ambas tablas
-   - Al seleccionar una persona, se auto-rellenan todos los campos disponibles
+### 2. Duración no se actualiza al seleccionar track
 
-2. **Queries de datos**:
-   - Query `artists`: campos `name`, `legal_name`, `stage_name`, `nif`, `address`, `email`
-   - Query `contacts`: campos `name`, `legal_name`, `stage_name`, `address`, `email` (no tienen `nif` pero sí datos útiles)
-   - Usar `useQuery` para cargar ambas listas al abrir el diálogo
+**Causa**: La query usa `.order('version_number')` pero esa columna no existe en `track_versions`. Las columnas disponibles son: `id, track_id, version_name, file_url, file_bucket, is_current_version, uploaded_by, notes, created_at`.
 
-3. **Mapping de campos al seleccionar**:
+**Fix en `IPLicenseGenerator.tsx` (~línea 803)**: Cambiar `.order('version_number', { ascending: false })` por `.eq('is_current_version', true)` o `.order('created_at', { ascending: false })`. También cambiar el placeholder de "3:45" a "MM:SS" (línea 849).
 
-   | Campo BD (artists) | Campo formulario (Productora) | Campo formulario (Colaborador/a) |
-   |---|---|---|
-   | `legal_name` o `name` | `productora_nombre` | `colaboradora_nombre` |
-   | `nif` / `tax_id` | `productora_dni` | `colaboradora_dni` |
-   | `address` | `productora_domicilio` | `colaboradora_domicilio` |
-   | `stage_name` | `productora_nombre_artistico` | `colaboradora_nombre_artistico` |
-   | `email` | `productora_email` | `colaboradora_email` |
+### 3. Fecha de fijación sin calendario
 
-   Para contacts: mismo mapping pero sin `nif`.
+**Causa**: Es un `<Input>` plano (línea 859).
 
-4. **UI**: Reemplazar los `<Input>` de "Nombre completo" por un componente con lista desplegable filtrable (similar a un combobox). Al escribir texto, se muestran coincidencias. Si se selecciona una, se auto-rellenan los campos. Si no se selecciona ninguna, el texto libre queda como nombre manual.
+**Fix en `IPLicenseGenerator.tsx` (línea 859)**: Reemplazar por un `Popover` + `Calendar` + `Button` (patrón DatePicker de shadcn), formateando la fecha como `dd/mm/yyyy`. Importar `Calendar`, `Popover`, `format`/`parse` de date-fns.
 
-5. **Importar `useQuery`** de tanstack y `Popover`/`Command` de shadcn para el buscador.
-
-### Cambios concretos
-- Añadir queries para `artists` y `contacts` (~10 líneas)
-- Crear función `handleSelectPerson(person, target: 'productora' | 'colaboradora')` que rellena los campos (~15 líneas)
-- Reemplazar `<Input>` de nombre en caso 0 y caso 1 por un combobox con búsqueda (~30 líneas cada uno)
-- Los campos siguen siendo editables manualmente después del auto-completado
+### Archivos a modificar
+- `src/components/PersonSearchInput.tsx` — deduplicación
+- `src/components/IPLicenseGenerator.tsx` — fix query duración + calendario fecha fijación
 
