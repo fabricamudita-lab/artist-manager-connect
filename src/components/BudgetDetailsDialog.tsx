@@ -2689,134 +2689,137 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     const totals = calculateGrandTotals();
     const beneficio = budgetAmount - totals.neto;
     const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
-    const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
-    const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
+    const fmt = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2 });
     
-    // Usar BOM para compatibilidad con Excel
-    let csvContent = "\uFEFF";
+    let csv = "\uFEFF";
     
-    // Cabecera del presupuesto
-    csvContent += `PRESUPUESTO: ${budgetData.name}\n`;
-    csvContent += "\n";
-    
-    // Información del evento
-    csvContent += "INFORMACIÓN DEL EVENTO\n";
+    // Cabecera
+    csv += `PRESUPUESTO: ${budgetData.name}\n\n`;
+    csv += "INFORMACIÓN DEL EVENTO\n";
     if (budgetData.event_date) {
-      const eventDate = new Date(budgetData.event_date).toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      csvContent += `Fecha,"${eventDate}${budgetData.event_time ? ` a las ${budgetData.event_time}` : ''}"\n`;
+      const d = new Date(budgetData.event_date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      csv += `Fecha,"${d}${budgetData.event_time ? ` a las ${budgetData.event_time}` : ''}"\n`;
     }
-    if (budgetData.venue) csvContent += `Venue,"${budgetData.venue}"\n`;
-    if (budgetData.city) csvContent += `Ciudad,"${budgetData.city}"\n`;
-    if (budgetData.country) csvContent += `País,"${budgetData.country}"\n`;
-    csvContent += "\n";
+    if (budgetData.venue) csv += `Venue,"${budgetData.venue}"\n`;
+    if (budgetData.city) csv += `Ciudad,"${budgetData.city}"\n`;
+    if (budgetData.country) csv += `País,"${budgetData.country}"\n`;
+    csv += "\n";
     
-    // Resumen financiero
-    csvContent += "RESUMEN FINANCIERO\n";
-    csvContent += `${budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital (Presupuesto)'},"${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    csvContent += `Presupuesto Gastos,"${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    csvContent += `Gastos Reales (Neto),"${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    if (expenseBudget > 0) {
-      csvContent += `Desviación vs Presupuesto,"${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%"\n`;
-    }
-    csvContent += `IVA Repercutido,"+${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    csvContent += `IRPF Retenido,"-${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    csvContent += `Total a Facturar*,"${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    csvContent += `Beneficio,"${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    csvContent += `Margen,"${margen.toFixed(1)}%"\n`;
-    csvContent += `"*Total a facturar a fecha de emisión del documento"\n`;
-    csvContent += "\n";
+    // Resumen ejecutivo
+    csv += "RESUMEN EJECUTIVO\n";
+    csv += `${budget.type === 'concierto' ? 'Caché (Ingresos)' : 'Capital'},"${fmt(budgetAmount)} €"\n`;
+    csv += `Presupuesto Gastos,"${fmt(expenseBudget)} €"\n`;
+    csv += `Gastos Reales (Neto),"${fmt(totals.neto)} €"\n`;
+    csv += `Beneficio Neto,"${fmt(beneficio)} €"\n`;
+    csv += `Margen,"${margen.toFixed(1)}%"\n\n`;
     
-    // Desglose por categorías
-    csvContent += "DESGLOSE POR CATEGORÍAS\n";
-    csvContent += "Categoría,Elementos,Total Neto\n";
+    // Ingresos
+    csv += "INGRESOS\n";
+    csv += "Concepto,Neto,IVA (21%),Bruto,IRPF (15%),Líquido\n";
+    const feeIva = budgetAmount * 0.21;
+    const feeBruto = budgetAmount + feeIva;
+    const feeIrpf = budgetAmount * 0.15;
+    const feeLiquido = feeBruto - feeIrpf;
+    csv += `${budget.type === 'concierto' ? 'Caché' : 'Capital'},"${fmt(budgetAmount)} €","${fmt(feeIva)} €","${fmt(feeBruto)} €","-${fmt(feeIrpf)} €","${fmt(feeLiquido)} €"\n\n`;
     
-    const categoryTotalsExcel = items.reduce((acc, item) => {
+    // Gastos por categoría
+    csv += "GASTOS POR CATEGORÍA\n";
+    csv += "Categoría,Elementos,Presupuestado,Pagado,Pendiente,Estado\n";
+    
+    const catTotals = items.reduce((acc, item) => {
       const cat = item.budget_categories?.name || item.category || 'Sin categoría';
-      if (!acc[cat]) acc[cat] = { neto: 0, count: 0 };
-      acc[cat].neto += item.unit_price * item.quantity;
+      if (!acc[cat]) acc[cat] = { neto: 0, pagado: 0, pendiente: 0, count: 0 };
+      const n = item.unit_price * (item.quantity || 1);
+      acc[cat].neto += n;
       acc[cat].count += 1;
+      if (item.billing_status === 'pagada') acc[cat].pagado += n;
+      else acc[cat].pendiente += n;
       return acc;
-    }, {} as Record<string, { neto: number; count: number }>);
+    }, {} as Record<string, { neto: number; pagado: number; pendiente: number; count: number }>);
     
-    Object.entries(categoryTotalsExcel).forEach(([cat, data]) => {
-      csvContent += `"${cat}",${data.count},"${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
-    });
-    csvContent += "\n";
-    
-    // Detalle de elementos - Agrupados por categoría
-    csvContent += "DETALLE DE ELEMENTOS\n";
-    csvContent += "Concepto,Contacto,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
-    
-    // Agrupar items por categoría
-    const itemsByCategoryExcel: Record<string, typeof items> = {};
-    items.forEach(item => {
-      const cat = item.budget_categories?.name || item.category || 'Sin categoría';
-      if (!itemsByCategoryExcel[cat]) itemsByCategoryExcel[cat] = [];
-      itemsByCategoryExcel[cat].push(item);
-    });
-    
-    // Ordenar categorías usando sort_order de budgetCategories
-    const categoryOrderExcel = budgetCategories.reduce((acc, bc, idx) => {
+    const catOrder = budgetCategories.reduce((acc, bc, idx) => {
       acc[bc.name] = bc.sort_order ?? idx;
       return acc;
     }, {} as Record<string, number>);
     
-    const sortedCategoryNamesExcel = Object.keys(itemsByCategoryExcel).sort((a, b) => {
-      const orderA = categoryOrderExcel[a] ?? 999;
-      const orderB = categoryOrderExcel[b] ?? 999;
-      return orderA - orderB;
-    });
-    
-    sortedCategoryNamesExcel.forEach(categoryName => {
-      const categoryItemsList = itemsByCategoryExcel[categoryName];
-      const categoryTotal = categoryItemsList.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-      
-      // Fila de categoría (header de grupo) - solo nombre y total
-      csvContent += `"${categoryName} | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €",,,,,,,,\n`;
-      
-      // Filas de items
-      categoryItemsList.forEach(item => {
-        // Construir nombre con indicador de % del fee si aplica
-        let conceptoName = item.name;
-        if (item.is_commission_percentage && item.commission_percentage) {
-          conceptoName += ` (${item.commission_percentage}% del fee)`;
-        }
-        
-        const row = [
-          `"${conceptoName}"`,
-          `"${item.contacts?.name || '-'}"`,
-          item.quantity,
-          `${item.unit_price.toFixed(2)} €`,
-          item.iva_percentage,
-          item.irpf_percentage ?? 15,
-          `${calculateTotal(item).toFixed(2)} €`,
-          item.billing_status === 'factura_recibida' ? 'Facturado' : 
-            item.billing_status === 'pendiente' ? 'Pendiente' : 
-            item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-            item.billing_status === 'pagada' ? 'Pagada' : item.billing_status,
-          item.fecha_emision || '',
-          `"${item.invoice_link || ''}"`
-        ].join(',');
-        csvContent += row + "\n";
+    Object.entries(catTotals)
+      .sort((a, b) => (catOrder[a[0]] ?? 999) - (catOrder[b[0]] ?? 999))
+      .forEach(([cat, data]) => {
+        const status = data.pendiente === 0 && data.neto > 0 ? 'Pagado' : data.pagado === 0 ? 'Pendiente' : 'Parcial';
+        csv += `"${cat}",${data.count},"${fmt(data.neto)} €","${fmt(data.pagado)} €","${fmt(data.pendiente)} €",${status}\n`;
       });
+    csv += "\n";
+    
+    // Detalle con todas las columnas fiscales
+    csv += "DETALLE DE GASTOS\n";
+    csv += "Concepto,Contacto,Cantidad,P.Unitario,Subtotal,IVA,Total Bruto,IRPF,Neto a Pagar,Estado,Fecha Emisión,Enlace Factura\n";
+    
+    const itemsByCat: Record<string, typeof items> = {};
+    items.forEach(item => {
+      const cat = item.budget_categories?.name || item.category || 'Sin categoría';
+      if (!itemsByCat[cat]) itemsByCat[cat] = [];
+      itemsByCat[cat].push(item);
     });
     
-    // Totales finales
-    csvContent += "\n";
-    csvContent += `Total Neto,,,,,,,"${totals.neto.toFixed(2)} €"\n`;
-    csvContent += `Total IVA,,,,,,,"${totals.iva.toFixed(2)} €"\n`;
-    csvContent += `Total IRPF,,,,,,,"${totals.irpf.toFixed(2)} €"\n`;
-    csvContent += `TOTAL FINAL,,,,,,,"${totals.total.toFixed(2)} €"\n`;
-    csvContent += "\n";
-    csvContent += `Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}\n`;
+    Object.keys(itemsByCat)
+      .sort((a, b) => (catOrder[a] ?? 999) - (catOrder[b] ?? 999))
+      .forEach(categoryName => {
+        const catItems = itemsByCat[categoryName];
+        const catNeto = catItems.reduce((s, i) => s + i.unit_price * (i.quantity || 1), 0);
+        csv += `"${categoryName} | Neto: ${fmt(catNeto)} €",,,,,,,,,,\n`;
+        
+        catItems.forEach(item => {
+          let name = item.name;
+          if (item.is_commission_percentage && item.commission_percentage) name += ` (${item.commission_percentage}% del fee)`;
+          
+          const subtotal = item.unit_price * (item.quantity || 1);
+          const ivaAmt = subtotal * (item.iva_percentage / 100);
+          const bruto = subtotal + ivaAmt;
+          const irpfAmt = subtotal * ((item.irpf_percentage ?? 15) / 100);
+          const netoAPagar = bruto - irpfAmt;
+          
+          const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
+            item.billing_status === 'pendiente' ? 'Pendiente' :
+            item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+            item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
+          
+          csv += [
+            `"${name}"`, `"${item.contacts?.name || '-'}"`, item.quantity || 1,
+            `"${item.unit_price.toFixed(2)} €"`, `"${fmt(subtotal)} €"`,
+            `"${fmt(ivaAmt)} €"`, `"${fmt(bruto)} €"`,
+            `"-${fmt(irpfAmt)} €"`, `"${fmt(netoAPagar)} €"`,
+            status, item.fecha_emision || '', `"${item.invoice_link || ''}"`
+          ].join(',') + "\n";
+        });
+      });
     
-    // Crear blob y descargar
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Totales
+    csv += "\n";
+    csv += `Total Neto,,,,"${fmt(totals.neto)} €"\n`;
+    csv += `Total IVA,,,,,"${fmt(totals.iva)} €"\n`;
+    csv += `Total IRPF,,,,,,"${fmt(totals.irpf)} €"\n`;
+    csv += `Total Líquido,,,,,,,"${fmt(totals.total)} €"\n\n`;
+    
+    // Resumen fiscal
+    csv += "RESUMEN FISCAL\n";
+    csv += "Concepto,Repercutido (Ingresos),Soportado (Gastos),Diferencia\n";
+    csv += `IVA,"${fmt(feeIva)} €","${fmt(totals.iva)} €","${fmt(feeIva - totals.iva)} €"\n`;
+    csv += `IRPF,"-${fmt(feeIrpf)} €","-${fmt(totals.irpf)} €","${fmt(totals.irpf - feeIrpf)} €"\n\n`;
+    
+    // Previsión de tesorería
+    csv += "PREVISIÓN DE TESORERÍA\n";
+    const aCobrar = feeLiquido;
+    const aPagar = totals.total;
+    csv += `A cobrar (líquido),"${fmt(aCobrar)} €"\n`;
+    csv += `A pagar (líquido),"${fmt(aPagar)} €"\n`;
+    csv += `Flujo de caja neto,"${fmt(aCobrar - aPagar)} €"\n\n`;
+    
+    // Notas
+    csv += "NOTAS\n";
+    csv += `"Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto - IRPF (importe final a transferir)"\n`;
+    csv += `"Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}"\n`;
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
