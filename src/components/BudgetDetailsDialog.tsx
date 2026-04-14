@@ -2711,11 +2711,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     // Ingresos
     csv += "INGRESOS\n";
     csv += "Concepto,Neto,IVA (21%),Bruto,IRPF (15%),Líquido\n";
-    const feeIva = budgetAmount * 0.21;
-    const feeBruto = budgetAmount + feeIva;
-    const feeIrpf = budgetAmount * 0.15;
-    const feeLiquido = feeBruto - feeIrpf;
-    csv += `${budget.type === 'concierto' ? 'Caché' : 'Capital'},"${fmt(budgetAmount)} €","${fmt(feeIva)} €","${fmt(feeBruto)} €","-${fmt(feeIrpf)} €","${fmt(feeLiquido)} €"\n\n`;
+    csv += `${budget.type === 'concierto' ? 'Caché' : 'Capital'},"${fmt(budgetAmount)} €","${fmt(feeIvaCsv)} €","${fmt(feeBrutoCsv)} €","-${fmt(feeIrpfCsv)} €","${fmt(feeLiquidoCsv)} €"\n\n`;
     
     // Gastos por categoría
     csv += "GASTOS POR CATEGORÍA\n";
