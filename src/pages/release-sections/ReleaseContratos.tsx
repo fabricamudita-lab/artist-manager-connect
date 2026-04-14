@@ -86,6 +86,8 @@ export default function ReleaseContratos() {
   const [previewDoc, setPreviewDoc] = useState<ReleaseDocument | null>(null);
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<ContractDraft | null>(null);
+  const { drafts, loading: draftsLoading, fetchDrafts, deleteDraft, updateStatus } = useContractDrafts({ releaseId: id });
 
   const fetchDocuments = async () => {
     if (!id) return;
