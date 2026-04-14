@@ -2254,7 +2254,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text(budgetData.name, margin, yPos);
-    yPos += 10;
+    yPos += 7;
+    
+    // Subtítulo indicando modo de visualización
+    const modeLabels: Record<string, string> = {
+      'neto': 'NETO (sin IVA ni IRPF)',
+      'con_iva': 'CON IVA (sin IRPF)',
+      'liquido': 'LÍQUIDO (Neto + IVA - IRPF)'
+    };
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100);
+    doc.text(`Importes mostrados en: ${modeLabels[displayMode] || modeLabels['neto']}`, margin, yPos);
+    doc.setTextColor(0);
+    yPos += 8;
     
     // Información del evento
     doc.setFontSize(10);
@@ -2300,7 +2313,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       ['Gastos Reales (Neto)', `${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €${expenseBudget > 0 ? ` (${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%)` : ''}`],
       ['IVA Repercutido', `+${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
       ['IRPF Retenido', `-${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
-      ['Total a Facturar*', `${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      ['Total Líquido (a transferir)*', `${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
       ['Beneficio', `${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
       ['Margen', `${margen.toFixed(1)}%`],
     ];
@@ -2335,7 +2348,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(100);
-    doc.text('*Total a facturar a fecha de emisión del documento', margin, yPos);
+    doc.text('*Total líquido (Neto + IVA - IRPF) a fecha de emisión del documento', margin, yPos);
     doc.setTextColor(0);
     yPos += 8;
     
@@ -2436,7 +2449,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     sortedCategoryNames.forEach(categoryName => {
       const categoryItems = itemsByCategory[categoryName];
-      const categoryTotal = categoryItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+      const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateDisplayTotal(item), 0);
       
       // Fila de categoría (header de grupo)
       tableData.push([
@@ -2461,7 +2474,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           // Agrupar: usar nombre del primero + "(xN)"
           const first = group[0];
           const totalQty = group.reduce((s, i) => s + i.quantity, 0);
-          const groupTotal = group.reduce((s, i) => s + calculateTotal(i), 0);
+          const groupTotal = group.reduce((s, i) => s + calculateDisplayTotal(i), 0);
           
           let conceptoName = `${first.name} (x${group.length})`;
           if (first.is_commission_percentage && first.commission_percentage) {
@@ -2494,7 +2507,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               `${item.unit_price.toFixed(2)} €`,
               `${item.iva_percentage}%`,
               `${item.irpf_percentage ?? 15}%`,
-              `${calculateTotal(item).toFixed(2)} €`,
+              `${calculateDisplayTotal(item).toFixed(2)} €`,
               item.billing_status === 'factura_recibida' ? 'Facturado' : 
                 item.billing_status === 'pendiente' ? 'Pendiente' : 
                 item.billing_status === 'factura_solicitada' ? 'Solicitada' :
@@ -2506,7 +2519,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
     
     autoTable(doc, {
-      head: [['Concepto', 'Contacto', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
+      head: [['Concepto', 'Contacto', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', displayMode === 'con_iva' ? 'Total + IVA' : displayMode === 'liquido' ? 'Total Líquido' : 'Total Neto', 'Estado']],
       body: tableData,
       startY: yPos,
       styles: { fontSize: 7 },
