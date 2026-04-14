@@ -800,7 +800,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                             .from('track_versions')
                             .select('file_url')
                             .eq('track_id', track.id)
-                            .order('version_number', { ascending: false })
+                            .order('created_at', { ascending: false })
                             .limit(1);
                           if (versions?.[0]?.file_url) {
                             const audio = new Audio(versions[0].file_url);
@@ -846,7 +846,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Duración</Label><Input value={formData.grabacion_duracion} onChange={e => update('grabacion_duracion', e.target.value)} placeholder="3:45" /></div>
+            <div><Label>Duración</Label><Input value={formData.grabacion_duracion} onChange={e => update('grabacion_duracion', e.target.value)} placeholder="MM:SS" /></div>
             <div><Label>Videoclip</Label>
               <Select value={formData.grabacion_videoclip} onValueChange={v => update('grabacion_videoclip', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -856,7 +856,24 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Fecha de fijación</Label><Input value={formData.grabacion_fecha_fijacion} onChange={e => update('grabacion_fecha_fijacion', e.target.value)} placeholder="dd/mm/aaaa" /></div>
+            <div><Label>Fecha de fijación</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !formData.grabacion_fecha_fijacion && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.grabacion_fecha_fijacion || "Seleccionar fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.grabacion_fecha_fijacion ? parse(formData.grabacion_fecha_fijacion, 'dd/MM/yyyy', new Date()) : undefined}
+                    onSelect={(date) => { if (date) update('grabacion_fecha_fijacion', format(date, 'dd/MM/yyyy')); }}
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <div><Label>Carácter de la intervención</Label>
               <Select value={formData.grabacion_caracter} onValueChange={v => update('grabacion_caracter', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>

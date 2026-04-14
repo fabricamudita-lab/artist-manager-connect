@@ -46,10 +46,20 @@ export function PersonSearchInput({ value, onChange, onSelect, placeholder }: Pe
         supabase.from('artists').select('id, name, legal_name, stage_name, nif, address, email').or(`name.ilike.%${query}%,legal_name.ilike.%${query}%,stage_name.ilike.%${query}%`).limit(5),
         supabase.from('contacts').select('id, name, legal_name, stage_name, address, email').or(`name.ilike.%${query}%,legal_name.ilike.%${query}%,stage_name.ilike.%${query}%`).limit(5),
       ]);
-      const items: PersonData[] = [
+      const allItems: PersonData[] = [
         ...(artistsRes.data || []).map(a => ({ ...a, source: 'artist' as const })),
         ...(contactsRes.data || []).map(c => ({ ...c, nif: null, source: 'contact' as const })),
       ];
+      // Deduplicate by (displayName + source), keep the one with most fields filled
+      const deduped = new Map<string, PersonData>();
+      for (const item of allItems) {
+        const key = `${(item.legal_name || item.name || '').toLowerCase().trim()}|${item.source}`;
+        const existing = deduped.get(key);
+        if (!existing) { deduped.set(key, item); continue; }
+        const score = (p: PersonData) => [p.nif, p.address, p.email, p.stage_name].filter(Boolean).length;
+        if (score(item) > score(existing)) deduped.set(key, item);
+      }
+      const items = Array.from(deduped.values());
       setResults(items);
       setOpen(items.length > 0);
     } catch { setResults([]); }
