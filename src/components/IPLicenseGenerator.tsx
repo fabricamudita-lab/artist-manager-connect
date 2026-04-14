@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -761,8 +762,33 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                     const track = tracks.find(t => t.title === v);
                     update('grabacion_titulo', v);
                     update('titulo_sencillo', v);
-                    if (track) {
+                    if (track && track.duration) {
                       update('grabacion_duracion', formatDuration(track.duration));
+                    } else if (track) {
+                      // Fallback: extract duration from audio file
+                      (async () => {
+                        try {
+                          const { data: versions } = await supabase
+                            .from('track_versions')
+                            .select('file_url')
+                            .eq('track_id', track.id)
+                            .order('version_number', { ascending: false })
+                            .limit(1);
+                          if (versions?.[0]?.file_url) {
+                            const audio = new Audio(versions[0].file_url);
+                            audio.addEventListener('loadedmetadata', async () => {
+                              const dur = Math.round(audio.duration);
+                              if (dur && isFinite(dur)) {
+                                update('grabacion_duracion', formatDuration(dur));
+                                await supabase.from('tracks').update({ duration: dur }).eq('id', track.id);
+                              }
+                            });
+                            audio.load();
+                          }
+                        } catch (e) {
+                          console.warn('Could not extract track duration:', e);
+                        }
+                      })();
                     }
                   }}
                 >
