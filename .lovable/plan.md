@@ -1,94 +1,92 @@
 
 
-## Plan: Replicar formato exacto del PDF en la vista pública del borrador
+## Plan: Sistema de Negociacion Colaborativa en Contratos
 
-### Problema
-La vista pública (`/contract-draft/:token`) muestra el contrato como una lista plana de campos sin formato legal. El PDF generado tiene un formato profesional con secciones REUNIDOS, MANIFIESTAN, CLAUSULAS numeradas, sub-items con letras, texto justificado, tipografía serif, etc.
+### Resumen
+Añadir seleccion de texto inline, comentarios anclados a cláusulas, propuestas de cambio con aprobacion bilateral, y aplicacion automatica de cambios aprobados en la vista publica del borrador.
 
-### Solución
-Reescribir completamente la funcion `renderIPLicenseContent` en `ContractDraftView.tsx` para que reproduzca fielmente la estructura del PDF, usando los datos de `form_data` y `clauses_data` (que contienen las clausulas con keys como `objeto_1_1`, `alcance_2_1`, `contraprestacion_3_1`, etc.).
+### Fase 1: Migracion de base de datos
 
-### Cambios en `src/pages/ContractDraftView.tsx`
+Añadir columnas a `contract_draft_comments`:
 
-**1. Contenedor del documento** — Cambiar las clases CSS del wrapper para simular una pagina A4:
-- Fondo blanco, sombra, padding amplio (80px laterales, 60px vertical)
-- Fuente: `Georgia, 'Times New Roman', serif` a 16px
-- Texto justificado, interlineado 1.7
-- Max-width ~210mm (aprox 794px) para simular A4
-
-**2. Reescribir `renderIPLicenseContent`** con la estructura exacta del PDF:
-
-```
-TITULO (centrado, mayusculas, negrita, 18px)
-Lugar y fecha (centrado)
-
-REUNIDOS
-  DE UNA PARTE, [productora datos]... la PRODUCTORA.
-  DE OTRA PARTE, [colaboradora datos]... la COLABORADORA.
-  Parrafo "ambas partes..."
-  Parrafo "Las Partes se reconocen..."
-
-MANIFIESTAN
-  I) [clausula manifiestan con datos interpolados]
-  II) ...
-  III) ...
-  IV) ...
-  Parrafo de transicion "Con la finalidad..."
-
-CLAUSULAS
-  1. OBJETO
-    clausula objeto_1_1
-      a. Titulo...
-      b. Calidad...
-      c. Duracion...
-      d. Videoclip...
-      e. Fecha fijacion...
-      f. Caracter...
-    clausula objeto_1_2
-
-  2. ALCANCE DE LA CESION
-    clausula alcance_2_1
-      a. PERIODO...
-      b. TERRITORIO...
-      c. MEDIOS...
-    clausula alcance_2_2
-    clausula alcance_2_3
-      a. Nombre artistico...
-      b. Caracter...
-    clausula alcance_2_4
-    clausula alcance_2_5
-
-  3. CONTRAPRESTACION
-    clausulas 3_1 a 3_5
-
-  4. NOTIFICACIONES
-    clausula 4_1
-      a. De la PRODUCTORA: email
-      b. De la COLABORADORA: email
-
-  5. CONFIDENCIALIDAD
-    clausulas 5_1, 5_2, 5_2b
-
-  6. LEY APLICABLE
-    clausulas 6_1, 6_2
-
-  Parrafo cierre "Y en señal de conformidad..."
-
-  FIRMAS (dos columnas)
+```sql
+ALTER TABLE contract_draft_comments
+  ADD COLUMN selected_text TEXT,
+  ADD COLUMN clause_number TEXT,
+  ADD COLUMN selection_start INTEGER,
+  ADD COLUMN selection_end INTEGER,
+  ADD COLUMN proposed_change TEXT,
+  ADD COLUMN comment_status TEXT NOT NULL DEFAULT 'open',
+  ADD COLUMN approved_by_producer BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN approved_by_collaborator BOOLEAN NOT NULL DEFAULT false;
 ```
 
-**3. Estilos CSS inline/Tailwind** para cada nivel:
-- Titulos de seccion: `text-center font-bold uppercase mt-8 mb-4`
-- Clausulas numeradas: `text-justify mb-3` con interlineado 1.7
-- Sub-items (a, b, c): `ml-10 mb-1` (sangria 40px)
-- Numeracion romana: `ml-0` con etiqueta en negrita
-- Firmas: grid 2 columnas, centrado, linea de 200px
+(Usamos `comment_status` en vez de `status` para evitar conflicto con `resolved`.)
 
-**4. Funcion helper `resolveClause`** — Copiar la logica de interpolacion de variables (`{{royalty_porcentaje}}`, `{{productora_nombre_artistico}}`, etc.) desde `IPLicenseGenerator.tsx` para que las clausulas muestren los valores reales en vez de placeholders.
+### Fase 2: Componentes nuevos y modificados
+
+**Nuevo: `TextSelectionHandler.tsx`**
+- Wrappea el contenido del contrato en un `div` con `onMouseUp`
+- Detecta `window.getSelection()`, extrae texto seleccionado
+- Determina `clause_number` buscando el ancestro con `data-clause` mas cercano
+- Calcula `selection_start`/`selection_end` relativo al contenido del contrato
+- Emite callback `onTextSelected({ selectedText, clauseNumber, selectionStart, selectionEnd })`
+
+**Nuevo: `InlineHighlights.tsx`**
+- Recibe comentarios con `selected_text` y posiciones
+- Renderiza resaltados amarillos (`#FFF9C4`) sobre el texto del contrato usando spans con `data-comment-id`
+- Tooltip al hover: "Ver comentarios"
+- Click: scroll al comentario en sidebar
+
+**Reescribir: `DraftCommentsSidebar.tsx`**
+- Añadir filtros: Todos / Abiertos / Pendientes / Resueltos
+- Ordenar por posicion en documento o fecha
+- Cada comentario con seleccion muestra:
+  - Texto seleccionado citado
+  - Badge de clausula (ej: "6.1")
+  - Thread de respuestas
+  - Boton "Proponer cambio" → abre campo de texto propuesto
+  - Cuando hay `proposed_change`:
+    - Texto original tachado
+    - Texto propuesto en verde
+    - Estado de aprobacion (checkmarks por parte)
+    - Botones "Aprobar" / "Rechazar"
+- Formulario inferior: se pre-rellena cuando viene de seleccion de texto
+
+**Modificar: `ContractDraftView.tsx`**
+- Envolver renderizado del contrato con `TextSelectionHandler`
+- Añadir atributos `data-clause="1.1"` etc. a cada parrafo de clausula
+- Banner de negociacion en la parte superior con contadores
+- Logica de `applyApprovedChange`: cuando ambas aprobaciones son true, actualizar `clauses_data` del draft reemplazando el texto original por el propuesto
+- Scroll bidireccional: click en sidebar → scroll a texto; click en highlight → scroll a comentario
+
+**Modificar: `useContractDrafts.ts`**
+- Extender `DraftComment` con los nuevos campos
+- Nuevas funciones en `usePublicDraft`:
+  - `addSelectionComment(data)`: inserta comentario con campos de seleccion
+  - `proposeChange(commentId, proposedText)`: actualiza `proposed_change` y `comment_status`
+  - `approveChange(commentId, role: 'producer'|'collaborator')`: marca aprobacion; si ambas → aplica cambio
+  - `rejectChange(commentId)`: resetea propuesta
+  - `applyChange(commentId)`: actualiza `clauses_data` del draft con el texto propuesto
+
+### Fase 3: UX y animaciones
+
+- Highlight pulsante temporal (2s) al navegar a un comentario
+- Banner superior con: "DOCUMENTO EN NEGOCIACION" + contadores de comentarios abiertos/pendientes
+- Bloqueo visual: si hay comentarios pendientes, no mostrar boton "Listo para firma"
+
+### Archivos a crear
+- `src/components/contract-drafts/TextSelectionHandler.tsx`
+- `src/components/contract-drafts/InlineHighlights.tsx`
 
 ### Archivos a modificar
-- `src/pages/ContractDraftView.tsx` — Reescritura completa de `renderIPLicenseContent` (~250 lineas) y ajuste del contenedor CSS
+- `src/pages/ContractDraftView.tsx` — data-clause attrs, banner, highlight integration, apply logic
+- `src/components/contract-drafts/DraftCommentsSidebar.tsx` — reescritura completa con filtros, propuestas, aprobaciones
+- `src/hooks/useContractDrafts.ts` — nuevos campos y funciones
 
-### Resultado
-La vista publica del borrador se vera identica al PDF: documento legal profesional con tipografia serif, texto justificado, secciones numeradas correctamente, sub-items con letras, y firmas al final.
+### Notas tecnicas
+- La seleccion de texto se basa en posiciones de caracteres dentro del contenedor del contrato, no en el DOM HTML
+- Los highlights se renderizan como spans wrapper alrededor del texto seleccionado usando `data-clause` como ancla
+- La aplicacion de cambios modifica `clauses_data` (JSONB) en la tabla `contract_drafts`, no HTML directo
+- Realtime ya esta habilitado para ambas tablas
 
