@@ -171,6 +171,77 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   const [contractDate, setContractDate] = useState(format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es }));
   const [savingContact, setSavingContact] = useState(false);
   const [sponsorPreset, setSponsorPreset] = useState<string>('estricta');
+  const { user } = useAuth();
+  const { saveDraft, updateDraft, updateStatus } = useContractDrafts();
+  const [currentDraft, setCurrentDraft] = useState<ContractDraft | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  // Load existing draft
+  useEffect(() => {
+    if (draftId && open) {
+      (async () => {
+        const { data } = await supabase
+          .from('contract_drafts')
+          .select('*')
+          .eq('id', draftId)
+          .single();
+        if (data) {
+          const d = data as unknown as ContractDraft;
+          setCurrentDraft(d);
+          if (d.form_data) {
+            const fd = d.form_data as any;
+            if (fd.agentData) setAgentData(fd.agentData);
+            if (fd.promoterData) setPromoterData(fd.promoterData);
+            if (fd.conditions) setConditions(fd.conditions);
+            if (fd.paymentTerms) setPaymentTerms(fd.paymentTerms);
+            if (fd.ticketPrices) setTicketPrices(fd.ticketPrices);
+          }
+          if (d.clauses_data) setLegalClauses(d.clauses_data as any);
+        }
+      })();
+    }
+  }, [draftId, open]);
+
+  const getFormDataSnapshot = () => ({
+    agentData, promoterData, conditions, paymentTerms, ticketPrices,
+  });
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const title = `Contrato - ${conditions.artista || 'Artista'} - ${conditions.evento || conditions.ciudad || 'Evento'}`;
+      if (currentDraft) {
+        await updateDraft(currentDraft.id, { formData: getFormDataSnapshot(), clausesData: legalClauses, title });
+      } else {
+        const draft = await saveDraft({
+          draftType: 'booking',
+          title,
+          formData: getFormDataSnapshot(),
+          clausesData: legalClauses,
+          bookingId: bookingId,
+          artistId: artistId,
+        });
+        if (draft) setCurrentDraft(draft);
+      }
+      onDraftSaved?.();
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!currentDraft) return;
+    if (currentDraft.status === 'borrador') {
+      await updateStatus(currentDraft.id, 'en_negociacion');
+      setCurrentDraft({ ...currentDraft, status: 'en_negociacion' });
+    }
+    const url = `${window.location.origin}/contract-draft/${currentDraft.share_token}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    sonnerToast.success('Link de negociación copiado');
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
   
   // Agent Data
   const [agentData, setAgentData] = useState<AgentData>(DEFAULT_AGENT_DATA);
