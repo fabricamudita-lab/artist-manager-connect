@@ -566,7 +566,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
               contract_type: 'booking',
               booking_document_id: data.id,
               booking_id: booking.id,
-              artist_id: booking.artist_id,
+              artist_id: null,
             } as any)
             .select()
             .single();
