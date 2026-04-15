@@ -1,48 +1,105 @@
 
 
-## Plan: Fix 3 Critical Negotiation System Bugs
+## Plan: Unificar el sistema de contratos en una arquitectura unica
 
-### Fix 1: Identity Modal Redirecting to Login
+### Problema actual
 
-**Problem**: The `Dialog` component from Radix/shadcn is likely being intercepted by auth middleware or doesn't render properly in public context.
+Hay **4 tablas de documentos separadas** con esquemas distintos, lo que genera duplicacion y divergencia:
 
-**Solution**: Replace the `<Dialog>` modal (lines 294-320 in `ContractDraftView.tsx`) with a pure HTML/CSS overlay using `fixed` positioning and a backdrop. Remove the `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle` imports since they won't be needed for the identity modal anymore.
+| Tabla | Uso | Tiene firmas | Tiene negociacion |
+|-------|-----|-------------|-------------------|
+| `booking_documents` | Contratos de booking | Si (via `contract_signers`) | No |
+| `release_documents` | Docs de lanzamiento | No | No |
+| `documents` | Drive general | No | No |
+| `contract_drafts` | Borradores negociables | No (tiene `signed_pdf_url`) | Si (via `contract_draft_comments`) |
 
-**File**: `src/pages/ContractDraftView.tsx`
+Ademas, `contract_signers.document_id` apunta SOLO a `booking_documents`. Esto impide reusar el sistema de firmas para contratos IP o cualquier otro tipo.
 
----
+### Arquitectura propuesta: Tabla unificada `contracts`
 
-### Fix 2: Both Approvals Triggering Simultaneously
+En vez de migrar todo de golpe (riesgo alto), la solucion es crear una **tabla puente `contracts`** que centralice el ciclo de vida de cualquier contrato, independientemente de su origen.
 
-**Problem**: The `approveChange` function code looks correct, but `userRole` may be `'viewer'` (default) when emails don't match. The sidebar already blocks viewers from seeing the button, but the real issue is likely that when the authenticated owner approves, `userRole` is `'viewer'` and the button shouldn't show — OR there's an edge case where `userRole` is computed incorrectly.
+```text
+┌─────────────────────────────────────────────────┐
+│                   contracts                      │
+│─────────────────────────────────────────────────│
+│ id (uuid, PK)                                    │
+│ contract_type: 'booking' | 'ip_license' | ...   │
+│ title: text                                      │
+│ status: draft | negotiating | ready | signed     │
+│ draft_id: uuid? → contract_drafts.id             │
+│ booking_document_id: uuid? → booking_documents   │
+│ release_document_id: uuid? → release_documents   │
+│ file_url: text?  (PDF final firmado)             │
+│ created_by: uuid → auth.users                    │
+│ booking_id: uuid? → booking_offers               │
+│ release_id: uuid? → releases                     │
+│ artist_id: uuid? → artists                       │
+│ created_at, updated_at                           │
+└─────────────────────────────────────────────────┘
+         │
+         │ 1:N
+         ▼
+┌─────────────────────────────────────────────────┐
+│              contract_signers                    │
+│─────────────────────────────────────────────────│
+│ document_id → contracts.id  (cambiar FK)         │
+│ ... (resto igual)                                │
+└─────────────────────────────────────────────────┘
+```
 
-**Solution**:
-- Add `console.log` debugging to `approveChange` in `useContractDrafts.ts` to trace which field is being updated
-- Add validation in the sidebar: if `userRole === 'viewer'`, show a toast error instead of calling approve
-- Add `console.log` in `ContractDraftView.tsx` to trace the computed `userRole` and email comparisons
-- Ensure the approve button in `DraftCommentsSidebar.tsx` only calls with valid roles
+### Fases de implementacion
 
-**Files**: `src/hooks/useContractDrafts.ts`, `src/pages/ContractDraftView.tsx`, `src/components/contract-drafts/DraftCommentsSidebar.tsx`
+**Fase 1: Redirigir `contract_signers` para aceptar cualquier contrato**
 
----
+1. Crear tabla `contracts` con los campos arriba descritos
+2. Cambiar la FK de `contract_signers.document_id` para que apunte a `contracts.id` en vez de solo `booking_documents.id`
+3. Migrar los booking_documents existentes que tienen firmantes a la nueva tabla `contracts`
+4. Actualizar `SignContractMulti.tsx` para buscar el documento en `contracts` en vez de hardcodear `booking_documents`
 
-### Fix 3: Selected Text Not Highlighted in Yellow
+**Fase 2: Integrar el ciclo completo para IP License**
 
-**Problem**: The `ClauseParagraph` component has correct highlighting logic, but text matching likely fails due to whitespace normalization differences between `window.getSelection().toString()` and the React-rendered text.
+1. Cuando un `contract_draft` de tipo `ip_license` pasa a estado `listo_para_firma`, crear automaticamente un registro en `contracts`
+2. Reusar `ContractSignersManager` y `ContractSignersSummary` tal cual (ya reciben `documentId` generico)
+3. Reusar `SignContractMulti` para la firma publica
+4. Añadir la seccion de firmantes en `ReleaseContratos.tsx` (mismos componentes que booking)
 
-**Solution**:
-- Add text normalization (trim + collapse whitespace) in `ClauseParagraph` when comparing `selected_text` against paragraph text
-- Add `console.log` debugging to trace: how many `selectionComments` exist, whether `text.includes(selected_text)` passes for each
-- The highlighting rendering code itself is already correct (yellow spans with click handlers)
+**Fase 3: Flujo unificado de estados**
 
-**File**: `src/pages/ContractDraftView.tsx`
+1. `draft` → Se negocia via `contract_drafts` + `contract_draft_comments`
+2. `ready_to_sign` → Se crean firmantes en `contract_signers`, se envian links
+3. `signed` → Todas las partes firmaron, se genera PDF final y se guarda en `contracts.file_url`
 
----
+### Componentes reutilizables (ya existen, no hay que duplicar)
 
-### Files Modified
-1. `src/pages/ContractDraftView.tsx` — Replace Dialog with pure HTML modal, add normalization to ClauseParagraph, add debug logs for userRole
-2. `src/hooks/useContractDrafts.ts` — Add console.log debugging to approveChange
-3. `src/components/contract-drafts/DraftCommentsSidebar.tsx` — Add viewer guard on approve button
+- `ContractSignersManager` — gestion de firmantes (anadir/eliminar)
+- `ContractSignersSummary` — badge "X/Y firmados"
+- `ContractSignaturesFooter` — bloque de firmas en el PDF
+- `SignContractMulti` — pagina publica de firma
+- `DraftCommentsSidebar` — negociacion colaborativa
+- `ContractDraftView` — vista publica del borrador
 
-### No DB changes needed
+### Cambios en base de datos (migracion SQL)
+
+1. **Crear tabla `contracts`** con campos genericos + FK opcionales a booking/release/draft
+2. **Alterar `contract_signers`** para cambiar la FK de `booking_documents` a `contracts`
+3. **Migrar datos existentes**: INSERT INTO contracts SELECT... FROM booking_documents WHERE tiene firmantes
+4. **RLS**: Policies para owner + public read via token
+
+### Archivos a modificar
+
+1. **Nueva migracion SQL** — crear tabla, alterar FK, migrar datos
+2. **`src/pages/SignContractMulti.tsx`** — buscar en `contracts` en vez de `booking_documents`
+3. **`src/components/booking-detail/BookingDocumentsTab.tsx`** — al generar contrato, crear tambien en `contracts`
+4. **`src/pages/release-sections/ReleaseContratos.tsx`** — anadir componentes de firmantes
+5. **`src/pages/ContractDraftView.tsx`** — boton "Enviar a firma" crea registro en `contracts`
+6. **`src/hooks/useContractDrafts.ts`** — funcion para transicionar draft → contracts
+7. **`src/integrations/supabase/types.ts`** — se regenerara automaticamente
+
+### Beneficios
+
+- Un solo sistema de firmas para todos los tipos de contrato
+- Los componentes de UI se reusan sin modificacion
+- Nuevos tipos de contrato (sync, distribucion, etc.) se integran anadiendo un valor al enum `contract_type`
+- El flujo completo (generacion → negociacion → firma → archivo) es identico para todos
 
