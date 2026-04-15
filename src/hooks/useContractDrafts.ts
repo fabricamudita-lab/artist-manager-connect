@@ -21,6 +21,8 @@ export interface ContractDraft {
   signed_pdf_url: string | null;
   firma_fecha: string | null;
   firma_lugar: string | null;
+  producer_email: string | null;
+  collaborator_email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +82,7 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
   const saveDraft = async (data: {
     draftType: DraftType; title: string; formData: any; clausesData?: any;
     releaseId?: string; bookingId?: string; artistId?: string;
+    producerEmail?: string; collaboratorEmail?: string;
   }): Promise<ContractDraft | null> => {
     if (!user) return null;
     const { data: result, error } = await supabase
@@ -89,6 +92,8 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
         clauses_data: data.clausesData || null, created_by: user.id,
         release_id: data.releaseId || null, booking_id: data.bookingId || null,
         artist_id: data.artistId || null,
+        producer_email: data.producerEmail || null,
+        collaborator_email: data.collaboratorEmail || null,
       })
       .select().single();
     if (error) { toast.error('Error al guardar borrador: ' + error.message); return null; }
