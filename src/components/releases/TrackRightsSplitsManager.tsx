@@ -416,11 +416,13 @@ function AddSplitForm({
       if (error) throw error;
       
       // Now save credit with contact_id - use the correct percentage column
+      const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
       onSave({ 
         name, 
         role, 
         [percentageKey]: percentage,
-        contact_id: newContact.id 
+        contact_id: newContact.id,
+        ...publishingFields,
       });
       toast.success('Contacto creado y vinculado');
     } catch (error) {
@@ -436,11 +438,13 @@ function AddSplitForm({
     if (!contact) return;
     
     // Use the correct percentage column based on type
+    const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
     onSave({ 
       name: contact.stage_name || contact.name, 
       role, 
       [percentageKey]: percentage,
-      contact_id: selectedContactId 
+      contact_id: selectedContactId,
+      ...publishingFields,
     });
   };
 
