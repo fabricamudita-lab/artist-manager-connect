@@ -373,7 +373,7 @@ function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   comments?: Array<{ selected_text: string | null; id: string }>;
   onCommentClick?: (commentId: string) => void;
 }) {
-  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ');
+  const normalize = (str: string) => str.trim().replace(/\s+/g, ' ').replace(/\u00A0/g, ' ');
   const normalizedText = normalize(text);
   
   console.log(`🎯 ClauseParagraph [${clauseKey}] - ${comments?.length || 0} comments passed`);
@@ -382,7 +382,9 @@ function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
     if (!c.selected_text) return false;
     const normalizedSelected = normalize(c.selected_text);
     const found = normalizedText.includes(normalizedSelected);
-    console.log(found ? '✅' : '❌', `[${clauseKey}] Buscando: "${normalizedSelected.substring(0, 50)}..." → ${found ? 'ENCONTRADO' : 'NO ENCONTRADO'}`);
+    console.log('🔍 Buscando:', normalizedSelected.substring(0, 50));
+    console.log('   En:', normalizedText.substring(0, 50));
+    console.log('   Resultado:', found ? '✅ ENCONTRADO' : '❌ NO ENCONTRADO');
     return found;
   }) || [];
 
