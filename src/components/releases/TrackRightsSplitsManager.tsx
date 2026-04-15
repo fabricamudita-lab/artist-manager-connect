@@ -567,6 +567,20 @@ function AddSplitForm({
                 <span className="text-sm font-medium">%</span>
               </div>
             </div>
+            {type === 'publishing' && (
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  value={proSociety}
+                  onChange={(e) => setProSociety(e.target.value)}
+                  placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+                />
+                <Input
+                  value={creditNotes}
+                  onChange={(e) => setCreditNotes(e.target.value)}
+                  placeholder="Notas — ej. Dominio Público"
+                />
+              </div>
+            )}
           </>
         )}
 
