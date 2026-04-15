@@ -109,6 +109,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
   const [contractContents, setContractContents] = useState<Record<string, string>>({});
   const [previewDoc, setPreviewDoc] = useState<BookingDocument | null>(null);
   const [expandedContracts, setExpandedContracts] = useState<Set<string>>(new Set());
+  const [contractIdMap, setContractIdMap] = useState<Record<string, string>>({});
 
   const toggleContract = (id: string) => {
     setExpandedContracts(prev => {
