@@ -147,6 +147,15 @@ export default function ContractDraftView() {
     }
   }, []);
 
+  const scrollToComment = useCallback((commentId: string) => {
+    setShowSidebar(true);
+    setActiveCommentId(commentId);
+    setTimeout(() => {
+      document.getElementById(`comment-${commentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setActiveCommentId(null), 3000);
+    }, 100);
+  }, []);
+
   const handleMarkReady = async () => {
     if (!draft) return;
     if (hasPendingNegotiations) {
