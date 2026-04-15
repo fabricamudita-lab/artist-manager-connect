@@ -168,13 +168,36 @@ export default function Documents() {
 
   const fetchDocuments = async () => {
     try {
+      // Fetch regular documents
       const { data: documentsData } = await supabase
         .from('documents')
         .select('*')
         .in('artist_id', selectedArtists)
         .order('created_at', { ascending: false });
 
-      setDocuments(documentsData || []);
+      // Fetch contract drafts
+      const { data: draftsData } = await supabase
+        .from('contract_drafts')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      const draftDocs: Document[] = (draftsData || []).map((d: any) => ({
+        id: d.id,
+        title: d.title || 'Borrador sin título',
+        category: 'contract',
+        file_type: 'draft',
+        file_size: JSON.stringify(d.form_data || {}).length,
+        file_url: '',
+        artist_id: d.artist_id || '',
+        uploaded_by: d.created_by,
+        created_at: d.created_at,
+        is_draft: true,
+        draft_status: d.status,
+        share_token: d.share_token,
+        draft_type: d.draft_type,
+      }));
+
+      setDocuments([...(documentsData || []), ...draftDocs]);
     } catch (error) {
       toast({
         title: "Error",
