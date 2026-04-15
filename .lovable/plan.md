@@ -1,42 +1,35 @@
 
 
-## Plan: Añadir campos "Sociedad (PRO)" y "Notas" a los créditos de autoría
+## Plan: Unificar acceso a Publishing/Master splits desde Créditos y Presupuestos
 
-### Situación actual
-- La tabla `track_credits` ya tiene columna `notes` pero **no** tiene `pro_society`
-- Ninguno de los dos campos se muestra en la UI de créditos (`TrackRightsSplitsManager`)
-- En el PDF del Split Sheet estos campos aparecen como placeholders `[________]`
+### Problema actual
+- **Créditos y Autoría** (`ReleaseCreditos`): Muestra créditos por categoría (composición, producción, performance, etc.) pero **no** muestra los splits de Publishing ni Master
+- **Presupuestos** (`ReleasePresupuestos`): Tiene 3 tabs: Presupuestos, Publishing, Master — aquí es donde viven los splits
+- **Audio** (dialog de track): Tiene ambos (créditos + splits) en tabs dentro del dialog
 
-### Cambios necesarios
+Esto obliga al usuario a ir a Presupuestos para gestionar autoría/derechos, cuando la sección natural sería Créditos.
 
-**1. Nueva columna en base de datos (migración)**
-- Añadir `pro_society TEXT` a `track_credits` (para almacenar SGAE, BMI, ASCAP, etc.)
+### Solución: Añadir tabs de Publishing y Master en Créditos
 
-**2. Actualizar tipos TypeScript**
-- Regenerar o actualizar manualmente `TrackCredit` en `useReleases.ts` para incluir `pro_society`
+Añadir dos tabs adicionales en `ReleaseCreditos` que muestren los mismos componentes `TrackRightsSplitsManager` que ya usa Presupuestos. Los datos son los mismos (tabla `track_credits`), solo se monta el mismo componente desde dos lugares.
 
-**3. UI en TrackRightsSplitsManager (solo para tipo `publishing`)**
-- En el formulario de edición (`SplitRow` editing mode, ~línea 236): añadir campo "Sociedad (PRO)" (input text) y "Notas" (input text) debajo del slider de porcentaje
-- En el formulario de creación (`AddSplitForm`): añadir los mismos dos campos
-- Solo mostrar estos campos cuando `type === 'publishing'` — no aplican a Master
-- Guardar `pro_society` y `notes` en las mutaciones `createCredit` y `updateCredit`
+```text
+ReleaseCreditos (actual):     [Créditos por track]
+ReleaseCreditos (propuesto):  [Créditos] [Publishing] [Master]
 
-**4. Mostrar en la vista de lectura (SplitRow no-editing mode)**
-- Mostrar badges o texto secundario con la sociedad y notas si están rellenados
+ReleasePresupuestos:          [Presupuestos] [Publishing] [Master]  ← sin cambios
+```
 
-**5. Actualizar PDF del Split Sheet**
-- En `exportSplitsPDF.ts`: reemplazar los placeholders `[________]` por los valores reales de `pro_society` y `notes`, manteniendo el placeholder si están vacíos
+Así el usuario puede:
+- Gestionar splits desde **Créditos** (contexto de autoría)
+- Gestionar splits desde **Presupuestos** (contexto financiero)
+- Los datos son los mismos, no hay duplicación
 
-**6. Acceso desde Presupuestos**
-- Verificar que la vista de créditos/splits desde presupuestos usa el mismo componente `TrackRightsSplitsManager` — si es así, los campos estarán disponibles automáticamente
-
-### Archivos a modificar
+### Cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| Migración SQL | `ALTER TABLE track_credits ADD COLUMN pro_society TEXT` |
-| `src/integrations/supabase/types.ts` | Regenerar con nueva columna |
-| `src/hooks/useReleases.ts` | Actualizar tipo `TrackCredit` si es manual |
-| `src/components/releases/TrackRightsSplitsManager.tsx` | Añadir inputs PRO y Notas en formularios (solo publishing) |
-| `src/utils/exportSplitsPDF.ts` | Usar valores reales en vez de placeholders |
+| `src/pages/release-sections/ReleaseCreditos.tsx` | Añadir `Tabs` con 3 tabs: "Créditos", "Publishing", "Master". El contenido actual va en "Créditos". Los otros dos renderizan `TrackRightsSplitsManager` por cada track, igual que en Presupuestos. Import del componente + hooks necesarios. |
+
+Un solo archivo. El componente `TrackRightsSplitsManager` ya existe y es reutilizable.
 
