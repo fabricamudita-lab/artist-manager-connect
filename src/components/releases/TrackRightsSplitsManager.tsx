@@ -1,5 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Check, X, FileText, Music, User, UserPlus, Search } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, Trash2, Pencil, Check, X, FileText, Music, User, UserPlus, Search, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
