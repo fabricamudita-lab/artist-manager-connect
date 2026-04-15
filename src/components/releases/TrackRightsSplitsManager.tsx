@@ -222,12 +222,15 @@ function SplitRow({
   const [editName, setEditName] = useState(credit.name);
   const [editRole, setEditRole] = useState(credit.role);
   const [editPercentage, setEditPercentage] = useState(credit[percentageKey] || 0);
+  const [editProSociety, setEditProSociety] = useState(credit.pro_society || '');
+  const [editNotes, setEditNotes] = useState(credit.notes || '');
 
   const handleSave = () => {
     onSave({
       name: editName,
       role: editRole,
       [percentageKey]: editPercentage,
+      ...(type === 'publishing' ? { pro_society: editProSociety || null, notes: editNotes || null } : {}),
     });
   };
 
