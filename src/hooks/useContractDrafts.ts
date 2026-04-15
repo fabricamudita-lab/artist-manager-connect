@@ -135,7 +135,52 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
     return true;
   };
 
-  return { drafts, loading, fetchDrafts, saveDraft, updateDraft, updateStatus, deleteDraft };
+  const createContractFromDraft = async (draftId: string): Promise<string | null> => {
+    if (!user) return null;
+    
+    // Fetch the draft
+    const { data: draft, error: fetchError } = await supabase
+      .from('contract_drafts')
+      .select('*')
+      .eq('id', draftId)
+      .single();
+    
+    if (fetchError || !draft) {
+      toast.error('Error al obtener el borrador');
+      return null;
+    }
+
+    const draftData = draft as unknown as ContractDraft;
+    
+    // Create unified contract record
+    const { data: contract, error } = await supabase
+      .from('contracts')
+      .insert({
+        title: draftData.title,
+        status: 'pendiente_firma',
+        created_by: user.id,
+        contract_type: draftData.draft_type === 'ip_license' ? 'ip_license' : 'booking',
+        draft_id: draftId,
+        booking_id: draftData.booking_id,
+        release_id: draftData.release_id,
+        artist_id: draftData.artist_id,
+      } as any)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error al crear contrato: ' + error.message);
+      return null;
+    }
+
+    // Update draft status to listo_para_firma
+    await updateStatus(draftId, 'listo_para_firma');
+    
+    toast.success('Contrato creado y listo para firma');
+    return (contract as any)?.id || null;
+  };
+
+  return { drafts, loading, fetchDrafts, saveDraft, updateDraft, updateStatus, deleteDraft, createContractFromDraft };
 }
 
 // ── Public draft view (by token, no auth required) ─────────────────────

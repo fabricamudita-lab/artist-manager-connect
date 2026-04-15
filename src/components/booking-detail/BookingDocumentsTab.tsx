@@ -109,6 +109,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
   const [contractContents, setContractContents] = useState<Record<string, string>>({});
   const [previewDoc, setPreviewDoc] = useState<BookingDocument | null>(null);
   const [expandedContracts, setExpandedContracts] = useState<Set<string>>(new Set());
+  const [contractIdMap, setContractIdMap] = useState<Record<string, string>>({});
 
   const toggleContract = (id: string) => {
     setExpandedContracts(prev => {
@@ -146,7 +147,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
     };
   }, [booking.id]);
 
-  const fetchDocuments = async () => {
+   const fetchDocuments = async () => {
     try {
       setLoading(true);
       const { data, error } = await (supabase as any)
@@ -166,6 +167,20 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
         }
       });
       setContractContents(contents);
+
+      // Fetch contract ID mapping (booking_document_id → contracts.id)
+      const docIds = (data || []).map((d: any) => d.id);
+      if (docIds.length > 0) {
+        const { data: contractLinks } = await supabase
+          .from('contracts')
+          .select('id, booking_document_id')
+          .in('booking_document_id', docIds);
+        const idMap: Record<string, string> = {};
+        (contractLinks || []).forEach((c: any) => {
+          if (c.booking_document_id) idMap[c.booking_document_id] = c.id;
+        });
+        setContractIdMap(idMap);
+      }
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -555,11 +570,29 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
         if (data) {
           setContractContents(prev => ({ ...prev, [data.id]: contract.content }));
           
-          // Auto-add "Agencia" signer (Ciudad Zen)
+          // Create unified contract record
+          const { data: contractRecord } = await supabase
+            .from('contracts')
+            .insert({
+              title: contract.title || data.file_name,
+              status: 'borrador',
+              file_url: data.file_url,
+              created_by: profile?.user_id,
+              contract_type: 'booking',
+              booking_document_id: data.id,
+              booking_id: booking.id,
+              artist_id: null,
+            } as any)
+            .select()
+            .single();
+
+          const contractId = contractRecord?.id || data.id;
+
+          // Auto-add "Agencia" signer (Ciudad Zen) — now points to contracts.id
           await supabase
             .from('contract_signers')
             .insert({
-              document_id: data.id,
+              document_id: contractId,
               name: 'Ciudad Zen Músicas S.L.',
               role: 'Agencia',
               email: null,
@@ -570,7 +603,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
             await supabase
               .from('contract_signers')
               .insert({
-                document_id: data.id,
+                document_id: contractId,
                 name: booking.promotor || booking.contacto || 'Promotor',
                 role: 'Promotor',
                 email: null,
@@ -853,7 +886,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
                         </CollapsibleTrigger>
 
                         <div className="flex items-center gap-2 ml-3 shrink-0">
-                          <ContractSignersSummary documentId={doc.id} />
+                          {contractIdMap[doc.id] && <ContractSignersSummary documentId={contractIdMap[doc.id]} />}
                           <Badge className={`${statusConfig.color} ${isSigned ? 'bg-green-600' : ''} text-white`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {statusConfig.label}
@@ -962,7 +995,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
                           {/* Multi-Signer Manager */}
                           <div className="pt-2 border-t">
                             <ContractSignersManager 
-                              documentId={doc.id} 
+                              documentId={contractIdMap[doc.id] || doc.id} 
                               onSignersChange={fetchDocuments}
                             />
                           </div>

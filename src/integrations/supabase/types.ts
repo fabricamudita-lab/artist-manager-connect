@@ -2996,57 +2996,113 @@ export type Database = {
             foreignKeyName: "contract_signers_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "booking_documents"
+            referencedRelation: "contracts"
             referencedColumns: ["id"]
           },
         ]
       }
       contracts: {
         Row: {
+          artist_id: string | null
+          booking_document_id: string | null
+          booking_id: string | null
+          contract_token: string | null
+          contract_type: string
           created_at: string
           created_by: string | null
           description: string | null
+          draft_id: string | null
           file_bucket: string
           file_path: string | null
           file_url: string | null
           id: string
-          project_id: string
+          project_id: string | null
+          release_id: string | null
           status: Database["public"]["Enums"]["contract_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          artist_id?: string | null
+          booking_document_id?: string | null
+          booking_id?: string | null
+          contract_token?: string | null
+          contract_type?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          draft_id?: string | null
           file_bucket?: string
           file_path?: string | null
           file_url?: string | null
           id?: string
-          project_id: string
+          project_id?: string | null
+          release_id?: string | null
           status?: Database["public"]["Enums"]["contract_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          artist_id?: string | null
+          booking_document_id?: string | null
+          booking_id?: string | null
+          contract_token?: string | null
+          contract_type?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          draft_id?: string | null
           file_bucket?: string
           file_path?: string | null
           file_url?: string | null
           id?: string
-          project_id?: string
+          project_id?: string | null
+          release_id?: string | null
           status?: Database["public"]["Enums"]["contract_status"]
           title?: string
           updated_at?: string
         }
         Relationships: [
           {
+            foreignKeyName: "contracts_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_booking_document_id_fkey"
+            columns: ["booking_document_id"]
+            isOneToOne: false
+            referencedRelation: "booking_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "contract_drafts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contracts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
             referencedColumns: ["id"]
           },
         ]
@@ -8143,7 +8199,12 @@ export type Database = {
         | "campana_promocional"
         | "videoclip"
         | "otros"
-      contract_status: "borrador" | "pendiente_firma" | "firmado"
+      contract_status:
+        | "borrador"
+        | "pendiente_firma"
+        | "firmado"
+        | "negociando"
+        | "listo_para_firma"
       due_anchor:
         | "SHOW_DAY"
         | "PRESS_LAUNCH"
@@ -8385,7 +8446,13 @@ export const Constants = {
         "videoclip",
         "otros",
       ],
-      contract_status: ["borrador", "pendiente_firma", "firmado"],
+      contract_status: [
+        "borrador",
+        "pendiente_firma",
+        "firmado",
+        "negociando",
+        "listo_para_firma",
+      ],
       due_anchor: [
         "SHOW_DAY",
         "PRESS_LAUNCH",
