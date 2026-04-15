@@ -76,6 +76,29 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
   const roles = type === 'publishing' ? PUBLISHING_ROLES : MASTER_ROLES;
   const Icon = type === 'publishing' ? FileText : Music;
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = splits.findIndex(s => s.id === active.id);
+    const newIndex = splits.findIndex(s => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(splits, oldIndex, newIndex);
+
+    // Persist new sort_order
+    const updates = reordered.map((item, index) => 
+      supabase.from('track_credits').update({ sort_order: index }).eq('id', item.id)
+    );
+    await Promise.all(updates);
+    queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+  }, [splits, queryClient, track.id]);
+
   // Create credit mutation
   const createCredit = useMutation({
     mutationFn: async (data: Omit<TrackCredit, 'id' | 'created_at'>) => {
