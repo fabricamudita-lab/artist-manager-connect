@@ -147,7 +147,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
     };
   }, [booking.id]);
 
-  const fetchDocuments = async () => {
+   const fetchDocuments = async () => {
     try {
       setLoading(true);
       const { data, error } = await (supabase as any)
@@ -167,6 +167,20 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
         }
       });
       setContractContents(contents);
+
+      // Fetch contract ID mapping (booking_document_id → contracts.id)
+      const docIds = (data || []).map((d: any) => d.id);
+      if (docIds.length > 0) {
+        const { data: contractLinks } = await supabase
+          .from('contracts')
+          .select('id, booking_document_id')
+          .in('booking_document_id', docIds);
+        const idMap: Record<string, string> = {};
+        (contractLinks || []).forEach((c: any) => {
+          if (c.booking_document_id) idMap[c.booking_document_id] = c.id;
+        });
+        setContractIdMap(idMap);
+      }
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
