@@ -372,6 +372,8 @@ function AddSplitForm({
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState(roles[0]?.value || '');
   const [percentage, setPercentage] = useState(50);
+  const [proSociety, setProSociety] = useState('');
+  const [creditNotes, setCreditNotes] = useState('');
 
   useEffect(() => {
     if (mode === 'select') {
