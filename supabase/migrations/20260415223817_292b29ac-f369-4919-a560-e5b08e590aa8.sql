@@ -1,0 +1,1 @@
+ALTER TABLE public.track_credits ADD COLUMN pro_society TEXT;

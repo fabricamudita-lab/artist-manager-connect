@@ -222,12 +222,15 @@ function SplitRow({
   const [editName, setEditName] = useState(credit.name);
   const [editRole, setEditRole] = useState(credit.role);
   const [editPercentage, setEditPercentage] = useState(credit[percentageKey] || 0);
+  const [editProSociety, setEditProSociety] = useState(credit.pro_society || '');
+  const [editNotes, setEditNotes] = useState(credit.notes || '');
 
   const handleSave = () => {
     onSave({
       name: editName,
       role: editRole,
       [percentageKey]: editPercentage,
+      ...(type === 'publishing' ? { pro_society: editProSociety || null, notes: editNotes || null } : {}),
     });
   };
 
@@ -265,6 +268,20 @@ function SplitRow({
             <span className="text-sm font-medium">%</span>
           </div>
         </div>
+        {type === 'publishing' && (
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              value={editProSociety}
+              onChange={(e) => setEditProSociety(e.target.value)}
+              placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+            />
+            <Input
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Notas — ej. Dominio Público"
+            />
+          </div>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onCancelEdit}>
             <X className="h-4 w-4" />
@@ -294,7 +311,13 @@ function SplitRow({
                 Vinculado
               </Badge>
             )}
+            {type === 'publishing' && credit.pro_society && (
+              <Badge variant="secondary" className="text-xs">{credit.pro_society}</Badge>
+            )}
           </div>
+          {type === 'publishing' && credit.notes && (
+            <p className="text-xs text-muted-foreground italic mt-0.5">{credit.notes}</p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -349,6 +372,8 @@ function AddSplitForm({
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState(roles[0]?.value || '');
   const [percentage, setPercentage] = useState(50);
+  const [proSociety, setProSociety] = useState('');
+  const [creditNotes, setCreditNotes] = useState('');
 
   useEffect(() => {
     if (mode === 'select') {
@@ -391,11 +416,13 @@ function AddSplitForm({
       if (error) throw error;
       
       // Now save credit with contact_id - use the correct percentage column
+      const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
       onSave({ 
         name, 
         role, 
         [percentageKey]: percentage,
-        contact_id: newContact.id 
+        contact_id: newContact.id,
+        ...publishingFields,
       });
       toast.success('Contacto creado y vinculado');
     } catch (error) {
@@ -411,11 +438,13 @@ function AddSplitForm({
     if (!contact) return;
     
     // Use the correct percentage column based on type
+    const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
     onSave({ 
       name: contact.stage_name || contact.name, 
       role, 
       [percentageKey]: percentage,
-      contact_id: selectedContactId 
+      contact_id: selectedContactId,
+      ...publishingFields,
     });
   };
 
@@ -538,6 +567,20 @@ function AddSplitForm({
                 <span className="text-sm font-medium">%</span>
               </div>
             </div>
+            {type === 'publishing' && (
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  value={proSociety}
+                  onChange={(e) => setProSociety(e.target.value)}
+                  placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+                />
+                <Input
+                  value={creditNotes}
+                  onChange={(e) => setCreditNotes(e.target.value)}
+                  placeholder="Notas — ej. Dominio Público"
+                />
+              </div>
+            )}
           </>
         )}
 
@@ -607,6 +650,20 @@ function AddSplitForm({
           <span className="text-sm font-medium">%</span>
         </div>
       </div>
+      {type === 'publishing' && (
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            value={proSociety}
+            onChange={(e) => setProSociety(e.target.value)}
+            placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+          />
+          <Input
+            value={creditNotes}
+            onChange={(e) => setCreditNotes(e.target.value)}
+            placeholder="Notas — ej. Dominio Público"
+          />
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
