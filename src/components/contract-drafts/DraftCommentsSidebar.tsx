@@ -43,6 +43,7 @@ export function DraftCommentsSidebar({
   onApproveChange,
   onRejectChange,
   isOwner,
+  userRole = 'viewer',
   defaultAuthorName = '',
   pendingSelection,
   onClearSelection,
