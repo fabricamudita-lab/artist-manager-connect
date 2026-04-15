@@ -75,12 +75,17 @@ function groupByPerson(credits: SplitsCredit[], type: 'publishing' | 'master'): 
   return Array.from(map.values()).sort((a, b) => b.percentage - a.percentage);
 }
 
+/**
+ * Draw a split table. Publishing gets 5 columns (with PRO and Notas placeholders),
+ * Master gets 3 columns.
+ */
 function drawSplitTable(
   doc: jsPDF,
   y: number,
   title: string,
   rows: GroupedSplit[],
   pctHeader: string,
+  isPublishing: boolean,
 ): number {
   if (rows.length === 0) return y;
 
@@ -92,42 +97,97 @@ function drawSplitTable(
   y += 6;
 
   const colName = MARGIN_LEFT + 8;
-  const colRoles = MARGIN_LEFT + 70;
-  const colPct = PAGE_WIDTH - MARGIN_RIGHT - 15;
 
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100);
-  doc.text('Nombre', colName, y);
-  doc.text('Roles', colRoles, y);
-  doc.text(pctHeader, colPct, y, { align: 'right' });
-  y += 1;
-  doc.setDrawColor(200);
-  doc.setLineWidth(0.2);
-  doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
-  y += 4;
-  doc.setTextColor(0);
+  if (isPublishing) {
+    // 5 columns: Nombre | Rol | % Recaudable | Sociedad (PRO) | Notas
+    const colRoles = MARGIN_LEFT + 50;
+    const colPct = MARGIN_LEFT + 100;
+    const colPro = MARGIN_LEFT + 125;
+    const colNotas = PAGE_WIDTH - MARGIN_RIGHT - 5;
 
-  let total = 0;
-  for (const row of rows) {
-    y = addPageIfNeeded(doc, y, 7);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(row.name, colName, y);
-    doc.text(row.roles.join(' / '), colRoles, y);
-    doc.text(`${row.percentage}%`, colPct, y, { align: 'right' });
-    total += row.percentage;
-    y += LINE_HEIGHT + 0.5;
+    // Header
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100);
+    doc.text('Nombre', colName, y);
+    doc.text('Rol', colRoles, y);
+    doc.text(pctHeader, colPct, y);
+    doc.text('Sociedad (PRO)', colPro, y);
+    doc.text('Notas', colNotas, y, { align: 'right' });
+    y += 1;
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.2);
+    doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
+    y += 4;
+    doc.setTextColor(0);
+
+    let total = 0;
+    for (const row of rows) {
+      y = addPageIfNeeded(doc, y, 7);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(row.name, colName, y);
+      // Truncate roles to fit column
+      const rolesText = row.roles.join(' / ');
+      const truncatedRoles = doc.splitTextToSize(rolesText, 48)[0] || rolesText;
+      doc.text(truncatedRoles, colRoles, y);
+      doc.text(`${row.percentage}%`, colPct, y);
+      doc.setTextColor(130);
+      doc.text('[________]', colPro, y);
+      doc.text('[________]', colNotas, y, { align: 'right' });
+      doc.setTextColor(0);
+      total += row.percentage;
+      y += LINE_HEIGHT + 0.5;
+    }
+
+    // Total row
+    y += 1;
+    doc.setDrawColor(200);
+    doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
+    y += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total', colName, y);
+    doc.text(`${Math.round(total * 100) / 100}%`, colPct, y);
+    y += 7;
+  } else {
+    // 3 columns: Nombre | Roles | %
+    const colRoles = MARGIN_LEFT + 70;
+    const colPct = PAGE_WIDTH - MARGIN_RIGHT - 15;
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100);
+    doc.text('Nombre', colName, y);
+    doc.text('Roles', colRoles, y);
+    doc.text(pctHeader, colPct, y, { align: 'right' });
+    y += 1;
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.2);
+    doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
+    y += 4;
+    doc.setTextColor(0);
+
+    let total = 0;
+    for (const row of rows) {
+      y = addPageIfNeeded(doc, y, 7);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(row.name, colName, y);
+      doc.text(row.roles.join(' / '), colRoles, y);
+      doc.text(`${row.percentage}%`, colPct, y, { align: 'right' });
+      total += row.percentage;
+      y += LINE_HEIGHT + 0.5;
+    }
+
+    y += 1;
+    doc.setDrawColor(200);
+    doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
+    y += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total', colName, y);
+    doc.text(`${Math.round(total * 100) / 100}%`, colPct, y, { align: 'right' });
+    y += 7;
   }
-
-  y += 1;
-  doc.setDrawColor(200);
-  doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
-  y += 4;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Total', colName, y);
-  doc.text(`${Math.round(total * 100) / 100}%`, colPct, y, { align: 'right' });
-  y += 7;
 
   return y;
 }
@@ -258,8 +318,8 @@ export function exportSplitsPDF(
       doc.setTextColor(0);
       y += 8;
     } else {
-      y = drawSplitTable(doc, y, 'AUTORÍA / PUBLISHING (Derechos de Obra)', publishingRows, '% Recaudable');
-      y = drawSplitTable(doc, y, 'MASTER / ROYALTIES (Derechos de Fonograma)', masterRows, '%');
+      y = drawSplitTable(doc, y, 'AUTORÍA / PUBLISHING (Derechos de Obra)', publishingRows, '% Recaudable', true);
+      y = drawSplitTable(doc, y, 'MASTER / ROYALTIES (Derechos de Fonograma)', masterRows, '%', false);
     }
 
     // separator between tracks
