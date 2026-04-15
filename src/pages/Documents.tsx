@@ -52,6 +52,10 @@ interface Document {
   artist_id: string;
   uploaded_by: string;
   created_at: string;
+  is_draft?: boolean;
+  draft_status?: string;
+  share_token?: string;
+  draft_type?: string;
 }
 
 interface Artist {
