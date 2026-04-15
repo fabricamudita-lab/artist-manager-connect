@@ -122,6 +122,7 @@ export interface TrackCredit {
   percentage: number | null; // Deprecated - use publishing_percentage or master_percentage
   publishing_percentage: number | null; // % de autoría (sobre 100%)
   master_percentage: number | null;     // % de royalties master (sobre 100%)
+  pro_society: string | null;           // Sociedad de gestión (SGAE, BMI, ASCAP, etc.)
   notes: string | null;
   sort_order: number;
   created_at: string;

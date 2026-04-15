@@ -26,6 +26,8 @@ interface SplitsCredit {
   role: string;
   publishing_percentage: number | null;
   master_percentage: number | null;
+  pro_society?: string | null;
+  notes?: string | null;
 }
 
 const PAGE_WIDTH = 210;
