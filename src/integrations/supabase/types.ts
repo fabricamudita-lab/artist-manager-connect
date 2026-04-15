@@ -7510,6 +7510,7 @@ export type Database = {
           name: string
           notes: string | null
           percentage: number | null
+          pro_society: string | null
           publishing_percentage: number | null
           role: string
           sort_order: number | null
@@ -7524,6 +7525,7 @@ export type Database = {
           name: string
           notes?: string | null
           percentage?: number | null
+          pro_society?: string | null
           publishing_percentage?: number | null
           role: string
           sort_order?: number | null
@@ -7538,6 +7540,7 @@ export type Database = {
           name?: string
           notes?: string | null
           percentage?: number | null
+          pro_society?: string | null
           publishing_percentage?: number | null
           role?: string
           sort_order?: number | null
