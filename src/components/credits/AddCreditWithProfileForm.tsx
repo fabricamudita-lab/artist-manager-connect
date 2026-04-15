@@ -17,7 +17,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
-import type { CreditCategory } from '@/lib/creditRoles';
+import { type CreditCategory, getRoleLabel } from '@/lib/creditRoles';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ExistingCredit {
