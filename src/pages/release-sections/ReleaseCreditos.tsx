@@ -3,7 +3,7 @@ import { CreditedArtistRoles } from '@/components/releases/CreditedArtistRoles';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -43,14 +43,9 @@ import {
 import { toast } from 'sonner';
 import { undoableDelete } from '@/utils/undoableDelete';
 import { 
-  ALL_CREDIT_ROLES, 
   getRoleLabel, 
-  getRoleCategory,
   getRoleCategory5,
   getCategoryMeta,
-  sortByRoleOrder,
-  isPublishingRole,
-  isMasterRole,
   CREDIT_CATEGORIES,
   type CreditCategory,
 } from '@/lib/creditRoles';
@@ -67,6 +62,25 @@ import { exportLabelCopyPDF } from '@/utils/exportLabelCopyPDF';
 const sortCreditsBySortOrder = (credits: TrackCredit[]) => {
   return [...credits].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 };
+
+interface GroupedCredit {
+  key: string;
+  name: string;
+  contact_id: string | null;
+  credits: TrackCredit[];
+}
+
+function groupCreditsByPerson(credits: TrackCredit[]): GroupedCredit[] {
+  const map = new Map<string, GroupedCredit>();
+  for (const credit of credits) {
+    const key = credit.contact_id || credit.name.toLowerCase().trim();
+    if (!map.has(key)) {
+      map.set(key, { key, name: credit.name, contact_id: credit.contact_id || null, credits: [] });
+    }
+    map.get(key)!.credits.push(credit);
+  }
+  return Array.from(map.values());
+}
 
 export default function ReleaseCreditos() {
   const { id } = useParams<{ id: string }>();
@@ -85,7 +99,6 @@ export default function ReleaseCreditos() {
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
-  // Fetch all credits for all tracks in this release (for distribution roles)
   const { data: allReleaseCredits = [] } = useQuery({
     queryKey: ['release-all-credits', id, tracks?.map(t => t.id)],
     queryFn: async () => {
@@ -158,7 +171,6 @@ export default function ReleaseCreditos() {
         .in('track_id', trackIds);
       if (error) throw error;
 
-      // Build structured JSON for label copy
       const mainArtists = (release.release_artists || []).filter(ra => ra.role !== 'featuring');
       const featArtists = (release.release_artists || []).filter(ra => ra.role === 'featuring');
       const artistDisplay = [
@@ -225,7 +237,6 @@ export default function ReleaseCreditos() {
   useEffect(() => {
     if (alertId === 'credits-missing' && !loadingTracks) {
       setShowCreditsBanner(true);
-      // Highlight tracks without credits after render
       setTimeout(() => {
         const items = document.querySelectorAll<HTMLElement>('[data-no-credits="true"]');
         if (items.length > 0) {
@@ -241,7 +252,6 @@ export default function ReleaseCreditos() {
     }
   }, [alertId, loadingTracks]);
 
-  // Create track mutation
   const createTrack = useMutation({
     mutationFn: async (data: { title: string; track_number: number; lyrics?: string; isrc?: string }) => {
       const { data: track, error } = await supabase
@@ -262,7 +272,6 @@ export default function ReleaseCreditos() {
     },
   });
 
-  // Update track mutation
   const updateTrack = useMutation({
     mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => {
       const { id: trackId, ...updates } = data;
@@ -280,7 +289,6 @@ export default function ReleaseCreditos() {
     },
   });
 
-  // Delete track mutation
   const deleteTrack = useMutation({
     mutationFn: async (trackId: string) => {
       await undoableDelete({
@@ -315,7 +323,6 @@ export default function ReleaseCreditos() {
     const newIndex = tracks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove([...tracks], oldIndex, newIndex);
-    // Update all track_numbers
     try {
       await Promise.all(
         reordered.map((t, i) =>
@@ -381,7 +388,6 @@ export default function ReleaseCreditos() {
           </DialogContent>
         </Dialog>
       </div>
-
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -455,7 +461,6 @@ export default function ReleaseCreditos() {
         </CardContent>
       </Card>
 
-      {/* Edit Track Dialog */}
       <Dialog open={isEditTrackOpen} onOpenChange={setIsEditTrackOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -480,7 +485,6 @@ export default function ReleaseCreditos() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTrackId} onOpenChange={() => setDeleteTrackId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -504,7 +508,6 @@ export default function ReleaseCreditos() {
   );
 }
 
-// Sortable Track Row for reorder mode
 function SortableTrackRow({ track }: { track: Track }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id });
   const style = {
@@ -522,7 +525,6 @@ function SortableTrackRow({ track }: { track: Track }) {
   );
 }
 
-// Track Credits Item Component
 function TrackCreditsItem({
   track,
   releaseArtistId,
@@ -547,7 +549,6 @@ function TrackCreditsItem({
     mutationFn: async (data: { name: string; role: string; contact_id?: string; publishing_percentage?: number; master_percentage?: number }) => {
       let contactId = data.contact_id;
 
-      // Auto-create or reuse contact if no existing profile was selected
       if (!contactId && data.name) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -563,7 +564,6 @@ function TrackCreditsItem({
           const roleLabel = getRoleLabel(data.role);
           const teamCategory = categoryMap[cat5 || ''] || 'artistico';
 
-          // Check if a contact with the same name already exists for this user
           const { data: existingContact } = await supabase
             .from('contacts')
             .select('id, role, field_config')
@@ -573,13 +573,11 @@ function TrackCreditsItem({
             .maybeSingle();
 
           if (existingContact) {
-            // Reuse existing contact — merge categories and roles
             contactId = existingContact.id;
             const currentConfig = (existingContact.field_config as Record<string, any>) || {};
             const currentCats: string[] = Array.isArray(currentConfig.team_categories) ? currentConfig.team_categories : [];
             const mergedCats = currentCats.includes(teamCategory) ? currentCats : [...currentCats, teamCategory];
 
-            // Merge roles
             const existingRoles = (existingContact.role || '').split(',').map((r: string) => r.trim()).filter(Boolean);
             const mergedRoles = existingRoles.includes(roleLabel) ? existingRoles : [...existingRoles, roleLabel];
 
@@ -595,7 +593,6 @@ function TrackCreditsItem({
               })
               .eq('id', existingContact.id);
           } else {
-            // Create new contact
             const { data: newContact, error: contactError } = await supabase
               .from('contacts')
               .insert({
@@ -620,7 +617,6 @@ function TrackCreditsItem({
         }
       }
 
-      // Always link contact to artist (idempotent upsert) + ensure is_team_member
       if (contactId && releaseArtistId) {
         await supabase
           .from('contact_artist_assignments')
@@ -632,9 +628,7 @@ function TrackCreditsItem({
             if (error) console.error('Error linking contact to artist:', error);
           });
 
-        // Ensure contact is marked as team member with correct category
         if (data.contact_id) {
-          // Existing contact — merge team categories
           const cat5 = getRoleCategory5(data.role);
           const categoryMap: Record<string, string> = {
             compositor: 'compositor',
@@ -713,10 +707,8 @@ function TrackCreditsItem({
   });
 
   const handleUpdateCredit = async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> }) => {
-    // Check if name changed
     const credit = credits.find(c => c.id === creditId);
     if (data.name && credit && data.name !== credit.name && releaseId) {
-      // Search for other credits with the same old name in this release
       const trackIds = allTracks.map(t => t.id);
       if (trackIds.length > 0) {
         const { data: matchingCredits } = await supabase
@@ -746,12 +738,10 @@ function TrackCreditsItem({
     const { creditId, data, matchingIds } = pendingBulkUpdate;
 
     try {
-      // Update the current credit
       const { error } = await supabase.from('track_credits').update(data).eq('id', creditId);
       if (error) throw error;
 
       if (updateAll) {
-        // Update all matching credits' name
         const { error: bulkError } = await supabase
           .from('track_credits')
           .update({ name: data.name })
@@ -762,7 +752,6 @@ function TrackCreditsItem({
         toast.success('Crédito actualizado');
       }
 
-      // Invalidate all track credits in this release
       allTracks.forEach(t => {
         queryClient.invalidateQueries({ queryKey: ['track-credits', t.id] });
       });
@@ -868,7 +857,6 @@ function TrackCreditsItem({
         </AccordionTrigger>
       <AccordionContent>
         <div className="pl-9 space-y-4">
-          {/* Track Actions */}
           <div className="flex gap-2">
             <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8">
               <Pencil className="w-4 h-4" />
@@ -878,12 +866,10 @@ function TrackCreditsItem({
             </Button>
           </div>
 
-          {/* Lyrics Preview */}
           {track.lyrics && (
             <LyricsPreview lyrics={track.lyrics} trackTitle={track.title} />
           )}
 
-          {/* Credits Section */}
           <CreditsSection
             credits={credits}
             isLoading={isLoading}
@@ -901,7 +887,6 @@ function TrackCreditsItem({
       </AccordionContent>
     </AccordionItem>
 
-      {/* Bulk name update dialog */}
       <AlertDialog open={!!pendingBulkUpdate} onOpenChange={(open) => { if (!open) setPendingBulkUpdate(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -924,7 +909,6 @@ function TrackCreditsItem({
   );
 }
 
-// Credits Section Component — grouped by category (distributor-style)
 function CreditsSection({
   credits,
   isLoading,
@@ -952,39 +936,52 @@ function CreditsSection({
 }) {
   const [copiedCredits, setCopiedCredits] = useState(false);
   const [addCategoryFilter, setAddCategoryFilter] = useState<CreditCategory | undefined>(undefined);
+  const [editingPersonKey, setEditingPersonKey] = useState<string | null>(null);
+  const [deletingPersonKey, setDeletingPersonKey] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
   const sortedCredits = useMemo(() => sortCreditsBySortOrder(credits), [credits]);
 
-  // Group credits by 5-category
   const creditsByCategory = useMemo(() => {
     const grouped: Record<string, TrackCredit[]> = {};
     CREDIT_CATEGORIES.forEach(cat => { grouped[cat.id] = []; });
     sortedCredits.forEach(credit => {
       const cat = getRoleCategory5(credit.role);
-      if (cat) {
-        grouped[cat].push(credit);
-      } else {
-        grouped['contribuidor'].push(credit);
-      }
+      grouped[cat || 'contribuidor'].push(credit);
     });
     return grouped;
   }, [sortedCredits]);
 
-  // Calculate total percentages for publishing and master separately
+  const groupedByCategory = useMemo(() => {
+    const result: Record<string, GroupedCredit[]> = {};
+    for (const cat of CREDIT_CATEGORIES) {
+      result[cat.id] = groupCreditsByPerson(creditsByCategory[cat.id] || []);
+    }
+    return result;
+  }, [creditsByCategory]);
+
   const publishingTotal = credits.reduce((sum, c) => sum + (c.publishing_percentage ?? 0), 0);
   const masterTotal = credits.reduce((sum, c) => sum + (c.master_percentage ?? 0), 0);
   const hasPublishingCredits = credits.some(c => c.publishing_percentage != null && c.publishing_percentage > 0);
   const hasMasterCredits = credits.some(c => c.master_percentage != null && c.master_percentage > 0);
   const hasPublishingError = hasPublishingCredits && publishingTotal !== 100;
   const hasMasterError = hasMasterCredits && masterTotal !== 100;
+
+  const personCategoryMap = useMemo(() => {
+    const map = new Map<string, Set<CreditCategory>>();
+    for (const credit of sortedCredits) {
+      const key = credit.contact_id || credit.name.toLowerCase().trim();
+      if (!map.has(key)) map.set(key, new Set());
+      const cat = getRoleCategory5(credit.role);
+      if (cat) map.get(key)!.add(cat);
+    }
+    return map;
+  }, [sortedCredits]);
 
   const handleCopyCredits = () => {
     if (credits.length === 0) return;
@@ -1016,10 +1013,7 @@ function CreditsSection({
     queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
     try {
       for (const credit of reorderedCredits) {
-        const { error } = await supabase
-          .from('track_credits')
-          .update({ sort_order: credit.sort_order })
-          .eq('id', credit.id);
+        const { error } = await supabase.from('track_credits').update({ sort_order: credit.sort_order }).eq('id', credit.id);
         if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
@@ -1035,9 +1029,11 @@ function CreditsSection({
     setIsAddCreditOpen(true);
   };
 
-  const handleOpenAddGlobal = () => {
-    setAddCategoryFilter(undefined);
-    setIsAddCreditOpen(true);
+  const handleDeletePerson = (group: GroupedCredit) => {
+    for (const credit of group.credits) {
+      deleteCredit.mutate(credit.id);
+    }
+    setDeletingPersonKey(null);
   };
 
   const emptyLabels: Record<CreditCategory, string> = {
@@ -1054,28 +1050,17 @@ function CreditsSection({
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">Créditos y Autoría</Label>
           {credits.length > 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={handleCopyCredits}
-              title="Copiar créditos"
-            >
-              {copiedCredits ? (
-                <Check className="h-3.5 w-3.5 text-green-600" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyCredits} title="Copiar créditos">
+              {copiedCredits ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleOpenAddGlobal}>
+        <Button variant="outline" size="sm" onClick={() => { setAddCategoryFilter(undefined); setIsAddCreditOpen(true); }}>
           <UserPlus className="w-3 h-3 mr-1" />
           Añadir Crédito
         </Button>
       </div>
 
-      {/* Percentage validation warnings */}
       {hasPublishingError && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -1092,52 +1077,40 @@ function CreditsSection({
       {isLoading ? (
         <Skeleton className="h-16 w-full" />
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sortedCredits.map(c => c.id)}
-            strategy={verticalListSortingStrategy}
-          >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedCredits.map(c => c.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-3">
               {CREDIT_CATEGORIES.map((cat) => {
-                const catCredits = creditsByCategory[cat.id] || [];
+                const catGroups = groupedByCategory[cat.id] || [];
                 return (
                   <div key={cat.id} className={`rounded-lg border ${cat.borderClass} overflow-hidden`}>
-                    {/* Category header */}
                     <div className={`flex items-center justify-between px-3 py-1.5 ${cat.bgClass}`}>
                       <span className={`text-xs font-semibold ${cat.textClass}`}>{cat.label}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`}
-                        onClick={() => handleOpenAddForCategory(cat.id)}
-                        title={`Añadir ${cat.label}`}
-                      >
+                      <Button variant="ghost" size="icon" className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`} onClick={() => handleOpenAddForCategory(cat.id)} title={`Añadir ${cat.label}`}>
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                    {/* Credits in this category */}
                     <div className="divide-y divide-border">
-                      {catCredits.length > 0 ? (
-                        catCredits.map((credit) => (
-                          <SortableCreditRow
-                            key={credit.id}
-                            credit={credit}
-                            isEditing={editingCreditId === credit.id}
-                            onStartEdit={() => setEditingCreditId(credit.id)}
-                            onCancelEdit={() => setEditingCreditId(null)}
-                            onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
-                            onDelete={() => deleteCredit.mutate(credit.id)}
-                            isSaving={updateCredit.isPending}
-                          />
-                        ))
+                      {catGroups.length > 0 ? (
+                        catGroups.map((group) => {
+                          const otherCats = Array.from(personCategoryMap.get(group.key) || []).filter(c => c !== cat.id);
+                          return (
+                            <PersonRow
+                              key={group.key}
+                              group={group}
+                              otherCategories={otherCats}
+                              isEditing={editingPersonKey === `${cat.id}-${group.key}`}
+                              onStartEdit={() => setEditingPersonKey(`${cat.id}-${group.key}`)}
+                              onCancelEdit={() => setEditingPersonKey(null)}
+                              onSaveCredit={(creditId, data) => updateCredit.mutate({ creditId, data })}
+                              onDeleteCredit={(creditId) => deleteCredit.mutate(creditId)}
+                              onDeleteAll={() => setDeletingPersonKey(group.key)}
+                              isSaving={updateCredit.isPending}
+                            />
+                          );
+                        })
                       ) : (
-                        <p className="text-xs text-muted-foreground px-3 py-2 italic">
-                          {emptyLabels[cat.id]}
-                        </p>
+                        <p className="text-xs text-muted-foreground px-3 py-2 italic">{emptyLabels[cat.id]}</p>
                       )}
                     </div>
                   </div>
@@ -1148,18 +1121,11 @@ function CreditsSection({
         </DndContext>
       )}
 
-      {/* Add Credit Dialog */}
-      <Dialog open={isAddCreditOpen} onOpenChange={(open) => {
-        setIsAddCreditOpen(open);
-        if (!open) setAddCategoryFilter(undefined);
-      }}>
+      <Dialog open={isAddCreditOpen} onOpenChange={(open) => { setIsAddCreditOpen(open); if (!open) setAddCategoryFilter(undefined); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {addCategoryFilter 
-                ? `Añadir ${CREDIT_CATEGORIES.find(c => c.id === addCategoryFilter)?.label || 'Crédito'}`
-                : 'Añadir Crédito'
-              }
+              {addCategoryFilter ? `Añadir ${CREDIT_CATEGORIES.find(c => c.id === addCategoryFilter)?.label || 'Crédito'}` : 'Añadir Crédito'}
             </DialogTitle>
           </DialogHeader>
           <AddCreditWithProfileForm
@@ -1167,177 +1133,170 @@ function CreditsSection({
             isLoading={createCredit.isPending}
             releaseArtistId={releaseArtistId}
             filterCategory={addCategoryFilter}
+            existingCredits={credits}
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingPersonKey} onOpenChange={(open) => { if (!open) setDeletingPersonKey(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar todos los créditos de esta persona?</AlertDialogTitle>
+            <AlertDialogDescription>Se eliminarán todos los roles asignados a esta persona en esta canción.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
+              for (const cat of CREDIT_CATEGORIES) {
+                const group = (groupedByCategory[cat.id] || []).find(g => g.key === deletingPersonKey);
+                if (group) { handleDeletePerson(group); break; }
+              }
+            }}>
+              Eliminar todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-// Sortable Credit Row wrapper for drag-and-drop
-function SortableCreditRow({
-  credit,
+
+function PersonRow({
+  group,
+  otherCategories,
   isEditing,
   onStartEdit,
   onCancelEdit,
-  onSave,
-  onDelete,
+  onSaveCredit,
+  onDeleteCredit,
+  onDeleteAll,
   isSaving,
 }: {
-  credit: TrackCredit;
+  group: GroupedCredit;
+  otherCategories: CreditCategory[];
   isEditing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }>) => void;
-  onDelete: () => void;
+  onSaveCredit: (creditId: string, data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }>) => void;
+  onDeleteCredit: (creditId: string) => void;
+  onDeleteAll: () => void;
   isSaving: boolean;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: credit.id });
+  const firstCredit = group.credits[0];
+  const hasContact = !!group.contact_id;
+  const [editStates, setEditStates] = useState<Record<string, { role: string; publishingPct: string; masterPct: string }>>({});
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+  const handleStartEdit = () => {
+    const states: Record<string, { role: string; publishingPct: string; masterPct: string }> = {};
+    for (const c of group.credits) {
+      states[c.id] = {
+        role: c.role,
+        publishingPct: c.publishing_percentage != null ? String(c.publishing_percentage) : '',
+        masterPct: c.master_percentage != null ? String(c.master_percentage) : '',
+      };
+    }
+    setEditStates(states);
+    onStartEdit();
   };
 
-  const [editRole, setEditRole] = useState(credit.role);
-  const [editName, setEditName] = useState(credit.name);
-  const [editPublishingPct, setEditPublishingPct] = useState<string>(
-    credit.publishing_percentage != null ? String(credit.publishing_percentage) : ''
-  );
-  const [editMasterPct, setEditMasterPct] = useState<string>(
-    credit.master_percentage != null ? String(credit.master_percentage) : ''
-  );
-  const hasContact = !!credit.contact_id;
-
-  const handleSave = () => {
-    const updates: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> = {};
-    if (editRole !== credit.role) updates.role = editRole;
-    if (editName !== credit.name) updates.name = editName;
-    const newPublishing = editPublishingPct === '' ? null : Number(editPublishingPct);
-    const newMaster = editMasterPct === '' ? null : Number(editMasterPct);
-    if (newPublishing !== credit.publishing_percentage) updates.publishing_percentage = newPublishing;
-    if (newMaster !== credit.master_percentage) updates.master_percentage = newMaster;
-    if (Object.keys(updates).length > 0) {
-      onSave(updates);
-    } else {
-      onCancelEdit();
+  const handleSaveAll = () => {
+    for (const credit of group.credits) {
+      const state = editStates[credit.id];
+      if (!state) continue;
+      const updates: Partial<{ role: string; publishing_percentage: number | null; master_percentage: number | null }> = {};
+      if (state.role !== credit.role) updates.role = state.role;
+      const newPub = state.publishingPct === '' ? null : Number(state.publishingPct);
+      const newMas = state.masterPct === '' ? null : Number(state.masterPct);
+      if (newPub !== credit.publishing_percentage) updates.publishing_percentage = newPub;
+      if (newMas !== credit.master_percentage) updates.master_percentage = newMas;
+      if (Object.keys(updates).length > 0) onSaveCredit(credit.id, updates);
     }
+    onCancelEdit();
   };
 
   if (isEditing) {
     return (
-      <div ref={setNodeRef} style={style} className="flex items-center gap-2 p-2 bg-background rounded border flex-wrap">
-        <Input
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-          className="flex-1 h-8 min-w-[120px]"
-          placeholder="Nombre"
-        />
-        {hasContact && (
-          <span title="Vinculado a contacto"><Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" /></span>
-        )}
-        <GroupedRoleSelect value={editRole} onValueChange={setEditRole} triggerClassName="w-[140px] h-8" />
-        <div className="flex items-center gap-1">
-          <Input
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={editPublishingPct}
-            onChange={(e) => setEditPublishingPct(e.target.value)}
-            className="w-[70px] h-8"
-            placeholder="Auto."
-            title="% Autoría (Publishing)"
-          />
-          <span className="text-xs text-amber-600">A</span>
+      <div className="p-3 bg-background space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-sm">{group.name}</p>
+            {hasContact && <Check className="h-3 w-3 text-green-600" />}
+          </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant="default" onClick={handleSaveAll} disabled={isSaving}>Guardar</Button>
+            <Button size="sm" variant="ghost" onClick={onCancelEdit}>Cancelar</Button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Input
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={editMasterPct}
-            onChange={(e) => setEditMasterPct(e.target.value)}
-            className="w-[70px] h-8"
-            placeholder="Mast."
-            title="% Master (Royalties)"
-          />
-          <span className="text-xs text-blue-600">M</span>
-        </div>
-        <Button size="sm" variant="default" onClick={handleSave} disabled={isSaving}>
-          Guardar
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancelEdit}>
-          Cancelar
-        </Button>
+        {group.credits.map((credit) => {
+          const state = editStates[credit.id];
+          if (!state) return null;
+          return (
+            <div key={credit.id} className="flex items-center gap-2 flex-wrap pl-2 border-l-2 border-muted">
+              <GroupedRoleSelect value={state.role} onValueChange={(v) => setEditStates(prev => ({ ...prev, [credit.id]: { ...prev[credit.id], role: v } }))} triggerClassName="w-[140px] h-8" />
+              <div className="flex items-center gap-1">
+                <Input type="number" min="0" max="100" step="0.01" value={state.publishingPct} onChange={(e) => setEditStates(prev => ({ ...prev, [credit.id]: { ...prev[credit.id], publishingPct: e.target.value } }))} className="w-[70px] h-8" placeholder="Auto." title="% Autoría" />
+                <span className="text-xs text-amber-600">A</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Input type="number" min="0" max="100" step="0.01" value={state.masterPct} onChange={(e) => setEditStates(prev => ({ ...prev, [credit.id]: { ...prev[credit.id], masterPct: e.target.value } }))} className="w-[70px] h-8" placeholder="Mast." title="% Master" />
+                <span className="text-xs text-blue-600">M</span>
+              </div>
+              {group.credits.length > 1 && (
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDeleteCredit(credit.id)}><Trash2 className="h-3 w-3" /></Button>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   }
 
-  const cat5 = getRoleCategory5(credit.role);
-  const catMeta = cat5 ? getCategoryMeta(cat5) : null;
-
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1"
-          onClick={(e) => e.stopPropagation()}
-        >
+    <div className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1" onClick={(e) => e.stopPropagation()}>
           <GripVertical className="h-4 w-4" />
         </div>
-        <div className="cursor-pointer" onClick={onStartEdit}>
+        <div className="cursor-pointer min-w-0" onClick={handleStartEdit}>
           <div className="flex items-center gap-1.5">
-            <p className="font-medium text-sm">{credit.name}</p>
-            {credit.contact_id && (
-              <span title="Vinculado a perfil"><Check className="h-3 w-3 text-green-600" /></span>
-            )}
+            <p className="font-medium text-sm truncate">{group.name}</p>
+            {hasContact && <span title="Vinculado a perfil"><Check className="h-3 w-3 text-green-600 flex-shrink-0" /></span>}
           </div>
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs text-muted-foreground">{getRoleLabel(credit.role)}</p>
-            {catMeta && (
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${catMeta.bgClass} ${catMeta.textClass} ${catMeta.borderClass}`}>
-                {catMeta.label}
+          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+            {group.credits.map((credit) => (
+              <Badge key={credit.id} variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                {getRoleLabel(credit.role)}
               </Badge>
+            ))}
+            {otherCategories.length > 0 && (
+              <span className="text-[10px] text-muted-foreground ml-1">
+                + {otherCategories.map(c => getCategoryMeta(c).label).join(', ')}
+              </span>
             )}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {credit.publishing_percentage != null && credit.publishing_percentage > 0 && (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20" title="% Autoría">
-            {credit.publishing_percentage}% A
-          </Badge>
-        )}
-        {credit.master_percentage != null && credit.master_percentage > 0 && (
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20" title="% Master">
-            {credit.master_percentage}% M
-          </Badge>
-        )}
-        <LinkCreditContactDialog credit={credit} />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-        >
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {group.credits.map((credit) => (
+          <React.Fragment key={credit.id}>
+            {credit.publishing_percentage != null && credit.publishing_percentage > 0 && (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]" title={`${getRoleLabel(credit.role)} — % Autoría`}>
+                {credit.publishing_percentage}% A
+              </Badge>
+            )}
+            {credit.master_percentage != null && credit.master_percentage > 0 && (
+              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]" title={`${getRoleLabel(credit.role)} — % Master`}>
+                {credit.master_percentage}% M
+              </Badge>
+            )}
+          </React.Fragment>
+        ))}
+        <LinkCreditContactDialog credit={firstCredit} />
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
+          e.stopPropagation();
+          if (group.credits.length === 1) onDeleteCredit(group.credits[0].id);
+          else onDeleteAll();
+        }}>
           <Trash2 className="w-3 h-3" />
         </Button>
       </div>
@@ -1345,7 +1304,6 @@ function SortableCreditRow({
   );
 }
 
-// Lyrics Preview with Dialog
 function LyricsPreview({ lyrics, trackTitle }: { lyrics: string; trackTitle: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -1395,7 +1353,6 @@ function LyricsPreview({ lyrics, trackTitle }: { lyrics: string; trackTitle: str
   );
 }
 
-// Create Track Form
 function CreateTrackForm({
   nextTrackNumber,
   onSubmit,
@@ -1476,7 +1433,6 @@ function CreateTrackForm({
   );
 }
 
-// Edit Track Form
 function EditTrackForm({
   track,
   onSubmit,
@@ -1535,7 +1491,6 @@ function EditTrackForm({
         />
       </div>
 
-      {/* Explicit lyrics toggle */}
       <div className="flex items-center justify-between rounded-md border px-3 py-2">
         <Label htmlFor="edit_explicit" className="text-sm cursor-pointer">¿Contiene letras explícitas?</Label>
         <Switch
@@ -1545,7 +1500,6 @@ function EditTrackForm({
         />
       </div>
 
-      {/* Copyright section */}
       <div className="space-y-3 rounded-md border p-3">
         <p className="text-sm font-medium text-muted-foreground">Copyright & Producción</p>
         <div className="grid grid-cols-2 gap-3">
@@ -1617,5 +1571,3 @@ function EditTrackForm({
     </form>
   );
 }
-
-// AddCreditForm has been replaced by AddCreditWithProfileForm component
