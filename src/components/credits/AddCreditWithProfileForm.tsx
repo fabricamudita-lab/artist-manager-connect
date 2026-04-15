@@ -20,6 +20,12 @@ import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import type { CreditCategory } from '@/lib/creditRoles';
 import { useAuth } from '@/hooks/useAuth';
 
+interface ExistingCredit {
+  name: string;
+  role: string;
+  contact_id?: string | null;
+}
+
 interface AddCreditWithProfileFormProps {
   onSubmit: (data: { 
     name: string; 
@@ -33,6 +39,8 @@ interface AddCreditWithProfileFormProps {
   releaseArtistId?: string | null;
   /** Pre-filter roles to a specific category */
   filterCategory?: CreditCategory;
+  /** Existing credits on this track, used to show which roles a person already has */
+  existingCredits?: ExistingCredit[];
 }
 
 interface Contact {
