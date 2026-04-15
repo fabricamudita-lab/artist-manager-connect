@@ -252,7 +252,18 @@ function SplitRow({
             step={0.5}
             className="flex-1"
           />
-          <div className="w-16 text-right font-medium">{editPercentage}%</div>
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={editPercentage}
+              onChange={(e) => setEditPercentage(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+              className="w-20 text-right h-8"
+            />
+            <span className="text-sm font-medium">%</span>
+          </div>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onCancelEdit}>
@@ -514,7 +525,18 @@ function AddSplitForm({
                 step={0.5}
                 className="flex-1"
               />
-              <div className="w-16 text-right font-medium">{percentage}%</div>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={percentage}
+                  onChange={(e) => setPercentage(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="w-20 text-right h-8"
+                />
+                <span className="text-sm font-medium">%</span>
+              </div>
             </div>
           </>
         )}
@@ -572,7 +594,18 @@ function AddSplitForm({
           step={0.5}
           className="flex-1"
         />
-        <div className="w-16 text-right font-medium">{percentage}%</div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step={0.5}
+            value={percentage}
+            onChange={(e) => setPercentage(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+            className="w-20 text-right h-8"
+          />
+          <span className="text-sm font-medium">%</span>
+        </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
