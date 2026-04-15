@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,8 +17,14 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
-import type { CreditCategory } from '@/lib/creditRoles';
+import { type CreditCategory, getRoleLabel } from '@/lib/creditRoles';
 import { useAuth } from '@/hooks/useAuth';
+
+interface ExistingCredit {
+  name: string;
+  role: string;
+  contact_id?: string | null;
+}
 
 interface AddCreditWithProfileFormProps {
   onSubmit: (data: { 
@@ -33,6 +39,8 @@ interface AddCreditWithProfileFormProps {
   releaseArtistId?: string | null;
   /** Pre-filter roles to a specific category */
   filterCategory?: CreditCategory;
+  /** Existing credits on this track, used to show which roles a person already has */
+  existingCredits?: ExistingCredit[];
 }
 
 interface Contact {
@@ -49,7 +57,7 @@ interface Artist {
   stage_name?: string | null;
 }
 
-export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory }: AddCreditWithProfileFormProps) {
+export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory, existingCredits = [] }: AddCreditWithProfileFormProps) {
   const [mode, setMode] = useState<'search' | 'new'>('search');
   const [selectedProfile, setSelectedProfile] = useState<{ id: string; name: string; type: 'artist' | 'contact' } | null>(null);
   const { user } = useAuth();
@@ -115,6 +123,15 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
     !c.category || !['banda', 'artistico', 'tecnico', 'productor', 'compositor', 'letrista', 'interprete'].includes(c.category)
   );
 
+  // Get existing roles for the selected person
+  const selectedPersonExistingRoles = useMemo(() => {
+    if (!selectedProfile) return [];
+    return existingCredits.filter(c => {
+      if (selectedProfile.type === 'contact' && c.contact_id) return c.contact_id === selectedProfile.id;
+      return c.name.toLowerCase().trim() === selectedProfile.name.toLowerCase().trim();
+    }).map(c => c.role);
+  }, [selectedProfile, existingCredits]);
+
   const handleSelectProfile = (id: string, displayName: string, type: 'artist' | 'contact') => {
     setSelectedProfile({ id, name: displayName, type });
     setName(displayName);
@@ -164,22 +181,34 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
 
         <TabsContent value="search" className="space-y-4">
           {selectedProfile ? (
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg border">
-              <div className="flex items-center gap-2">
-                {selectedProfile.type === 'artist' ? (
-                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                ) : (
-                  <User className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className="font-medium">{selectedProfile.name}</span>
-                <Badge variant="outline" className="text-xs">
-                  {selectedProfile.type === 'artist' ? 'Roster' : 'Contacto'}
-                </Badge>
+            <>
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg border">
+                <div className="flex items-center gap-2">
+                  {selectedProfile.type === 'artist' ? (
+                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                  ) : (
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="font-medium">{selectedProfile.name}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedProfile.type === 'artist' ? 'Roster' : 'Contacto'}
+                  </Badge>
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
+                  Cambiar
+                </Button>
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
-                Cambiar
-              </Button>
-            </div>
+              {selectedPersonExistingRoles.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Ya tiene:</span>
+                  {selectedPersonExistingRoles.map((r, i) => (
+                    <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                      {getRoleLabel(r)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
             <Command className="rounded-lg border">
               <CommandInput placeholder="Buscar artistas, equipo o contactos..." />
