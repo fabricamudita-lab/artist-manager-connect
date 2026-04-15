@@ -1,52 +1,33 @@
 
 
-## Plan: Separar Label Copy y Splits de Derechos en dos PDFs + Agrupar créditos por persona
+## Plan: Reestructurar el PDF de Splits siguiendo el modelo del usuario
 
-### Problema actual
-1. **Créditos duplicados en el PDF**: La misma persona aparece varias veces con roles distintos (ej: "Arreglista: Vicente López", "Guitarra: Vicente López") en vez de agruparse
-2. **Porcentajes confusos**: "(15% Autoría)" mezclado con los créditos del label copy no es claro
-3. **Un solo documento** mezcla información de label copy (metadatos + créditos para distribuidoras) con splits de derechos (autoría/master), que son documentos con propósitos distintos
+### Cambios en la estructura del documento
 
-### Solución: Dos funciones de exportación independientes
+Basándome en el PDF que has subido, el documento actual necesita estos ajustes de contenido y orden:
 
-**PDF 1 — Label Copy** (metadatos + créditos agrupados, SIN porcentajes)
-- Header: título, artista, UPC, sello, copyright, género, fecha, etc.
-- Por canción: artista, ISRC, copyright ©/℗, créditos agrupados por persona, letra
-- Créditos agrupados: "Vicente López — Arreglista, Guitarra" en vez de dos filas separadas
-- Sin porcentajes de autoría ni master (eso va en el otro documento)
+**1. Título y secciones**
+- Título: "HOJA DE REPARTO DE DERECHOS (SPLIT SHEET)"
+- Sección header: "INFORMACIÓN DEL PROYECTO"
+- Campos renombrados: "Título del EP/Álbum/Single", "Artista Principal", "Sello Discográfico"
+- Antes de las pistas: subtítulo "DETALLE POR PISTA"
 
-**PDF 2 — Splits de Derechos** (autoría + master por canción)
-- Header: mismos datos del release
-- Por canción: dos tablas claras
-  - **Autoría/Publishing**: nombre, roles, porcentaje — con total al pie
-  - **Master/Royalties**: nombre, roles, porcentaje — con total al pie
-- Solo aparecen personas que tienen porcentajes asignados
+**2. Tablas de splits**
+- Subtítulos completos: "AUTORÍA / PUBLISHING (Derechos de Obra)" y "MASTER / ROYALTIES (Derechos de Fonograma)"
+- Columna de publishing: "% Recaudable" en vez de solo "%"
+- Roles agrupados por persona con " / " (ej: "Compositora / Arreglista") — ya funciona así con `groupByPerson`
 
-### Cambios técnicos
+**3. Nueva sección final: "DATOS DE CONTACTO Y REGISTRO"**
+- Tabla con todos los participantes únicos del release
+- Columnas: Participante, IPI/CAE, Correo Electrónico, Firma
+- Valores "[A completar]" para IPI y email (datos no disponibles en el sistema actualmente)
+- Indicar "N/A (Solo Master)" en IPI para personas que solo tienen % master
 
-**1. Refactorizar `src/utils/exportLabelCopyPDF.ts`**
-- Eliminar toda la lógica de porcentajes del label copy
-- Agrupar créditos por persona (clave: `name.toLowerCase()`) antes de renderizar
-- Mostrar: "Nombre — Rol1, Rol2, Rol3" en una sola línea por persona
+**4. Pie de documento**
+- Texto legal: "Este documento certifica la voluntad de las partes para el registro y reparto de beneficios derivados de la explotación de las obras y fonogramas aquí listados."
 
-**2. Crear `src/utils/exportSplitsPDF.ts`**
-- Nueva función `exportSplitsPDF()` con los mismos parámetros
-- Header idéntico al label copy
-- Por canción, dos secciones con tabla:
-  - **AUTORÍA**: filas con nombre, roles, % autoría
-  - **MASTER**: filas con nombre, roles, % master
-- Totales al final de cada tabla
+**5. Diseño**: Mantener el estilo actual (helvetica, líneas finas grises, sin bordes negros de tabla)
 
-**3. Actualizar `src/pages/release-sections/ReleaseCreditos.tsx`**
-- Añadir un segundo botón "Descargar Splits de Derechos" junto al existente de Label Copy
-- O un dropdown con las dos opciones
-- Reutilizar la misma query de datos para ambos exports
-
-### Archivos
-
-| Archivo | Acción |
-|---------|--------|
-| `src/utils/exportLabelCopyPDF.ts` | Modificar: quitar %, agrupar créditos por persona |
-| `src/utils/exportSplitsPDF.ts` | Crear: nuevo PDF de splits con tablas de autoría y master |
-| `src/pages/release-sections/ReleaseCreditos.tsx` | Modificar: añadir botón para el segundo PDF |
+### Archivo a modificar
+- `src/utils/exportSplitsPDF.ts`
 
