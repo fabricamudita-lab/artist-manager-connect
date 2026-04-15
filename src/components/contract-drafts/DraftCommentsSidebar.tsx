@@ -226,6 +226,8 @@ export function DraftCommentsSidebar({
                   <div className="flex gap-1 pt-1">
                     <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => {
                       console.log('🔘 Approve button clicked with role:', userRole);
+                      console.log('📝 Comment ID:', comment.id);
+                      console.log('📊 Current approvals - producer:', comment.approved_by_producer, 'collaborator:', comment.approved_by_collaborator);
                       onApproveChange(comment.id, userRole as 'producer' | 'collaborator');
                     }}>
                       <Check className="h-3 w-3 mr-1" /> Aprobar como {userRole === 'producer' ? 'Productora' : 'Colaborador/a'}

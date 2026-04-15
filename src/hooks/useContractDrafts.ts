@@ -219,7 +219,7 @@ export function usePublicDraft(token: string | undefined) {
   const approveChange = async (commentId: string, role: 'producer' | 'collaborator') => {
     console.log('🔍 approveChange called with role:', role, 'commentId:', commentId);
     
-    if (role !== 'producer' && role !== 'collaborator') {
+    if (!role || role === 'viewer' as any || (role !== 'producer' && role !== 'collaborator')) {
       console.error('❌ Invalid role for approval:', role);
       toast.error('No tienes permisos para aprobar cambios');
       return;
