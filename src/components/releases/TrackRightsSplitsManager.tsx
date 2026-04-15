@@ -196,20 +196,24 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
         </div>
 
         {/* Existing splits */}
-        {splits.map((credit) => (
-          <SplitRow
-            key={credit.id}
-            credit={credit}
-            type={type}
-            percentageKey={percentageKey}
-            roles={roles}
-            isEditing={editingId === credit.id}
-            onEdit={() => setEditingId(credit.id)}
-            onCancelEdit={() => setEditingId(null)}
-            onSave={(data) => handleUpdate(credit.id, data)}
-            onDelete={() => handleDelete(credit.id)}
-          />
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={splits.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            {splits.map((credit) => (
+              <SortableSplitRow
+                key={credit.id}
+                credit={credit}
+                type={type}
+                percentageKey={percentageKey}
+                roles={roles}
+                isEditing={editingId === credit.id}
+                onEdit={() => setEditingId(credit.id)}
+                onCancelEdit={() => setEditingId(null)}
+                onSave={(data) => handleUpdate(credit.id, data)}
+                onDelete={() => handleDelete(credit.id)}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         {/* Add new split form */}
         {isAdding ? (
