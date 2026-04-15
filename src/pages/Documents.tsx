@@ -18,8 +18,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { supabase } from '@/integrations/supabase/client';
 import { 
   FileText, Upload, Download, Eye, Filter, File, Image, Music, Video, 
-  ExternalLink, FolderOpen, LayoutGrid, List, BarChart3, Plus, Trash2 
+  ExternalLink, FolderOpen, LayoutGrid, List, BarChart3, Plus, Trash2, FileEdit 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -50,6 +52,10 @@ interface Document {
   artist_id: string;
   uploaded_by: string;
   created_at: string;
+  is_draft?: boolean;
+  draft_status?: string;
+  share_token?: string;
+  draft_type?: string;
 }
 
 interface Artist {
@@ -72,6 +78,7 @@ export default function Documents() {
   usePageTitle('Documentos');
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,13 +168,36 @@ export default function Documents() {
 
   const fetchDocuments = async () => {
     try {
+      // Fetch regular documents
       const { data: documentsData } = await supabase
         .from('documents')
         .select('*')
         .in('artist_id', selectedArtists)
         .order('created_at', { ascending: false });
 
-      setDocuments(documentsData || []);
+      // Fetch contract drafts
+      const { data: draftsData } = await supabase
+        .from('contract_drafts')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      const draftDocs: Document[] = (draftsData || []).map((d: any) => ({
+        id: d.id,
+        title: d.title || 'Borrador sin título',
+        category: 'contract',
+        file_type: 'draft',
+        file_size: JSON.stringify(d.form_data || {}).length,
+        file_url: '',
+        artist_id: d.artist_id || '',
+        uploaded_by: d.created_by,
+        created_at: d.created_at,
+        is_draft: true,
+        draft_status: d.status,
+        share_token: d.share_token,
+        draft_type: d.draft_type,
+      }));
+
+      setDocuments([...(documentsData || []), ...draftDocs]);
     } catch (error) {
       toast({
         title: "Error",
@@ -312,8 +342,9 @@ export default function Documents() {
     if (!documentToDelete) return;
 
     try {
+      const table = documentToDelete.is_draft ? 'contract_drafts' : 'documents';
       const { error } = await supabase
-        .from('documents')
+        .from(table)
         .delete()
         .eq('id', documentToDelete.id);
 
@@ -494,7 +525,7 @@ export default function Documents() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0 text-primary-foreground">
-                          {getFileIcon(document.file_type)}
+                          {document.is_draft ? <FileEdit className="w-5 h-5" /> : getFileIcon(document.file_type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
@@ -505,28 +536,43 @@ export default function Documents() {
                           </CardDescription>
                         </div>
                       </div>
-                      <Badge className={`${getCategoryColor(document.category)} text-white flex-shrink-0 ml-2`}>
-                        {getCategoryLabel(document.category)}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
+                        <Badge className={`${getCategoryColor(document.category)} text-white`}>
+                          {getCategoryLabel(document.category)}
+                        </Badge>
+                        {document.is_draft && document.draft_status && (
+                          <DraftStatusBanner status={document.draft_status} />
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="bg-muted/50 p-3 rounded-lg space-y-1">
-                      <p className="text-sm font-medium">Tamaño: {formatFileSize(document.file_size)}</p>
+                      {!document.is_draft && <p className="text-sm font-medium">Tamaño: {formatFileSize(document.file_size)}</p>}
+                      {document.is_draft && <p className="text-sm font-medium">Tipo: {document.draft_type === 'ip_license' ? 'Licencia IP' : 'Booking'}</p>}
                       <p className="text-sm text-muted-foreground">
-                        Subido: {format(new Date(document.created_at), 'PPP', { locale: es })}
+                        {document.is_draft ? 'Creado' : 'Subido'}: {format(new Date(document.created_at), 'PPP', { locale: es })}
                       </p>
                     </div>
                     
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => handlePreviewDocument(document)}>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Ver
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => handleDownloadDocument(document)}>
-                        <Download className="w-4 h-4 mr-2" />
-                        Descargar
-                      </Button>
+                      {document.is_draft ? (
+                        <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => navigate(`/contract-draft/${document.share_token}`)}>
+                          <FileEdit className="w-4 h-4 mr-2" />
+                          Abrir borrador
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => handlePreviewDocument(document)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Ver
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1 hover-lift" onClick={() => handleDownloadDocument(document)}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Descargar
+                          </Button>
+                        </>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -553,29 +599,42 @@ export default function Documents() {
                       className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0 text-primary-foreground">
-                        {getFileIcon(document.file_type)}
+                        {document.is_draft ? <FileEdit className="w-5 h-5" /> : getFileIcon(document.file_type)}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{document.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {(() => { const a = artists.find(a => a.id === document.artist_id); return a?.stage_name || a?.name || 'Artista'; })()} • 
-                          {formatFileSize(document.file_size)} • 
+                          {document.is_draft ? (document.draft_type === 'ip_license' ? 'Licencia IP' : 'Booking') : formatFileSize(document.file_size)} • 
                           {format(new Date(document.created_at), 'dd/MM/yyyy')}
                         </p>
                       </div>
                       
-                      <Badge className={`${getCategoryColor(document.category)} text-white`}>
-                        {getCategoryLabel(document.category)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {document.is_draft && document.draft_status && (
+                          <DraftStatusBanner status={document.draft_status} />
+                        )}
+                        <Badge className={`${getCategoryColor(document.category)} text-white`}>
+                          {getCategoryLabel(document.category)}
+                        </Badge>
+                      </div>
                       
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handlePreviewDocument(document)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(document)}>
-                          <Download className="w-4 h-4" />
-                        </Button>
+                        {document.is_draft ? (
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/contract-draft/${document.share_token}`)}>
+                            <FileEdit className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handlePreviewDocument(document)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(document)}>
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon"
