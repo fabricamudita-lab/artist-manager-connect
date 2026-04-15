@@ -1,105 +1,38 @@
 
 
-## Plan: Unificar el sistema de contratos en una arquitectura unica
+## Plan: Mostrar borradores de contratos en Gestión de Documentos
 
-### Problema actual
+### Problema
+La página de Gestión de Documentos solo muestra registros de la tabla `documents`. Los contratos en modo borrador (tabla `contract_drafts`) no aparecen, por lo que el usuario no puede ver ni acceder a ellos desde esta vista centralizada.
 
-Hay **4 tablas de documentos separadas** con esquemas distintos, lo que genera duplicacion y divergencia:
+### Solución
+Hacer fetch de `contract_drafts` junto con `documents` y combinarlos en una lista unificada. Los borradores se mostrarán con un badge de estado (Borrador, En negociación, Listo para firma, Firmado) y al hacer clic abrirán la vista del borrador (`/contract-draft/:token`).
 
-| Tabla | Uso | Tiene firmas | Tiene negociacion |
-|-------|-----|-------------|-------------------|
-| `booking_documents` | Contratos de booking | Si (via `contract_signers`) | No |
-| `release_documents` | Docs de lanzamiento | No | No |
-| `documents` | Drive general | No | No |
-| `contract_drafts` | Borradores negociables | No (tiene `signed_pdf_url`) | Si (via `contract_draft_comments`) |
+### Cambios en `src/pages/Documents.tsx`
 
-Ademas, `contract_signers.document_id` apunta SOLO a `booking_documents`. Esto impide reusar el sistema de firmas para contratos IP o cualquier otro tipo.
+1. **Fetch de `contract_drafts`**: En `fetchDocuments()`, hacer una segunda query a `contract_drafts` y mapear los resultados al mismo formato `Document[]`, usando campos sintéticos:
+   - `title` → del draft
+   - `category` → `'contract'`
+   - `file_type` → `'draft'`
+   - `file_size` → tamaño estimado del JSON
+   - `file_url` → vacío (no hay archivo aún)
+   - `created_at` → del draft
+   - Campos extra: `draft_status`, `share_token`, `draft_type`
 
-### Arquitectura propuesta: Tabla unificada `contracts`
+2. **Interfaz extendida**: Añadir campos opcionales a la interfaz `Document` para distinguir borradores:
+   - `is_draft?: boolean`
+   - `draft_status?: string`
+   - `share_token?: string`
 
-En vez de migrar todo de golpe (riesgo alto), la solucion es crear una **tabla puente `contracts`** que centralice el ciclo de vida de cualquier contrato, independientemente de su origen.
+3. **Renderizado diferenciado**: 
+   - Badge de estado del borrador (amarillo para borrador, naranja para negociación, verde para listo, azul para firmado) junto al badge de categoría "Contratos"
+   - Los botones de "Ver" y "Descargar" se reemplazan por un botón "Abrir borrador" que navega a `/contract-draft/:share_token`
+   - El botón de eliminar llamará a `contract_drafts.delete()` en vez de `documents.delete()`
 
-```text
-┌─────────────────────────────────────────────────┐
-│                   contracts                      │
-│─────────────────────────────────────────────────│
-│ id (uuid, PK)                                    │
-│ contract_type: 'booking' | 'ip_license' | ...   │
-│ title: text                                      │
-│ status: draft | negotiating | ready | signed     │
-│ draft_id: uuid? → contract_drafts.id             │
-│ booking_document_id: uuid? → booking_documents   │
-│ release_document_id: uuid? → release_documents   │
-│ file_url: text?  (PDF final firmado)             │
-│ created_by: uuid → auth.users                    │
-│ booking_id: uuid? → booking_offers               │
-│ release_id: uuid? → releases                     │
-│ artist_id: uuid? → artists                       │
-│ created_at, updated_at                           │
-└─────────────────────────────────────────────────┘
-         │
-         │ 1:N
-         ▼
-┌─────────────────────────────────────────────────┐
-│              contract_signers                    │
-│─────────────────────────────────────────────────│
-│ document_id → contracts.id  (cambiar FK)         │
-│ ... (resto igual)                                │
-└─────────────────────────────────────────────────┘
-```
-
-### Fases de implementacion
-
-**Fase 1: Redirigir `contract_signers` para aceptar cualquier contrato**
-
-1. Crear tabla `contracts` con los campos arriba descritos
-2. Cambiar la FK de `contract_signers.document_id` para que apunte a `contracts.id` en vez de solo `booking_documents.id`
-3. Migrar los booking_documents existentes que tienen firmantes a la nueva tabla `contracts`
-4. Actualizar `SignContractMulti.tsx` para buscar el documento en `contracts` en vez de hardcodear `booking_documents`
-
-**Fase 2: Integrar el ciclo completo para IP License**
-
-1. Cuando un `contract_draft` de tipo `ip_license` pasa a estado `listo_para_firma`, crear automaticamente un registro en `contracts`
-2. Reusar `ContractSignersManager` y `ContractSignersSummary` tal cual (ya reciben `documentId` generico)
-3. Reusar `SignContractMulti` para la firma publica
-4. Añadir la seccion de firmantes en `ReleaseContratos.tsx` (mismos componentes que booking)
-
-**Fase 3: Flujo unificado de estados**
-
-1. `draft` → Se negocia via `contract_drafts` + `contract_draft_comments`
-2. `ready_to_sign` → Se crean firmantes en `contract_signers`, se envian links
-3. `signed` → Todas las partes firmaron, se genera PDF final y se guarda en `contracts.file_url`
-
-### Componentes reutilizables (ya existen, no hay que duplicar)
-
-- `ContractSignersManager` — gestion de firmantes (anadir/eliminar)
-- `ContractSignersSummary` — badge "X/Y firmados"
-- `ContractSignaturesFooter` — bloque de firmas en el PDF
-- `SignContractMulti` — pagina publica de firma
-- `DraftCommentsSidebar` — negociacion colaborativa
-- `ContractDraftView` — vista publica del borrador
-
-### Cambios en base de datos (migracion SQL)
-
-1. **Crear tabla `contracts`** con campos genericos + FK opcionales a booking/release/draft
-2. **Alterar `contract_signers`** para cambiar la FK de `booking_documents` a `contracts`
-3. **Migrar datos existentes**: INSERT INTO contracts SELECT... FROM booking_documents WHERE tiene firmantes
-4. **RLS**: Policies para owner + public read via token
+4. **Filtros**: Los borradores se incluirán en la categoría "Contratos" existente para que los filtros funcionen sin cambios adicionales.
 
 ### Archivos a modificar
+- `src/pages/Documents.tsx` — fetch, interfaz, renderizado
 
-1. **Nueva migracion SQL** — crear tabla, alterar FK, migrar datos
-2. **`src/pages/SignContractMulti.tsx`** — buscar en `contracts` en vez de `booking_documents`
-3. **`src/components/booking-detail/BookingDocumentsTab.tsx`** — al generar contrato, crear tambien en `contracts`
-4. **`src/pages/release-sections/ReleaseContratos.tsx`** — anadir componentes de firmantes
-5. **`src/pages/ContractDraftView.tsx`** — boton "Enviar a firma" crea registro en `contracts`
-6. **`src/hooks/useContractDrafts.ts`** — funcion para transicionar draft → contracts
-7. **`src/integrations/supabase/types.ts`** — se regenerara automaticamente
-
-### Beneficios
-
-- Un solo sistema de firmas para todos los tipos de contrato
-- Los componentes de UI se reusan sin modificacion
-- Nuevos tipos de contrato (sync, distribucion, etc.) se integran anadiendo un valor al enum `contract_type`
-- El flujo completo (generacion → negociacion → firma → archivo) es identico para todos
+### Sin cambios en base de datos
 
