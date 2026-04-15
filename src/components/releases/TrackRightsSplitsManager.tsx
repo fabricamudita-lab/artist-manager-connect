@@ -268,6 +268,20 @@ function SplitRow({
             <span className="text-sm font-medium">%</span>
           </div>
         </div>
+        {type === 'publishing' && (
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              value={editProSociety}
+              onChange={(e) => setEditProSociety(e.target.value)}
+              placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+            />
+            <Input
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Notas — ej. Dominio Público"
+            />
+          </div>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onCancelEdit}>
             <X className="h-4 w-4" />
