@@ -241,6 +241,31 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
   );
 }
 
+// Sortable wrapper for SplitRow
+function SortableSplitRow(props: Parameters<typeof SplitRow>[0]) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.credit.id, disabled: props.isEditing });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SplitRow {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
 // Split Row Component
 function SplitRow({
   credit,
