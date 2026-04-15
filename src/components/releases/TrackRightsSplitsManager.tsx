@@ -277,6 +277,7 @@ function SplitRow({
   onCancelEdit,
   onSave,
   onDelete,
+  dragHandleProps,
 }: {
   credit: TrackCredit;
   type: 'publishing' | 'master';
@@ -287,6 +288,7 @@ function SplitRow({
   onCancelEdit: () => void;
   onSave: (data: any) => void;
   onDelete: () => void;
+  dragHandleProps?: Record<string, any>;
 }) {
   const [editName, setEditName] = useState(credit.name);
   const [editRole, setEditRole] = useState(credit.role);
