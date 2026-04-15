@@ -246,10 +246,19 @@ export default function SignContractMulti() {
 
         const allSigned = allSigners?.every(s => s.status === 'signed');
         if (allSigned) {
+          // Update unified contracts table
           await supabase
-            .from('booking_documents')
-            .update({ status: 'signed' })
+            .from('contracts')
+            .update({ status: 'firmado' })
             .eq('id', signer.document?.id);
+
+          // Also update booking_documents if it's a booking contract
+          if (signer.document?.booking_document_id) {
+            await supabase
+              .from('booking_documents')
+              .update({ status: 'signed' })
+              .eq('id', signer.document.booking_document_id);
+          }
         }
       } else {
         // Legacy: update booking_documents directly
