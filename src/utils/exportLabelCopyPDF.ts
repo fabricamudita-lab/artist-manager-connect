@@ -2,10 +2,10 @@ import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
-  CREDIT_CATEGORIES,
   getRoleLabel,
   getRoleCategory5,
-  type CreditCategory,
+  getDistributorRoleLabel,
+  ROLE_ORDER,
 } from '@/lib/creditRoles';
 
 interface LabelCopyRelease {
@@ -92,20 +92,139 @@ function buildArtistDisplay(
   return fallbackRelease.artist?.name || '—';
 }
 
-/** Group credits by person name, collecting all roles */
-function groupCreditsByPerson(credits: LabelCopyCredit[]): { name: string; roles: string[] }[] {
-  const map = new Map<string, { name: string; roles: string[] }>();
+// ─── PDF Section mapping ─────────────────────────────────────
+// Maps internal roles to Label Copy sections with English labels
+
+type LabelCopySection = 'COMPOSITION' | 'PRODUCTION' | 'PERFORMANCE' | 'ADDITIONAL CONTRIBUTORS';
+
+const SECTION_ROLE_MAP: Record<string, LabelCopySection> = {
+  // COMPOSITION
+  compositor: 'COMPOSITION',
+  autor: 'COMPOSITION',
+  letrista: 'COMPOSITION',
+  'co-autor': 'COMPOSITION',
+  libretista: 'COMPOSITION',
+  editorial: 'COMPOSITION',
+  // PRODUCTION (includes arreglista & director_orquesta moved here per industry standard)
+  arreglista: 'PRODUCTION',
+  director_orquesta: 'PRODUCTION',
+  productor: 'PRODUCTION',
+  productor_asistente: 'PRODUCTION',
+  productor_ejecutivo: 'PRODUCTION',
+  coproductor: 'PRODUCTION',
+  ingeniero_mezcla: 'PRODUCTION',
+  masterizador: 'PRODUCTION',
+  ingeniero_sonido: 'PRODUCTION',
+  ingeniero_grabacion: 'PRODUCTION',
+  director_musical: 'PRODUCTION',
+  programador: 'PRODUCTION',
+  mezclador: 'PRODUCTION',
+  estudio_grabacion: 'PRODUCTION',
+  // ADDITIONAL
+  remixer: 'ADDITIONAL CONTRIBUTORS',
+  dj: 'ADDITIONAL CONTRIBUTORS',
+  sello: 'ADDITIONAL CONTRIBUTORS',
+  actor: 'ADDITIONAL CONTRIBUTORS',
+  director_video: 'ADDITIONAL CONTRIBUTORS',
+  director_arte: 'ADDITIONAL CONTRIBUTORS',
+  fotografo: 'ADDITIONAL CONTRIBUTORS',
+  disenador: 'ADDITIONAL CONTRIBUTORS',
+  otro: 'ADDITIONAL CONTRIBUTORS',
+};
+
+function getSectionForRole(roleValue: string): LabelCopySection {
+  const normalized = roleValue.toLowerCase();
+  if (SECTION_ROLE_MAP[normalized]) return SECTION_ROLE_MAP[normalized];
+  // All interprete roles → PERFORMANCE
+  const cat = getRoleCategory5(normalized);
+  if (cat === 'interprete') return 'PERFORMANCE';
+  return 'ADDITIONAL CONTRIBUTORS';
+}
+
+interface RoleGroup {
+  roleLabel: string;
+  names: string[];
+  sortOrder: number;
+}
+
+/**
+ * Group credits by role within a section. Returns "RoleLabel: Name1, Name2" entries.
+ */
+function groupCreditsByRole(credits: LabelCopyCredit[]): RoleGroup[] {
+  const map = new Map<string, RoleGroup>();
   for (const c of credits) {
-    const key = c.name.toLowerCase().trim();
-    if (!map.has(key)) {
-      map.set(key, { name: c.name, roles: [] });
+    const roleKey = c.role.toLowerCase();
+    if (!map.has(roleKey)) {
+      map.set(roleKey, {
+        roleLabel: getDistributorRoleLabel(c.role),
+        names: [],
+        sortOrder: ROLE_ORDER[roleKey] ?? 99,
+      });
     }
-    const roleLabel = getRoleLabel(c.role);
-    if (!map.get(key)!.roles.includes(roleLabel)) {
-      map.get(key)!.roles.push(roleLabel);
+    const entry = map.get(roleKey)!;
+    if (!entry.names.includes(c.name)) {
+      entry.names.push(c.name);
     }
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+const SECTION_ORDER: LabelCopySection[] = ['COMPOSITION', 'PRODUCTION', 'PERFORMANCE', 'ADDITIONAL CONTRIBUTORS'];
+
+function renderSections(
+  doc: jsPDF,
+  y: number,
+  trackCredits: LabelCopyCredit[],
+): number {
+  // Group credits by section
+  const sectionCredits = new Map<LabelCopySection, LabelCopyCredit[]>();
+  for (const c of trackCredits) {
+    const section = getSectionForRole(c.role);
+    if (!sectionCredits.has(section)) sectionCredits.set(section, []);
+    sectionCredits.get(section)!.push(c);
+  }
+
+  for (const section of SECTION_ORDER) {
+    const credits = sectionCredits.get(section);
+    if (!credits || credits.length === 0) continue;
+
+    y = addPageIfNeeded(doc, y, 15);
+    y += 2;
+
+    // Section header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80);
+    doc.text(section, MARGIN_LEFT + 5, y);
+    doc.setTextColor(0);
+    y += 5;
+
+    // Role: Names lines
+    const roleGroups = groupCreditsByRole(credits);
+    for (const group of roleGroups) {
+      y = addPageIfNeeded(doc, y, 6);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      const label = `${group.roleLabel}: `;
+      doc.text(label, MARGIN_LEFT + 8, y);
+      const labelW = doc.getTextWidth(label);
+      doc.setFont('helvetica', 'normal');
+      const namesText = group.names.join(', ');
+      const available = CONTENT_WIDTH - 8 - labelW;
+      const wrapped = doc.splitTextToSize(namesText, available);
+      doc.text(wrapped[0], MARGIN_LEFT + 8 + labelW, y);
+      // Additional wrapped lines
+      for (let i = 1; i < wrapped.length; i++) {
+        y += LINE_HEIGHT;
+        y = addPageIfNeeded(doc, y, 6);
+        doc.text(wrapped[i], MARGIN_LEFT + 8 + labelW, y);
+      }
+      y += LINE_HEIGHT + 0.5;
+    }
+    y += 2;
+  }
+
+  return y;
 }
 
 export function exportLabelCopyPDF(
@@ -138,23 +257,23 @@ export function exportLabelCopyPDF(
   }
 
   const headerFields: [string, string][] = [
-    ['Título', release.title],
-    ['Artista', artistDisplay],
-    ['Tipo', typeLabel],
+    ['Title', release.title],
+    ['Artist', artistDisplay],
+    ['Type', typeLabel],
   ];
-  if (release.label) headerFields.push(['Sello', release.label]);
+  if (release.label) headerFields.push(['Label', release.label]);
   if (release.upc) headerFields.push(['UPC', release.upc]);
-  if (release.copyright) headerFields.push(['Copyright', release.copyright]);
-  if (release.genre) headerFields.push(['Género', release.genre]);
-  if (release.secondary_genre) headerFields.push(['Género Secundario', release.secondary_genre]);
-  if (release.language) headerFields.push(['Idioma', release.language]);
-  if (release.production_year) headerFields.push(['Año de Producción', String(release.production_year)]);
+  if (release.genre) headerFields.push(['Genre', release.genre]);
+  if (release.secondary_genre) headerFields.push(['Secondary Genre', release.secondary_genre]);
+  if (release.language) headerFields.push(['Language', release.language]);
+  if (release.production_year) headerFields.push(['Production Year', String(release.production_year)]);
   if (release.release_date) {
     headerFields.push([
-      'Fecha de lanzamiento',
+      'Release Date',
       format(new Date(release.release_date), "d 'de' MMMM yyyy", { locale: es }),
     ]);
   }
+  if (release.copyright) headerFields.push(['Copyright', release.copyright]);
 
   for (const [label, value] of headerFields) {
     doc.setFont('helvetica', 'bold');
@@ -168,7 +287,7 @@ export function exportLabelCopyPDF(
   y += 2;
   doc.setFontSize(8);
   doc.setTextColor(120);
-  doc.text(`Exportado: ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}`, MARGIN_LEFT, y);
+  doc.text(`Exported: ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}`, MARGIN_LEFT, y);
   doc.setTextColor(0);
   y += 8;
 
@@ -179,18 +298,22 @@ export function exportLabelCopyPDF(
     y = drawSeparator(doc, y);
     y = addPageIfNeeded(doc, y, 30);
 
+    // Track header: TRACK 01 — Title
+    const trackNum = String(track.track_number).padStart(2, '0');
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${track.track_number}. ${track.title}`, MARGIN_LEFT, y);
+    doc.text(`TRACK ${trackNum} — ${track.title}`, MARGIN_LEFT, y);
     y += 7;
 
+    // Artist
     const trackArtistDisplay = buildArtistDisplay(trackArtists, track.id, release);
-    if (trackArtistDisplay && trackArtistDisplay !== artistDisplay) {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Artista: ${trackArtistDisplay}`, MARGIN_LEFT + 5, y);
-      y += 6;
-    }
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Artist: ', MARGIN_LEFT + 5, y);
+    const artLabelW = doc.getTextWidth('Artist: ');
+    doc.setFont('helvetica', 'normal');
+    doc.text(trackArtistDisplay, MARGIN_LEFT + 5 + artLabelW, y);
+    y += 6;
 
     if (track.isrc) {
       doc.setFontSize(9);
@@ -202,10 +325,11 @@ export function exportLabelCopyPDF(
     if (track.explicit) {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('Contenido explicito', MARGIN_LEFT + 5, y);
+      doc.text('Explicit Content', MARGIN_LEFT + 5, y);
       y += 6;
     }
 
+    // Copyright per track (if different from release)
     const copyrightLines: string[] = [];
     if (track.c_copyright_holder) {
       copyrightLines.push(`© ${track.c_copyright_year || ''} ${track.c_copyright_holder}`.trim());
@@ -224,38 +348,21 @@ export function exportLabelCopyPDF(
       y += 1;
     }
 
-    // Credits grouped by person (NO percentages)
+    // Credits by section (COMPOSITION / PRODUCTION / PERFORMANCE / ADDITIONAL)
     const trackCredits = credits.filter((c) => c.track_id === track.id);
-
     if (trackCredits.length > 0) {
-      y = addPageIfNeeded(doc, y, 15);
-      y += 2;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CRÉDITOS:', MARGIN_LEFT + 5, y);
-      y += 6;
-
-      const grouped = groupCreditsByPerson(trackCredits);
-      for (const person of grouped) {
-        y = addPageIfNeeded(doc, y, 8);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text(person.name, MARGIN_LEFT + 8, y);
-        const nameW = doc.getTextWidth(person.name);
-        doc.setFont('helvetica', 'normal');
-        doc.text(` — ${person.roles.join(', ')}`, MARGIN_LEFT + 8 + nameW, y);
-        y += LINE_HEIGHT + 0.5;
-      }
-      y += 3;
+      y = renderSections(doc, y, trackCredits);
     }
 
     // Lyrics
     if (track.lyrics) {
       y = addPageIfNeeded(doc, y, 15);
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('LETRA:', MARGIN_LEFT + 5, y);
-      y += 6;
+      doc.setTextColor(80);
+      doc.text('LYRICS', MARGIN_LEFT + 5, y);
+      doc.setTextColor(0);
+      y += 5;
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
