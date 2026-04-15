@@ -555,11 +555,29 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
         if (data) {
           setContractContents(prev => ({ ...prev, [data.id]: contract.content }));
           
-          // Auto-add "Agencia" signer (Ciudad Zen)
+          // Create unified contract record
+          const { data: contractRecord } = await supabase
+            .from('contracts')
+            .insert({
+              title: contract.title || data.file_name,
+              status: 'borrador',
+              file_url: data.file_url,
+              created_by: profile?.user_id,
+              contract_type: 'booking',
+              booking_document_id: data.id,
+              booking_id: booking.id,
+              artist_id: booking.artist_id,
+            } as any)
+            .select()
+            .single();
+
+          const contractId = contractRecord?.id || data.id;
+
+          // Auto-add "Agencia" signer (Ciudad Zen) — now points to contracts.id
           await supabase
             .from('contract_signers')
             .insert({
-              document_id: data.id,
+              document_id: contractId,
               name: 'Ciudad Zen Músicas S.L.',
               role: 'Agencia',
               email: null,
@@ -570,7 +588,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
             await supabase
               .from('contract_signers')
               .insert({
-                document_id: data.id,
+                document_id: contractId,
                 name: booking.promotor || booking.contacto || 'Promotor',
                 role: 'Promotor',
                 email: null,
