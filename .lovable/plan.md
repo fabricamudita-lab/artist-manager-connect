@@ -1,69 +1,20 @@
 
 
-## Plan: Mejoras en ambos PDFs basadas en estándares de la industria
+## Plan: Fix ISRC overlap in both PDFs
 
-### 1. Split Sheet — Columnas adicionales en Publishing
+### Root cause
+In `exportSplitsPDF.ts` (lines 293-307): After the track title at `y`, `y += 3`, then ISRC is drawn at `y + 4`. This places the ISRC text only 7mm below a 12pt title, and the next section header starts just 3mm after — causing visual overlap.
 
-Tu documento modificado tiene dos columnas extra en la tabla de Autoría que son estándar para el registro en sociedades de gestión:
+### Fix
 
-| Actual | Tu versión mejorada |
-|--------|-------------------|
-| Nombre, Roles, % Recaudable | Nombre, Rol, % Recaudable, **Sociedad (PRO)**, **Notas** |
+**`src/utils/exportSplitsPDF.ts`** (lines 293-307):
+- Change `y += 3` after title to `y += 7` (proper clearance for 12pt font)
+- Draw ISRC at `y` directly instead of `y + 4`
+- Increase post-ISRC spacing: `y += 6` → `y += 7`
 
-- **Sociedad (PRO)**: Placeholder `[SGAE/BMI/ASCAP]` — el sistema no almacena esta info actualmente, pero el campo es esencial para que el documento sea útil al registrar obras
-- **Notas**: Permite anotar casos especiales como "Dominio Público (DP)", "Cover Estándar", "Sujeto a revisión de obra derivada"
-- La tabla de Master se mantiene igual (Nombre, Rol, %)
+**`src/utils/exportLabelCopyPDF.ts`** (lines 302-323):
+- Verify spacing after track title (`y += 7` on line 306 looks correct, but ensure ISRC has enough gap before the sections start)
+- Add `y += 2` after ISRC block to prevent overlap with COMPOSITION header
 
-**Cambio en `exportSplitsPDF.ts`**: Ampliar `drawSplitTable` para renderizar 5 columnas en publishing y 3 en master.
-
-### 2. Label Copy — Secciones categorizadas (plan pendiente)
-
-Implementar la estructura que propusiste en tu mensaje anterior, con créditos organizados por sección:
-
-```text
-TRACK 01 — Amor constante más allá de la muerte
-────────────────────
-Artist: Leyre Estruch
-ISRC: ...
-
-COMPOSITION
-  Composer: Alejandro Estruch
-  Lyrics: Francisco de Quevedo
-
-PRODUCTION
-  Arrangements: Vicente López, Tramel Levalle, Biel Roca, Leyre Estruch
-  Recording Engineer: Joan Nitu López
-  Mixing Engineer: Adrià Serrano
-  Mastering Engineer: Adrià Serrano
-
-PERFORMANCE
-  Lead Vocals: Leyre Estruch
-  Guitar: Vicente López
-  Percussion: Tramel Levalle
-  Piano: Biel Roca Matamala
-
-LYRICS
-[...]
-```
-
-**Mapeo de secciones**:
-- **COMPOSITION**: compositor, autor, letrista, co-autor, libretista, editorial
-- **PRODUCTION**: productor*, arreglista, ingeniero_mezcla, masterizador, ingeniero_grabacion, ingeniero_sonido, estudio_grabacion, director_musical, programador
-- **PERFORMANCE**: todos los roles de `interprete`
-- **ADDITIONAL**: remixer, dj, director_video, director_arte, fotografo, disenador
-
-Formato invertido: **"Rol: Nombre1, Nombre2"** (agrupar nombres por rol, no roles por persona). Etiquetas en inglés (estándar de distribuidoras).
-
-**Cambio en `exportLabelCopyPDF.ts`**: Reemplazar `groupCreditsByPerson` por `groupCreditsBySection` con el mapeo anterior.
-
-### 3. Consideración futura (sin cambio de DB ahora)
-
-Los campos **Sociedad (PRO)** y **Notas** en el Split Sheet serán placeholders. Si en el futuro quieres que sean editables, necesitaríamos añadir columnas `pro_society` y `notes` a `track_credits`. Por ahora los placeholders cumplen la función del documento como plantilla de registro.
-
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/utils/exportSplitsPDF.ts` | Tabla publishing con 5 columnas, placeholders PRO y Notas |
-| `src/utils/exportLabelCopyPDF.ts` | Secciones categorizadas COMPOSITION/PRODUCTION/PERFORMANCE/ADDITIONAL |
+Both are 2-3 line spacing adjustments. No logic changes.
 
