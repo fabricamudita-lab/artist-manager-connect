@@ -118,12 +118,18 @@ export default function ContractDraftView() {
   const userRole = useMemo<'producer' | 'collaborator' | 'viewer'>(() => {
     if (!userIdentity || !draft) return 'viewer';
     const draftAny = draft as any;
-    if (draftAny.producer_email && userIdentity.email === draftAny.producer_email.toLowerCase()) return 'producer';
-    if (draftAny.collaborator_email && userIdentity.email === draftAny.collaborator_email.toLowerCase()) return 'collaborator';
-    // Fallback: check form_data emails
+    const email = userIdentity.email;
+    console.log('👤 Identity:', userIdentity);
+    console.log('📧 Draft producer_email:', draftAny.producer_email);
+    console.log('📧 Draft collaborator_email:', draftAny.collaborator_email);
+    console.log('📧 form_data productora_email:', draft.form_data?.productora_email);
+    console.log('📧 form_data colaboradora_email:', draft.form_data?.colaboradora_email);
+    if (draftAny.producer_email && email === draftAny.producer_email.toLowerCase()) { console.log('🎭 Role: producer'); return 'producer'; }
+    if (draftAny.collaborator_email && email === draftAny.collaborator_email.toLowerCase()) { console.log('🎭 Role: collaborator'); return 'collaborator'; }
     const fd = draft.form_data || {};
-    if (fd.productora_email && userIdentity.email === fd.productora_email.toLowerCase()) return 'producer';
-    if (fd.colaboradora_email && userIdentity.email === fd.colaboradora_email.toLowerCase()) return 'collaborator';
+    if (fd.productora_email && email === fd.productora_email.toLowerCase()) { console.log('🎭 Role (fallback): producer'); return 'producer'; }
+    if (fd.colaboradora_email && email === fd.colaboradora_email.toLowerCase()) { console.log('🎭 Role (fallback): collaborator'); return 'collaborator'; }
+    console.log('🎭 Role: viewer (no match)');
     return 'viewer';
   }, [userIdentity, draft]);
 
