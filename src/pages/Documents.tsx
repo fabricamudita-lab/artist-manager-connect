@@ -342,8 +342,9 @@ export default function Documents() {
     if (!documentToDelete) return;
 
     try {
+      const table = documentToDelete.is_draft ? 'contract_drafts' : 'documents';
       const { error } = await supabase
-        .from('documents')
+        .from(table)
         .delete()
         .eq('id', documentToDelete.id);
 
