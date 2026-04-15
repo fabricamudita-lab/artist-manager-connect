@@ -427,6 +427,7 @@ function renderIPLicenseContent(
   formData: any,
   clausesData: any,
   selectionComments: Array<{ selected_text: string | null; id: string }>,
+  onCommentClick?: (commentId: string) => void,
 ) {
   const d = formData;
   const rawClauses = { ...DEFAULT_IP_CLAUSES, ...(clausesData || {}) };

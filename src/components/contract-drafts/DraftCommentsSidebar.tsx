@@ -26,6 +26,7 @@ interface DraftCommentsSidebarProps {
   onApproveChange?: (commentId: string, role: 'producer' | 'collaborator') => Promise<void>;
   onRejectChange?: (commentId: string) => Promise<void>;
   isOwner: boolean;
+  userRole?: 'producer' | 'collaborator' | 'viewer';
   defaultAuthorName?: string;
   pendingSelection?: TextSelection | null;
   onClearSelection?: () => void;
