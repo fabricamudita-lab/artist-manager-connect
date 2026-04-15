@@ -293,17 +293,17 @@ export function exportSplitsPDF(
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(`${track.track_number}. ${track.title}`, MARGIN_LEFT, y);
-    y += 3;
+    y += 7;
 
     if (track.isrc) {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(120);
-      doc.text(`ISRC: ${track.isrc}`, MARGIN_LEFT + 5, y + 4);
+      doc.text(`ISRC: ${track.isrc}`, MARGIN_LEFT + 5, y);
       doc.setTextColor(0);
       y += 7;
     } else {
-      y += 4;
+      y += 2;
     }
 
     const trackCredits = credits.filter(c => c.track_id === track.id);
