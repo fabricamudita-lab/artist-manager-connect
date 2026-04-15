@@ -181,32 +181,34 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
 
         <TabsContent value="search" className="space-y-4">
           {selectedProfile ? (
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg border">
-              <div className="flex items-center gap-2">
-                {selectedProfile.type === 'artist' ? (
-                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                ) : (
-                  <User className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className="font-medium">{selectedProfile.name}</span>
-                <Badge variant="outline" className="text-xs">
-                  {selectedProfile.type === 'artist' ? 'Roster' : 'Contacto'}
-                </Badge>
-              </div>
-              <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
-                Cambiar
-              </Button>
-            </div>
-            {selectedPersonExistingRoles.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap px-3 pb-2 -mt-1">
-                <span className="text-xs text-muted-foreground">Ya tiene:</span>
-                {selectedPersonExistingRoles.map((r, i) => (
-                  <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                    {getRoleLabel(r)}
+            <>
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg border">
+                <div className="flex items-center gap-2">
+                  {selectedProfile.type === 'artist' ? (
+                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                  ) : (
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="font-medium">{selectedProfile.name}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedProfile.type === 'artist' ? 'Roster' : 'Contacto'}
                   </Badge>
-                ))}
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
+                  Cambiar
+                </Button>
               </div>
-            )}
+              {selectedPersonExistingRoles.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Ya tiene:</span>
+                  {selectedPersonExistingRoles.map((r, i) => (
+                    <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                      {getRoleLabel(r)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
             <Command className="rounded-lg border">
               <CommandInput placeholder="Buscar artistas, equipo o contactos..." />
