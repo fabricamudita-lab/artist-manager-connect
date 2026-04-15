@@ -1,89 +1,52 @@
 
 
-## Plan: Agrupar créditos por persona en la UI
+## Plan: Separar Label Copy y Splits de Derechos en dos PDFs + Agrupar créditos por persona
 
 ### Problema actual
-Cada fila en `track_credits` es 1 persona + 1 rol. Si "Vicente López" tiene roles de Arreglista y Compositor, aparece como dos filas separadas. Esto confunde al usuario y cuando va a añadir un crédito, la misma persona vuelve a aparecer como disponible aunque ya tenga otros roles asignados.
+1. **Créditos duplicados en el PDF**: La misma persona aparece varias veces con roles distintos (ej: "Arreglista: Vicente López", "Guitarra: Vicente López") en vez de agruparse
+2. **Porcentajes confusos**: "(15% Autoría)" mezclado con los créditos del label copy no es claro
+3. **Un solo documento** mezcla información de label copy (metadatos + créditos para distribuidoras) con splits de derechos (autoría/master), que son documentos con propósitos distintos
 
-### Estrategia: Agrupacion visual (sin cambiar la BD)
+### Solución: Dos funciones de exportación independientes
 
-El modelo actual de BD (1 fila = 1 persona + 1 rol) es correcto y granular. Cambiarlo a un array de roles rompería royalties, label copy export, splits, solicitudes, y mucho mas. La solucion es **agrupar en el frontend**.
+**PDF 1 — Label Copy** (metadatos + créditos agrupados, SIN porcentajes)
+- Header: título, artista, UPC, sello, copyright, género, fecha, etc.
+- Por canción: artista, ISRC, copyright ©/℗, créditos agrupados por persona, letra
+- Créditos agrupados: "Vicente López — Arreglista, Guitarra" en vez de dos filas separadas
+- Sin porcentajes de autoría ni master (eso va en el otro documento)
 
-```text
-ANTES (actual):                     DESPUES (propuesto):
-┌─────────────────────────┐         ┌──────────────────────────────────┐
-│ Vicente López           │         │ Vicente López  ✓                 │
-│ Arreglista  [Autoría]   │         │ Arreglista · Compositor          │
-│                 25% A   │         │ [Autoría]                        │
-├─────────────────────────┤         │          25% A (Arr) · 50% A (C) │
-│ Vicente López           │         └──────────────────────────────────┘
-│ Compositor  [Compositor]│
-│                 50% A   │
-└─────────────────────────┘
-```
+**PDF 2 — Splits de Derechos** (autoría + master por canción)
+- Header: mismos datos del release
+- Por canción: dos tablas claras
+  - **Autoría/Publishing**: nombre, roles, porcentaje — con total al pie
+  - **Master/Royalties**: nombre, roles, porcentaje — con total al pie
+- Solo aparecen personas que tienen porcentajes asignados
 
-### Cambios en `ReleaseCreditos.tsx`
+### Cambios técnicos
 
-**1. Nuevo tipo `GroupedCredit`**
-```ts
-interface GroupedCredit {
-  key: string;              // contact_id || name.toLowerCase()
-  name: string;
-  contact_id: string | null;
-  artist_id: string | null;
-  credits: TrackCredit[];   // todas las filas de esta persona
-  categories: Set<CreditCategory>;
-}
-```
+**1. Refactorizar `src/utils/exportLabelCopyPDF.ts`**
+- Eliminar toda la lógica de porcentajes del label copy
+- Agrupar créditos por persona (clave: `name.toLowerCase()`) antes de renderizar
+- Mostrar: "Nombre — Rol1, Rol2, Rol3" en una sola línea por persona
 
-**2. Agrupacion en `CreditsSection`**
-- En `creditsByCategory`, antes de renderizar, agrupar los créditos por persona (clave: `contact_id` si existe, sino `name.toLowerCase()`)
-- Cada persona aparece UNA vez en la categoría donde tiene su primer rol. Si tiene roles en multiples categorías, aparece en cada una pero con indicador de que tiene roles cruzados.
-- Alternativa mas simple: agrupar por persona DENTRO de cada categoría (si tiene 2 roles en "Autoría", se muestran como 1 fila con 2 badges de rol)
+**2. Crear `src/utils/exportSplitsPDF.ts`**
+- Nueva función `exportSplitsPDF()` con los mismos parámetros
+- Header idéntico al label copy
+- Por canción, dos secciones con tabla:
+  - **AUTORÍA**: filas con nombre, roles, % autoría
+  - **MASTER**: filas con nombre, roles, % master
+- Totales al final de cada tabla
 
-**3. `SortableCreditRow` → `SortablePersonRow`**
-- Recibe `GroupedCredit` en vez de `TrackCredit`
-- Muestra todos los roles como badges
-- Muestra los porcentajes por rol (ej: "25% A (Arreglista) · 50% A (Compositor)")
-- El drag-and-drop mueve todas las filas de esa persona juntas
-- Editar abre un formulario donde se pueden gestionar los roles individuales
-- Eliminar elimina TODAS las filas de la persona (con confirmacion)
-- Boton para añadir un rol adicional a la misma persona
+**3. Actualizar `src/pages/release-sections/ReleaseCreditos.tsx`**
+- Añadir un segundo botón "Descargar Splits de Derechos" junto al existente de Label Copy
+- O un dropdown con las dos opciones
+- Reutilizar la misma query de datos para ambos exports
 
-**4. `AddCreditWithProfileForm`**
-- Al seleccionar una persona que YA tiene créditos en la cancion, filtrar los roles que ya tiene para no duplicar
-- Mostrar un indicador "Ya tiene: Arreglista, Compositor" para informar al usuario
+### Archivos
 
-**5. Manejo de categorías cruzadas**
-- Si "Vicente López" es Arreglista (Autoría) y Guitarrista (Intérprete), aparecerá en AMBAS secciones de categoría
-- Cada aparicion muestra solo los roles de ESA categoría, pero un badge pequeño indica "también en: Intérprete"
-
-### Impacto en otros sistemas (analisis de riesgos)
-
-| Sistema | Impacto | Riesgo |
-|---------|---------|--------|
-| `TrackRightsSplitsManager` | Ninguno — lee `track_credits` directamente, cada fila sigue teniendo su % | Nulo |
-| `exportLabelCopyPDF` | Ninguno — itera sobre filas individuales | Nulo |
-| `useRoyalties` | Ninguno — calcula sobre filas individuales | Nulo |
-| `CreditedArtistRoles` | Ninguno — ya agrupa por persona con `creditedPeople` | Nulo |
-| `SolicitudDetailsDialog` | Ninguno — muestra créditos planos | Nulo |
-| `ReleaseAudio` | Ninguno — ya agrupa por nombre en línea 777 | Nulo |
-| Drag-and-drop ordering | Medio — al agrupar, `sort_order` debe sincronizarse para todas las filas de la misma persona | Bajo |
-
-### Archivos a modificar
-
-1. **`src/pages/release-sections/ReleaseCreditos.tsx`**:
-   - Nuevo tipo `GroupedCredit`
-   - Logica de agrupacion en `CreditsSection`
-   - Nuevo componente `SortablePersonRow` (reemplaza a `SortableCreditRow`)
-   - Edicion inline adaptada para multiples roles
-   - Eliminacion en cascada de todas las filas de una persona
-
-2. **`src/components/credits/AddCreditWithProfileForm.tsx`**:
-   - Recibir prop `existingCredits` para filtrar roles ya asignados
-   - Mostrar indicador de roles existentes
-
-### Sin cambios en base de datos
-
-La tabla `track_credits` permanece igual. Un registro = una persona + un rol + sus porcentajes. La agrupacion es puramente visual.
+| Archivo | Acción |
+|---------|--------|
+| `src/utils/exportLabelCopyPDF.ts` | Modificar: quitar %, agrupar créditos por persona |
+| `src/utils/exportSplitsPDF.ts` | Crear: nuevo PDF de splits con tablas de autoría y master |
+| `src/pages/release-sections/ReleaseCreditos.tsx` | Modificar: añadir botón para el segundo PDF |
 
