@@ -311,7 +311,13 @@ function SplitRow({
                 Vinculado
               </Badge>
             )}
+            {type === 'publishing' && credit.pro_society && (
+              <Badge variant="secondary" className="text-xs">{credit.pro_society}</Badge>
+            )}
           </div>
+          {type === 'publishing' && credit.notes && (
+            <p className="text-xs text-muted-foreground italic mt-0.5">{credit.notes}</p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
