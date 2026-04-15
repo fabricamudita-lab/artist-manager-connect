@@ -886,7 +886,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
                         </CollapsibleTrigger>
 
                         <div className="flex items-center gap-2 ml-3 shrink-0">
-                          <ContractSignersSummary documentId={doc.id} />
+                          {contractIdMap[doc.id] && <ContractSignersSummary documentId={contractIdMap[doc.id]} />}
                           <Badge className={`${statusConfig.color} ${isSigned ? 'bg-green-600' : ''} text-white`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {statusConfig.label}
@@ -995,7 +995,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
                           {/* Multi-Signer Manager */}
                           <div className="pt-2 border-t">
                             <ContractSignersManager 
-                              documentId={doc.id} 
+                              documentId={contractIdMap[doc.id] || doc.id} 
                               onSignersChange={fetchDocuments}
                             />
                           </div>
