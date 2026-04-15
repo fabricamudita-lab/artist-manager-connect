@@ -80,6 +80,7 @@ function drawSplitTable(
   y: number,
   title: string,
   rows: GroupedSplit[],
+  pctHeader: string,
 ): number {
   if (rows.length === 0) return y;
 
@@ -90,7 +91,6 @@ function drawSplitTable(
   doc.text(title, MARGIN_LEFT + 5, y);
   y += 6;
 
-  // Table header
   const colName = MARGIN_LEFT + 8;
   const colRoles = MARGIN_LEFT + 70;
   const colPct = PAGE_WIDTH - MARGIN_RIGHT - 15;
@@ -100,7 +100,7 @@ function drawSplitTable(
   doc.setTextColor(100);
   doc.text('Nombre', colName, y);
   doc.text('Roles', colRoles, y);
-  doc.text('%', colPct, y, { align: 'right' });
+  doc.text(pctHeader, colPct, y, { align: 'right' });
   y += 1;
   doc.setDrawColor(200);
   doc.setLineWidth(0.2);
@@ -108,20 +108,18 @@ function drawSplitTable(
   y += 4;
   doc.setTextColor(0);
 
-  // Rows
   let total = 0;
   for (const row of rows) {
     y = addPageIfNeeded(doc, y, 7);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(row.name, colName, y);
-    doc.text(row.roles.join(', '), colRoles, y);
+    doc.text(row.roles.join(' / '), colRoles, y);
     doc.text(`${row.percentage}%`, colPct, y, { align: 'right' });
     total += row.percentage;
     y += LINE_HEIGHT + 0.5;
   }
 
-  // Total
   y += 1;
   doc.setDrawColor(200);
   doc.line(colName, y, PAGE_WIDTH - MARGIN_RIGHT, y);
@@ -134,6 +132,35 @@ function drawSplitTable(
   return y;
 }
 
+function getArtistDisplay(release: SplitsRelease): string {
+  if (release.release_artists && release.release_artists.length > 0) {
+    const mainNames = release.release_artists.filter(ra => ra.role !== 'featuring').map(ra => ra.artist?.name).filter(Boolean);
+    const featNames = release.release_artists.filter(ra => ra.role === 'featuring').map(ra => ra.artist?.name).filter(Boolean);
+    return mainNames.join(', ') + (featNames.length > 0 ? ' feat. ' + featNames.join(', ') : '');
+  }
+  return release.artist?.name || '—';
+}
+
+interface UniqueParticipant {
+  name: string;
+  hasPublishing: boolean;
+  hasMaster: boolean;
+}
+
+function collectUniqueParticipants(credits: SplitsCredit[]): UniqueParticipant[] {
+  const map = new Map<string, UniqueParticipant>();
+  for (const c of credits) {
+    const key = c.name.toLowerCase().trim();
+    if (!map.has(key)) {
+      map.set(key, { name: c.name, hasPublishing: false, hasMaster: false });
+    }
+    const entry = map.get(key)!;
+    if (c.publishing_percentage != null && c.publishing_percentage > 0) entry.hasPublishing = true;
+    if (c.master_percentage != null && c.master_percentage > 0) entry.hasMaster = true;
+  }
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function exportSplitsPDF(
   release: SplitsRelease,
   tracks: SplitsTrack[],
@@ -142,36 +169,35 @@ export function exportSplitsPDF(
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 20;
 
-  // ── Header ──
-  doc.setFontSize(18);
+  // ── Title ──
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('SPLITS DE DERECHOS', MARGIN_LEFT, y);
+  doc.text('HOJA DE REPARTO DE DERECHOS (SPLIT SHEET)', MARGIN_LEFT, y);
   y += 10;
 
   y = drawSeparator(doc, y);
+
+  // ── INFORMACIÓN DEL PROYECTO ──
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMACIÓN DEL PROYECTO', MARGIN_LEFT, y);
+  y += 7;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
 
   const typeLabel = release.type === 'single' ? 'Single' : release.type === 'ep' ? 'EP' : 'Álbum';
-
-  let artistDisplay = release.artist?.name || '—';
-  if (release.release_artists && release.release_artists.length > 0) {
-    const mainNames = release.release_artists.filter(ra => ra.role !== 'featuring').map(ra => ra.artist?.name).filter(Boolean);
-    const featNames = release.release_artists.filter(ra => ra.role === 'featuring').map(ra => ra.artist?.name).filter(Boolean);
-    artistDisplay = mainNames.join(', ') + (featNames.length > 0 ? ' feat. ' + featNames.join(', ') : '');
-  }
+  const artistDisplay = getArtistDisplay(release);
 
   const headerFields: [string, string][] = [
-    ['Título', release.title],
-    ['Artista', artistDisplay],
-    ['Tipo', typeLabel],
+    [`Título del ${typeLabel}`, release.title],
+    ['Artista Principal', artistDisplay],
   ];
-  if (release.label) headerFields.push(['Sello', release.label]);
+  if (release.label) headerFields.push(['Sello Discográfico', release.label]);
   if (release.upc) headerFields.push(['UPC', release.upc]);
   if (release.release_date) {
     headerFields.push([
-      'Fecha de lanzamiento',
+      'Fecha de Lanzamiento',
       format(new Date(release.release_date), "d 'de' MMMM yyyy", { locale: es }),
     ]);
   }
@@ -190,13 +216,18 @@ export function exportSplitsPDF(
   doc.setTextColor(120);
   doc.text(`Exportado: ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}`, MARGIN_LEFT, y);
   doc.setTextColor(0);
+  y += 10;
+
+  // ── DETALLE POR PISTA ──
+  y = drawSeparator(doc, y);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DETALLE POR PISTA', MARGIN_LEFT, y);
   y += 8;
 
-  // ── Tracks ──
   const sortedTracks = [...tracks].sort((a, b) => a.track_number - b.track_number);
 
   for (const track of sortedTracks) {
-    y = drawSeparator(doc, y);
     y = addPageIfNeeded(doc, y, 30);
 
     doc.setFontSize(12);
@@ -216,7 +247,6 @@ export function exportSplitsPDF(
     }
 
     const trackCredits = credits.filter(c => c.track_id === track.id);
-
     const publishingRows = groupByPerson(trackCredits, 'publishing');
     const masterRows = groupByPerson(trackCredits, 'master');
 
@@ -227,14 +257,75 @@ export function exportSplitsPDF(
       doc.text('Sin splits asignados', MARGIN_LEFT + 5, y);
       doc.setTextColor(0);
       y += 8;
-      continue;
+    } else {
+      y = drawSplitTable(doc, y, 'AUTORÍA / PUBLISHING (Derechos de Obra)', publishingRows, '% Recaudable');
+      y = drawSplitTable(doc, y, 'MASTER / ROYALTIES (Derechos de Fonograma)', masterRows, '%');
     }
 
-    y = drawSplitTable(doc, y, 'AUTORÍA / PUBLISHING', publishingRows);
-    y = drawSplitTable(doc, y, 'MASTER / ROYALTIES', masterRows);
+    // separator between tracks
+    if (track !== sortedTracks[sortedTracks.length - 1]) {
+      y = drawSeparator(doc, y);
+    }
+    y += 2;
+  }
 
+  // ── DATOS DE CONTACTO Y REGISTRO ──
+  const participants = collectUniqueParticipants(credits);
+  if (participants.length > 0) {
+    y += 4;
+    y = drawSeparator(doc, y);
+    y = addPageIfNeeded(doc, y, 30 + participants.length * 6);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATOS DE CONTACTO Y REGISTRO', MARGIN_LEFT, y);
+    y += 7;
+
+    const colParticipant = MARGIN_LEFT + 5;
+    const colIPI = MARGIN_LEFT + 55;
+    const colEmail = MARGIN_LEFT + 95;
+    const colFirma = PAGE_WIDTH - MARGIN_RIGHT - 25;
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100);
+    doc.text('Participante', colParticipant, y);
+    doc.text('IPI/CAE', colIPI, y);
+    doc.text('Correo Electrónico', colEmail, y);
+    doc.text('Firma', colFirma, y);
+    y += 1;
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.2);
+    doc.line(colParticipant, y, PAGE_WIDTH - MARGIN_RIGHT, y);
+    y += 4;
+    doc.setTextColor(0);
+
+    for (const p of participants) {
+      y = addPageIfNeeded(doc, y, 7);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(p.name, colParticipant, y);
+      const ipiValue = p.hasPublishing ? '[A completar]' : 'N/A (Solo Master)';
+      doc.text(ipiValue, colIPI, y);
+      doc.text('[A completar]', colEmail, y);
+      // firma: draw a small line
+      doc.setDrawColor(180);
+      doc.line(colFirma, y + 1, PAGE_WIDTH - MARGIN_RIGHT, y + 1);
+      y += LINE_HEIGHT + 1;
+    }
     y += 4;
   }
+
+  // ── Legal footer ──
+  y = addPageIfNeeded(doc, y, 20);
+  y = drawSeparator(doc, y);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(100);
+  const legalText = 'Este documento certifica la voluntad de las partes para el registro y reparto de beneficios derivados de la explotación de las obras y fonogramas aquí listados.';
+  const legalLines = doc.splitTextToSize(legalText, PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT);
+  doc.text(legalLines, MARGIN_LEFT, y);
+  doc.setTextColor(0);
 
   const safeName = release.title
     .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '')
