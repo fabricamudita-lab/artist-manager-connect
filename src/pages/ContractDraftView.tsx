@@ -9,7 +9,7 @@ import { NegotiationBanner } from '@/components/contract-drafts/NegotiationBanne
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+// Pure HTML modal used instead of Dialog to avoid auth redirect issues
 import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -290,34 +290,51 @@ export default function ContractDraftView() {
         />
       </div>
 
-      {/* Identity modal */}
-      <Dialog open={showIdentityModal} onOpenChange={setShowIdentityModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Identifícate para participar</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <Input
-              placeholder="Tu nombre"
-              value={identityName}
-              onChange={e => setIdentityName(e.target.value)}
-            />
-            <Input
-              placeholder="Tu email"
-              type="email"
-              value={identityEmail}
-              onChange={e => setIdentityEmail(e.target.value)}
-            />
-            <Button
-              className="w-full"
-              onClick={handleIdentitySubmit}
-              disabled={!identityName.trim() || !identityEmail.trim()}
-            >
-              Continuar
-            </Button>
+      {/* Identity modal – pure HTML/CSS to avoid auth redirect */}
+      {showIdentityModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '32px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Identifícate para participar</h2>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
+              Para poder comentar y aprobar cambios en este contrato, necesitamos saber quién eres.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>Tu nombre</label>
+                <input
+                  value={identityName}
+                  onChange={e => setIdentityName(e.target.value)}
+                  placeholder="Ej: Leyre Estruch"
+                  autoFocus
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', outline: 'none' }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleIdentitySubmit(); }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>Tu email</label>
+                <input
+                  type="email"
+                  value={identityEmail}
+                  onChange={e => setIdentityEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', outline: 'none' }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleIdentitySubmit(); }}
+                />
+              </div>
+              <button
+                onClick={handleIdentitySubmit}
+                disabled={!identityName.trim() || !identityEmail.trim()}
+                style={{
+                  width: '100%', padding: '10px', backgroundColor: (!identityName.trim() || !identityEmail.trim()) ? '#9ca3af' : '#2563eb',
+                  color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '4px',
+                }}
+              >
+                Continuar
+              </button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }
@@ -350,7 +367,18 @@ function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   comments?: Array<{ selected_text: string | null; id: string }>;
   onCommentClick?: (commentId: string) => void;
 }) {
-  const relevantComments = comments?.filter(c => c.selected_text && text.includes(c.selected_text)) || [];
+  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ');
+  const normalizedText = normalize(text);
+  
+  console.log(`🎯 ClauseParagraph [${clauseKey}] - ${comments?.length || 0} comments passed`);
+  
+  const relevantComments = comments?.filter(c => {
+    if (!c.selected_text) return false;
+    const normalizedSelected = normalize(c.selected_text);
+    const found = normalizedText.includes(normalizedSelected);
+    console.log(found ? '✅' : '❌', `[${clauseKey}] Buscando: "${normalizedSelected.substring(0, 50)}..." → ${found ? 'ENCONTRADO' : 'NO ENCONTRADO'}`);
+    return found;
+  }) || [];
 
   if (relevantComments.length === 0) {
     return (
@@ -368,14 +396,29 @@ function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
 
     // Sort comments by position in text (earliest first)
     const sorted = [...relevantComments].sort((a, b) => {
-      const posA = remaining.indexOf(a.selected_text!);
-      const posB = remaining.indexOf(b.selected_text!);
+      const posA = normalize(remaining).indexOf(normalize(a.selected_text!));
+      const posB = normalize(remaining).indexOf(normalize(b.selected_text!));
       return posA - posB;
     });
 
     for (const comment of sorted) {
       const selectedText = comment.selected_text!;
-      const pos = remaining.indexOf(selectedText);
+      // Use normalized matching but find position in actual remaining text
+      const normalizedRemaining = normalize(remaining);
+      const normalizedSel = normalize(selectedText);
+      const normPos = normalizedRemaining.indexOf(normalizedSel);
+      if (normPos === -1) continue;
+      // Find actual position by counting chars
+      let actualPos = 0;
+      let normCount = 0;
+      const trimmedRemaining = remaining.trimStart();
+      const leadingSpaces = remaining.length - trimmedRemaining.length;
+      // Simple approach: find the selected_text directly first, fallback to normalized
+      let pos = remaining.indexOf(selectedText);
+      if (pos === -1) {
+        // Try to find with collapsed whitespace
+        pos = normPos; // approximate
+      }
       if (pos === -1) continue;
 
       // Text before the highlight

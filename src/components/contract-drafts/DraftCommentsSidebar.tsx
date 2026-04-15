@@ -222,10 +222,13 @@ export function DraftCommentsSidebar({
                     </span>
                   </div>
                 </div>
-                {onApproveChange && onRejectChange && userRole !== 'viewer' && (
+                {onApproveChange && onRejectChange && (userRole === 'producer' || userRole === 'collaborator') && (
                   <div className="flex gap-1 pt-1">
-                    <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => onApproveChange(comment.id, userRole)}>
-                      <Check className="h-3 w-3 mr-1" /> Aprobar
+                    <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => {
+                      console.log('🔘 Approve button clicked with role:', userRole);
+                      onApproveChange(comment.id, userRole as 'producer' | 'collaborator');
+                    }}>
+                      <Check className="h-3 w-3 mr-1" /> Aprobar como {userRole === 'producer' ? 'Productora' : 'Colaborador/a'}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => onRejectChange(comment.id)}>
                       <XCircle className="h-3 w-3 mr-1" /> Rechazar

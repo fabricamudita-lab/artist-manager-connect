@@ -217,19 +217,40 @@ export function usePublicDraft(token: string | undefined) {
   };
 
   const approveChange = async (commentId: string, role: 'producer' | 'collaborator') => {
-    const field = role === 'producer' ? 'approved_by_producer' : 'approved_by_collaborator';
+    console.log('🔍 approveChange called with role:', role, 'commentId:', commentId);
+    
+    if (role !== 'producer' && role !== 'collaborator') {
+      console.error('❌ Invalid role for approval:', role);
+      toast.error('No tienes permisos para aprobar cambios');
+      return;
+    }
+    
+    const updateData = role === 'producer' 
+      ? { approved_by_producer: true }
+      : { approved_by_collaborator: true };
+    
+    console.log('📤 Updating ONLY field:', updateData);
+    
     const { error } = await supabase.from('contract_draft_comments')
-      .update({ [field]: true } as any)
+      .update(updateData as any)
       .eq('id', commentId);
-    if (error) { toast.error('Error al aprobar'); return; }
+    if (error) { 
+      console.error('❌ Error updating:', error);
+      toast.error('Error al aprobar'); 
+      return; 
+    }
 
-    // Check if both approved
+    // Re-fetch to check if both approved
     const { data: updated } = await supabase.from('contract_draft_comments')
       .select('*').eq('id', commentId).single();
     if (updated) {
       const comment = updated as unknown as DraftComment;
+      console.log('📊 After update - producer:', comment.approved_by_producer, 'collaborator:', comment.approved_by_collaborator);
       if (comment.approved_by_producer && comment.approved_by_collaborator) {
+        console.log('🎉 Both approved! Applying change...');
         await applyChange(comment);
+      } else {
+        console.log('⏳ Waiting for other party approval');
       }
     }
     toast.success('Cambio aprobado');
