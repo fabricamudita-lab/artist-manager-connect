@@ -56,6 +56,8 @@ interface GroupedSplit {
   name: string;
   roles: string[];
   percentage: number;
+  pro_society?: string | null;
+  notes?: string | null;
 }
 
 function groupByPerson(credits: SplitsCredit[], type: 'publishing' | 'master'): GroupedSplit[] {
@@ -65,13 +67,16 @@ function groupByPerson(credits: SplitsCredit[], type: 'publishing' | 'master'): 
     if (pct == null || pct <= 0) continue;
     const key = c.name.toLowerCase().trim();
     if (!map.has(key)) {
-      map.set(key, { name: c.name, roles: [], percentage: 0 });
+      map.set(key, { name: c.name, roles: [], percentage: 0, pro_society: c.pro_society, notes: c.notes });
     }
     const entry = map.get(key)!;
     const roleLabel = getRoleLabel(c.role);
     if (!entry.roles.includes(roleLabel)) {
       entry.roles.push(roleLabel);
     }
+    // Keep the first non-empty pro_society and notes
+    if (!entry.pro_society && c.pro_society) entry.pro_society = c.pro_society;
+    if (!entry.notes && c.notes) entry.notes = c.notes;
     entry.percentage += pct;
   }
   return Array.from(map.values()).sort((a, b) => b.percentage - a.percentage);
@@ -134,9 +139,13 @@ function drawSplitTable(
       const truncatedRoles = doc.splitTextToSize(rolesText, 48)[0] || rolesText;
       doc.text(truncatedRoles, colRoles, y);
       doc.text(`${row.percentage}%`, colPct, y);
-      doc.setTextColor(130);
-      doc.text('[________]', colPro, y);
-      doc.text('[________]', colNotas, y, { align: 'right' });
+      // Use real data or placeholder
+      const proText = row.pro_society || '[________]';
+      const notesText = row.notes || '[________]';
+      doc.setTextColor(row.pro_society ? 0 : 130);
+      doc.text(proText, colPro, y);
+      doc.setTextColor(row.notes ? 0 : 130);
+      doc.text(notesText, colNotas, y, { align: 'right' });
       doc.setTextColor(0);
       total += row.percentage;
       y += LINE_HEIGHT + 0.5;
