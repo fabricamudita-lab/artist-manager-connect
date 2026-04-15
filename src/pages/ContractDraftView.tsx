@@ -255,7 +255,7 @@ export default function ContractDraftView() {
             }}
           >
             {isIPLicense
-              ? renderIPLicenseContent(formData, draft.clauses_data, selectionComments)
+              ? renderIPLicenseContent(formData, draft.clauses_data, selectionComments, scrollToComment)
               : renderBookingContent(formData, draft.clauses_data)}
           </div>
         </TextSelectionHandler>
@@ -272,13 +272,43 @@ export default function ContractDraftView() {
           onApproveChange={approveChange}
           onRejectChange={rejectChange}
           isOwner={isOwner}
-          defaultAuthorName={isOwner ? 'Equipo' : ''}
+          userRole={userRole}
+          defaultAuthorName={userIdentity?.name || (isOwner ? 'Equipo' : '')}
           pendingSelection={pendingSelection}
           onClearSelection={() => setPendingSelection(null)}
           onScrollToClause={handleScrollToClause}
           activeCommentId={activeCommentId}
         />
       </div>
+
+      {/* Identity modal */}
+      <Dialog open={showIdentityModal} onOpenChange={setShowIdentityModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Identifícate para participar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Input
+              placeholder="Tu nombre"
+              value={identityName}
+              onChange={e => setIdentityName(e.target.value)}
+            />
+            <Input
+              placeholder="Tu email"
+              type="email"
+              value={identityEmail}
+              onChange={e => setIdentityEmail(e.target.value)}
+            />
+            <Button
+              className="w-full"
+              onClick={handleIdentitySubmit}
+              disabled={!identityName.trim() || !identityEmail.trim()}
+            >
+              Continuar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
