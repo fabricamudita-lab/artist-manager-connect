@@ -58,6 +58,7 @@ import { AddCreditWithProfileForm } from '@/components/credits/AddCreditWithProf
 import { useAlertHighlight } from '@/hooks/useAlertHighlight';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { exportLabelCopyPDF } from '@/utils/exportLabelCopyPDF';
+import { exportSplitsPDF } from '@/utils/exportSplitsPDF';
 
 const sortCreditsBySortOrder = (credits: TrackCredit[]) => {
   return [...credits].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -96,6 +97,7 @@ export default function ReleaseCreditos() {
   const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
   const [showCreditsBanner, setShowCreditsBanner] = useState(false);
   const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
+  const [isExportingSplits, setIsExportingSplits] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
@@ -151,6 +153,40 @@ export default function ReleaseCreditos() {
       toast.error('Error al generar el Label Copy');
     } finally {
       setIsExportingLabelCopy(false);
+    }
+  };
+
+  const handleExportSplits = async () => {
+    if (!tracks || tracks.length === 0 || !release) {
+      toast.error('No hay canciones para exportar');
+      return;
+    }
+    setIsExportingSplits(true);
+    try {
+      const trackIds = tracks.map((t) => t.id);
+      const { data: creditsData, error } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds);
+      if (error) throw error;
+
+      exportSplitsPDF(
+        release,
+        tracks,
+        (creditsData || []).map((c: any) => ({
+          track_id: c.track_id,
+          name: c.name,
+          role: c.role,
+          publishing_percentage: c.publishing_percentage,
+          master_percentage: c.master_percentage,
+        })),
+      );
+      toast.success('Splits de derechos descargado');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al generar el PDF de splits');
+    } finally {
+      setIsExportingSplits(false);
     }
   };
 
@@ -368,6 +404,18 @@ export default function ReleaseCreditos() {
             <FileDown className="mr-2 h-4 w-4" />
           )}
           Descargar Label Copy
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleExportSplits}
+          disabled={isExportingSplits || !tracks || tracks.length === 0}
+        >
+          {isExportingSplits ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <FileDown className="mr-2 h-4 w-4" />
+          )}
+          Descargar Splits
         </Button>
         <Dialog open={isCreateTrackOpen} onOpenChange={setIsCreateTrackOpen}>
           <DialogTrigger asChild>
