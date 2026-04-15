@@ -123,6 +123,15 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
     !c.category || !['banda', 'artistico', 'tecnico', 'productor', 'compositor', 'letrista', 'interprete'].includes(c.category)
   );
 
+  // Get existing roles for the selected person
+  const selectedPersonExistingRoles = useMemo(() => {
+    if (!selectedProfile) return [];
+    return existingCredits.filter(c => {
+      if (selectedProfile.type === 'contact' && c.contact_id) return c.contact_id === selectedProfile.id;
+      return c.name.toLowerCase().trim() === selectedProfile.name.toLowerCase().trim();
+    }).map(c => c.role);
+  }, [selectedProfile, existingCredits]);
+
   const handleSelectProfile = (id: string, displayName: string, type: 'artist' | 'contact') => {
     setSelectedProfile({ id, name: displayName, type });
     setName(displayName);
