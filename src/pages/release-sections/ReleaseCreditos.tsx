@@ -510,12 +510,12 @@ export default function ReleaseCreditos() {
       </Card>
 
       <Dialog open={isEditTrackOpen} onOpenChange={setIsEditTrackOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Editar Canción</DialogTitle>
           </DialogHeader>
           {selectedTrack && (
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-y-auto flex-1 pr-1">
               <EditTrackForm
                 track={selectedTrack}
                 onSubmit={(data) => updateTrack.mutate({ id: selectedTrack.id, ...data })}
