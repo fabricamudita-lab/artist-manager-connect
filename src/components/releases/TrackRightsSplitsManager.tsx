@@ -367,7 +367,13 @@ function SplitRow({
 
   return (
     <div className="flex items-center justify-between p-2 rounded-lg border bg-background">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <button
+          className="cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
+          {...dragHandleProps}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
           credit.contact_id ? 'bg-primary/10' : 'bg-muted'
         }`}>
