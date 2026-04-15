@@ -426,7 +426,8 @@ export function useTrackCredits(trackId: string | undefined) {
       const { data, error } = await supabase
         .from('track_credits')
         .select('*')
-        .eq('track_id', trackId);
+        .eq('track_id', trackId)
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       return data as TrackCredit[];

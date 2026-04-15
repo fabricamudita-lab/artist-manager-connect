@@ -1,5 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Check, X, FileText, Music, User, UserPlus, Search } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, Trash2, Pencil, Check, X, FileText, Music, User, UserPlus, Search, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,6 +75,29 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
 
   const roles = type === 'publishing' ? PUBLISHING_ROLES : MASTER_ROLES;
   const Icon = type === 'publishing' ? FileText : Music;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = splits.findIndex(s => s.id === active.id);
+    const newIndex = splits.findIndex(s => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(splits, oldIndex, newIndex);
+
+    // Persist new sort_order
+    const updates = reordered.map((item, index) => 
+      supabase.from('track_credits').update({ sort_order: index }).eq('id', item.id)
+    );
+    await Promise.all(updates);
+    queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+  }, [splits, queryClient, track.id]);
 
   // Create credit mutation
   const createCredit = useMutation({
@@ -156,20 +196,24 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
         </div>
 
         {/* Existing splits */}
-        {splits.map((credit) => (
-          <SplitRow
-            key={credit.id}
-            credit={credit}
-            type={type}
-            percentageKey={percentageKey}
-            roles={roles}
-            isEditing={editingId === credit.id}
-            onEdit={() => setEditingId(credit.id)}
-            onCancelEdit={() => setEditingId(null)}
-            onSave={(data) => handleUpdate(credit.id, data)}
-            onDelete={() => handleDelete(credit.id)}
-          />
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={splits.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            {splits.map((credit) => (
+              <SortableSplitRow
+                key={credit.id}
+                credit={credit}
+                type={type}
+                percentageKey={percentageKey}
+                roles={roles}
+                isEditing={editingId === credit.id}
+                onEdit={() => setEditingId(credit.id)}
+                onCancelEdit={() => setEditingId(null)}
+                onSave={(data) => handleUpdate(credit.id, data)}
+                onDelete={() => handleDelete(credit.id)}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         {/* Add new split form */}
         {isAdding ? (
@@ -197,6 +241,31 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
   );
 }
 
+// Sortable wrapper for SplitRow
+function SortableSplitRow(props: Parameters<typeof SplitRow>[0]) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.credit.id, disabled: props.isEditing });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SplitRow {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
 // Split Row Component
 function SplitRow({
   credit,
@@ -208,6 +277,7 @@ function SplitRow({
   onCancelEdit,
   onSave,
   onDelete,
+  dragHandleProps,
 }: {
   credit: TrackCredit;
   type: 'publishing' | 'master';
@@ -218,6 +288,7 @@ function SplitRow({
   onCancelEdit: () => void;
   onSave: (data: any) => void;
   onDelete: () => void;
+  dragHandleProps?: Record<string, any>;
 }) {
   const [editName, setEditName] = useState(credit.name);
   const [editRole, setEditRole] = useState(credit.role);
@@ -296,7 +367,13 @@ function SplitRow({
 
   return (
     <div className="flex items-center justify-between p-2 rounded-lg border bg-background">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <button
+          className="cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
+          {...dragHandleProps}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
           credit.contact_id ? 'bg-primary/10' : 'bg-muted'
         }`}>
