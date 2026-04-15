@@ -197,6 +197,16 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                 Cambiar
               </Button>
             </div>
+            {selectedPersonExistingRoles.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap px-3 pb-2 -mt-1">
+                <span className="text-xs text-muted-foreground">Ya tiene:</span>
+                {selectedPersonExistingRoles.map((r, i) => (
+                  <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                    {getRoleLabel(r)}
+                  </Badge>
+                ))}
+              </div>
+            )}
           ) : (
             <Command className="rounded-lg border">
               <CommandInput placeholder="Buscar artistas, equipo o contactos..." />
