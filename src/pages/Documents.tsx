@@ -599,29 +599,42 @@ export default function Documents() {
                       className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0 text-primary-foreground">
-                        {getFileIcon(document.file_type)}
+                        {document.is_draft ? <FileEdit className="w-5 h-5" /> : getFileIcon(document.file_type)}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{document.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {(() => { const a = artists.find(a => a.id === document.artist_id); return a?.stage_name || a?.name || 'Artista'; })()} • 
-                          {formatFileSize(document.file_size)} • 
+                          {document.is_draft ? (document.draft_type === 'ip_license' ? 'Licencia IP' : 'Booking') : formatFileSize(document.file_size)} • 
                           {format(new Date(document.created_at), 'dd/MM/yyyy')}
                         </p>
                       </div>
                       
-                      <Badge className={`${getCategoryColor(document.category)} text-white`}>
-                        {getCategoryLabel(document.category)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {document.is_draft && document.draft_status && (
+                          <DraftStatusBanner status={document.draft_status} />
+                        )}
+                        <Badge className={`${getCategoryColor(document.category)} text-white`}>
+                          {getCategoryLabel(document.category)}
+                        </Badge>
+                      </div>
                       
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handlePreviewDocument(document)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(document)}>
-                          <Download className="w-4 h-4" />
-                        </Button>
+                        {document.is_draft ? (
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/contract-draft/${document.share_token}`)}>
+                            <FileEdit className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handlePreviewDocument(document)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(document)}>
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon"
