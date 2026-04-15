@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { CreditedArtistRoles } from '@/components/releases/CreditedArtistRoles';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -437,77 +439,157 @@ export default function ReleaseCreditos() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>Canciones y Autoría</CardTitle>
-          {tracks && tracks.length > 1 && release?.status !== 'released' && (
-            <Button
-              variant={isReorderMode ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setIsReorderMode(!isReorderMode)}
-            >
-              <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
-              {isReorderMode ? 'Listo' : 'Cambiar orden'}
-            </Button>
-          )}
-        </CardHeader>
-        {showCreditsBanner && (
-          <div className="mx-4 mb-2">
-            <Alert className="border-amber-500/30 bg-amber-500/10">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <AlertDescription className="text-sm">
-                Hay canciones pendientes de inscribir créditos. Las canciones sin créditos están resaltadas abajo.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-        <CardContent>
-          {loadingTracks ? (
-            <Skeleton className="h-32 w-full" />
-          ) : tracks && tracks.length > 0 ? (
-            isReorderMode ? (
-              <DndContext sensors={reorderSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={tracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-1">
+      <Tabs defaultValue="credits" className="w-full">
+        <TabsList>
+          <TabsTrigger value="credits">Créditos</TabsTrigger>
+          <TabsTrigger value="publishing">Publishing</TabsTrigger>
+          <TabsTrigger value="master">Master</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="credits">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Canciones y Autoría</CardTitle>
+              {tracks && tracks.length > 1 && release?.status !== 'released' && (
+                <Button
+                  variant={isReorderMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsReorderMode(!isReorderMode)}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
+                  {isReorderMode ? 'Listo' : 'Cambiar orden'}
+                </Button>
+              )}
+            </CardHeader>
+            {showCreditsBanner && (
+              <div className="mx-4 mb-2">
+                <Alert className="border-amber-500/30 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-sm">
+                    Hay canciones pendientes de inscribir créditos. Las canciones sin créditos están resaltadas abajo.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+            <CardContent>
+              {loadingTracks ? (
+                <Skeleton className="h-32 w-full" />
+              ) : tracks && tracks.length > 0 ? (
+                isReorderMode ? (
+                  <DndContext sensors={reorderSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={tracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-1">
+                        {tracks.map((track) => (
+                          <SortableTrackRow key={track.id} track={track} />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  <Accordion type="multiple" className="w-full">
                     {tracks.map((track) => (
-                      <SortableTrackRow key={track.id} track={track} />
+                      <TrackCreditsItem
+                        key={track.id}
+                        track={track}
+                        releaseArtistId={release?.artist_id}
+                        releaseId={id!}
+                        allTracks={tracks}
+                        onEdit={() => {
+                          setSelectedTrack(track);
+                          setIsEditTrackOpen(true);
+                        }}
+                        onDelete={() => setDeleteTrackId(track.id)}
+                      />
                     ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            ) : (
-              <Accordion type="multiple" className="w-full">
-                {tracks.map((track) => (
-                  <TrackCreditsItem
-                    key={track.id}
-                    track={track}
-                    releaseArtistId={release?.artist_id}
-                    releaseId={id!}
-                    allTracks={tracks}
-                    onEdit={() => {
-                      setSelectedTrack(track);
-                      setIsEditTrackOpen(true);
-                    }}
-                    onDelete={() => setDeleteTrackId(track.id)}
-                  />
-                ))}
-              </Accordion>
-            )
-          ) : (
-            <div className="text-center py-12">
-              <Music className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
-              <p className="text-muted-foreground mb-4">
-                Crea las canciones para añadir letra y créditos
-              </p>
-              <Button onClick={() => setIsCreateTrackOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Añadir Canción
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </Accordion>
+                )
+              ) : (
+                <div className="text-center py-12">
+                  <Music className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Crea las canciones para añadir letra y créditos
+                  </p>
+                  <Button onClick={() => setIsCreateTrackOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Añadir Canción
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="publishing">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Derechos de Autor (Publishing)</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Define los porcentajes de autoría: compositores, letristas y editoriales.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingTracks ? (
+                <Skeleton className="h-32 w-full" />
+              ) : tracks && tracks.length > 0 ? (
+                <div className="space-y-3">
+                  {tracks.map((track) => (
+                    <TrackRightsSplitsManager key={track.id} track={track} type="publishing" />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
+                  <p className="text-muted-foreground">Añade canciones primero para configurar sus derechos.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="master">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Music className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Royalties Master (Fonograma)</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Define los porcentajes de participación en la grabación: artistas, productores y sello.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingTracks ? (
+                <Skeleton className="h-32 w-full" />
+              ) : tracks && tracks.length > 0 ? (
+                <div className="space-y-3">
+                  {tracks.map((track) => (
+                    <TrackRightsSplitsManager key={track.id} track={track} type="master" />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Music className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
+                  <p className="text-muted-foreground">Añade canciones primero para configurar sus royalties.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isEditTrackOpen} onOpenChange={setIsEditTrackOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
