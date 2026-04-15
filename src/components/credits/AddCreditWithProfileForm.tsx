@@ -57,7 +57,7 @@ interface Artist {
   stage_name?: string | null;
 }
 
-export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory }: AddCreditWithProfileFormProps) {
+export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory, existingCredits = [] }: AddCreditWithProfileFormProps) {
   const [mode, setMode] = useState<'search' | 'new'>('search');
   const [selectedProfile, setSelectedProfile] = useState<{ id: string; name: string; type: 'artist' | 'contact' } | null>(null);
   const { user } = useAuth();
