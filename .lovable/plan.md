@@ -1,33 +1,18 @@
 
 
-## Plan: Reestructurar el PDF de Splits siguiendo el modelo del usuario
+## Plan: Fix dialog scroll overflow in Edit Track dialog
 
-### Cambios en la estructura del documento
+### Problem
+The "Editar Canción" dialog (`DialogContent` at line 513) has no max-height or scroll constraints. When a track has many fields (ISRC, Copyright, Letra, Artistas para Distribución, etc.), the dialog overflows the viewport and users cannot scroll to see the top or bottom.
 
-Basándome en el PDF que has subido, el documento actual necesita estos ajustes de contenido y orden:
+### Solution
+Add `max-h-[85vh] overflow-hidden` to the `DialogContent` and wrap the content body in a scrollable `div` with `overflow-y-auto flex-1`.
 
-**1. Título y secciones**
-- Título: "HOJA DE REPARTO DE DERECHOS (SPLIT SHEET)"
-- Sección header: "INFORMACIÓN DEL PROYECTO"
-- Campos renombrados: "Título del EP/Álbum/Single", "Artista Principal", "Sello Discográfico"
-- Antes de las pistas: subtítulo "DETALLE POR PISTA"
+### Changes
 
-**2. Tablas de splits**
-- Subtítulos completos: "AUTORÍA / PUBLISHING (Derechos de Obra)" y "MASTER / ROYALTIES (Derechos de Fonograma)"
-- Columna de publishing: "% Recaudable" en vez de solo "%"
-- Roles agrupados por persona con " / " (ej: "Compositora / Arreglista") — ya funciona así con `groupByPerson`
+**`src/pages/release-sections/ReleaseCreditos.tsx`** (line 513):
+- Change `DialogContent className="max-w-lg"` → `DialogContent className="max-w-lg max-h-[85vh] flex flex-col"`
+- Wrap the content `div` (line 518) with `overflow-y-auto` so the body scrolls while the header stays fixed
 
-**3. Nueva sección final: "DATOS DE CONTACTO Y REGISTRO"**
-- Tabla con todos los participantes únicos del release
-- Columnas: Participante, IPI/CAE, Correo Electrónico, Firma
-- Valores "[A completar]" para IPI y email (datos no disponibles en el sistema actualmente)
-- Indicar "N/A (Solo Master)" en IPI para personas que solo tienen % master
-
-**4. Pie de documento**
-- Texto legal: "Este documento certifica la voluntad de las partes para el registro y reparto de beneficios derivados de la explotación de las obras y fonogramas aquí listados."
-
-**5. Diseño**: Mantener el estilo actual (helvetica, líneas finas grises, sin bordes negros de tabla)
-
-### Archivo a modificar
-- `src/utils/exportSplitsPDF.ts`
+This is a 2-line change ensuring the dialog is always scrollable regardless of content length.
 
