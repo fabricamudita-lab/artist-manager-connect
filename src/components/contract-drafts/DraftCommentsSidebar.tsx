@@ -26,6 +26,7 @@ interface DraftCommentsSidebarProps {
   onApproveChange?: (commentId: string, role: 'producer' | 'collaborator') => Promise<void>;
   onRejectChange?: (commentId: string) => Promise<void>;
   isOwner: boolean;
+  userRole?: 'producer' | 'collaborator' | 'viewer';
   defaultAuthorName?: string;
   pendingSelection?: TextSelection | null;
   onClearSelection?: () => void;
@@ -42,6 +43,7 @@ export function DraftCommentsSidebar({
   onApproveChange,
   onRejectChange,
   isOwner,
+  userRole = 'viewer',
   defaultAuthorName = '',
   pendingSelection,
   onClearSelection,
@@ -197,23 +199,32 @@ export function DraftCommentsSidebar({
 
             {/* Proposed change view */}
             {comment.proposed_change && (comment.comment_status === 'pending_approval' || comment.comment_status === 'proposing_change') && (
-              <div className="space-y-1.5 border rounded p-2 bg-muted/30">
+              <div className="space-y-2 border rounded p-2 bg-muted/30">
                 <p className="text-[10px] font-semibold flex items-center gap-1"><Edit3 className="h-3 w-3" /> Propuesta de cambio:</p>
-                <div className="text-xs">
-                  <p className="text-muted-foreground line-through">{comment.selected_text}</p>
-                  <p className="text-green-700 font-medium mt-1">{comment.proposed_change}</p>
+                <div className="text-xs space-y-1">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground font-medium">❌ Texto original:</p>
+                    <p className="text-muted-foreground line-through bg-red-50 rounded px-1 py-0.5">{comment.selected_text}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium" style={{ color: '#15803d' }}>✅ Texto propuesto:</p>
+                    <p className="font-medium bg-green-50 rounded px-1 py-0.5" style={{ color: '#15803d' }}>{comment.proposed_change}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] pt-1">
-                  <span className={comment.approved_by_producer ? 'text-green-600' : 'text-muted-foreground'}>
-                    {comment.approved_by_producer ? '✅' : '⏳'} Productora
-                  </span>
-                  <span className={comment.approved_by_collaborator ? 'text-green-600' : 'text-muted-foreground'}>
-                    {comment.approved_by_collaborator ? '✅' : '⏳'} Colaboradora
-                  </span>
+                <div className="space-y-1 border-t pt-1.5">
+                  <p className="text-[10px] font-semibold">Estado de aprobación:</p>
+                  <div className="flex flex-col gap-1 text-[10px]">
+                    <span className={comment.approved_by_producer ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                      {comment.approved_by_producer ? '✅ Aprobado por: Productora' : '⏳ Pendiente: Productora'}
+                    </span>
+                    <span className={comment.approved_by_collaborator ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                      {comment.approved_by_collaborator ? '✅ Aprobado por: Colaborador/a' : '⏳ Pendiente: Colaborador/a'}
+                    </span>
+                  </div>
                 </div>
-                {onApproveChange && onRejectChange && (
+                {onApproveChange && onRejectChange && userRole !== 'viewer' && (
                   <div className="flex gap-1 pt-1">
-                    <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => onApproveChange(comment.id, isOwner ? 'producer' : 'collaborator')}>
+                    <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => onApproveChange(comment.id, userRole)}>
                       <Check className="h-3 w-3 mr-1" /> Aprobar
                     </Button>
                     <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => onRejectChange(comment.id)}>

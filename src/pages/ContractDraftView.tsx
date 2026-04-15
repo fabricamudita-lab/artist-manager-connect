@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePublicDraft } from '@/hooks/useContractDrafts';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,6 +8,8 @@ import { TextSelectionHandler, type TextSelection } from '@/components/contract-
 import { NegotiationBanner } from '@/components/contract-drafts/NegotiationBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -71,6 +73,11 @@ const DEFAULT_IP_CLAUSES: Record<string, string> = {
   ley_6_2: '6.2. Ante cualquier incumplimiento, discrepancia o conflicto que pueda surgir entre las Partes, ambas se comprometen, en primer lugar, a intentar resolverlo de forma amistosa, otorgando a la otra parte un plazo de al menos diez (10) días a contar desde la fecha en la que la parte perjudicada remita a la otra los motivos en los que se basa el incumplimiento o el conflicto. Una vez agotada la vía amistosa, las Partes, con renuncia expresa a cualquier fuero que pudiere corresponderles, acuerdan someterse al Tribunal Arbitral de Barcelona (TAB).',
 };
 
+interface UserIdentity {
+  name: string;
+  email: string;
+}
+
 export default function ContractDraftView() {
   const { token } = useParams<{ token: string }>();
   const {
@@ -84,6 +91,41 @@ export default function ContractDraftView() {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const contractRef = useRef<HTMLDivElement>(null);
+  const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null);
+  const [showIdentityModal, setShowIdentityModal] = useState(false);
+  const [identityName, setIdentityName] = useState('');
+  const [identityEmail, setIdentityEmail] = useState('');
+
+  // Load identity from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('contract_user_identity');
+    if (stored) {
+      try { setUserIdentity(JSON.parse(stored)); } catch {}
+    } else {
+      setShowIdentityModal(true);
+    }
+  }, []);
+
+  const handleIdentitySubmit = () => {
+    if (!identityName.trim() || !identityEmail.trim()) return;
+    const identity = { name: identityName.trim(), email: identityEmail.trim().toLowerCase() };
+    localStorage.setItem('contract_user_identity', JSON.stringify(identity));
+    setUserIdentity(identity);
+    setShowIdentityModal(false);
+  };
+
+  // Determine role from email
+  const userRole = useMemo<'producer' | 'collaborator' | 'viewer'>(() => {
+    if (!userIdentity || !draft) return 'viewer';
+    const draftAny = draft as any;
+    if (draftAny.producer_email && userIdentity.email === draftAny.producer_email.toLowerCase()) return 'producer';
+    if (draftAny.collaborator_email && userIdentity.email === draftAny.collaborator_email.toLowerCase()) return 'collaborator';
+    // Fallback: check form_data emails
+    const fd = draft.form_data || {};
+    if (fd.productora_email && userIdentity.email === fd.productora_email.toLowerCase()) return 'producer';
+    if (fd.colaboradora_email && userIdentity.email === fd.colaboradora_email.toLowerCase()) return 'collaborator';
+    return 'viewer';
+  }, [userIdentity, draft]);
 
   const isOwner = !!(user && draft && draft.created_by === user.id);
 
@@ -103,6 +145,15 @@ export default function ContractDraftView() {
       el.classList.add('bg-amber-100');
       setTimeout(() => el.classList.remove('bg-amber-100'), 2000);
     }
+  }, []);
+
+  const scrollToComment = useCallback((commentId: string) => {
+    setShowSidebar(true);
+    setActiveCommentId(commentId);
+    setTimeout(() => {
+      document.getElementById(`comment-${commentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setActiveCommentId(null), 3000);
+    }, 100);
   }, []);
 
   const handleMarkReady = async () => {
@@ -213,7 +264,7 @@ export default function ContractDraftView() {
             }}
           >
             {isIPLicense
-              ? renderIPLicenseContent(formData, draft.clauses_data, selectionComments)
+              ? renderIPLicenseContent(formData, draft.clauses_data, selectionComments, scrollToComment)
               : renderBookingContent(formData, draft.clauses_data)}
           </div>
         </TextSelectionHandler>
@@ -230,13 +281,43 @@ export default function ContractDraftView() {
           onApproveChange={approveChange}
           onRejectChange={rejectChange}
           isOwner={isOwner}
-          defaultAuthorName={isOwner ? 'Equipo' : ''}
+          userRole={userRole}
+          defaultAuthorName={userIdentity?.name || (isOwner ? 'Equipo' : '')}
           pendingSelection={pendingSelection}
           onClearSelection={() => setPendingSelection(null)}
           onScrollToClause={handleScrollToClause}
           activeCommentId={activeCommentId}
         />
       </div>
+
+      {/* Identity modal */}
+      <Dialog open={showIdentityModal} onOpenChange={setShowIdentityModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Identifícate para participar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Input
+              placeholder="Tu nombre"
+              value={identityName}
+              onChange={e => setIdentityName(e.target.value)}
+            />
+            <Input
+              placeholder="Tu email"
+              type="email"
+              value={identityEmail}
+              onChange={e => setIdentityEmail(e.target.value)}
+            />
+            <Button
+              className="w-full"
+              onClick={handleIdentitySubmit}
+              disabled={!identityName.trim() || !identityEmail.trim()}
+            >
+              Continuar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -263,19 +344,80 @@ const romanItem: React.CSSProperties = {
   marginBottom: '12px', textAlign: 'justify', paddingLeft: '32px', textIndent: '-32px',
 };
 
-// Helper to render a highlighted clause paragraph
-function ClauseParagraph({ clauseKey, text, style, comments }: {
+// Helper to render a highlighted clause paragraph with inline yellow highlights
+function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   clauseKey: string; text: string; style?: React.CSSProperties;
   comments?: Array<{ selected_text: string | null; id: string }>;
+  onCommentClick?: (commentId: string) => void;
 }) {
-  const hasComments = comments?.some(c => c.selected_text && text.includes(c.selected_text));
+  const relevantComments = comments?.filter(c => c.selected_text && text.includes(c.selected_text)) || [];
+
+  if (relevantComments.length === 0) {
+    return (
+      <p data-clause={clauseKey} style={{ ...paragraph, ...style, transition: 'background 0.3s' }}>
+        {text}
+      </p>
+    );
+  }
+
+  // Build highlighted segments
+  const renderHighlightedText = () => {
+    let remaining = text;
+    const parts: React.ReactNode[] = [];
+    let idx = 0;
+
+    // Sort comments by position in text (earliest first)
+    const sorted = [...relevantComments].sort((a, b) => {
+      const posA = remaining.indexOf(a.selected_text!);
+      const posB = remaining.indexOf(b.selected_text!);
+      return posA - posB;
+    });
+
+    for (const comment of sorted) {
+      const selectedText = comment.selected_text!;
+      const pos = remaining.indexOf(selectedText);
+      if (pos === -1) continue;
+
+      // Text before the highlight
+      if (pos > 0) {
+        parts.push(<span key={`t-${idx++}`}>{remaining.slice(0, pos)}</span>);
+      }
+
+      // Highlighted text
+      parts.push(
+        <span
+          key={`h-${comment.id}`}
+          style={{
+            backgroundColor: '#FFF9C4',
+            borderBottom: '2px solid #F59E0B',
+            cursor: 'pointer',
+            borderRadius: '2px',
+            padding: '0 1px',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCommentClick?.(comment.id);
+          }}
+          title="💬 Ver comentario"
+        >
+          {selectedText}
+        </span>
+      );
+
+      remaining = remaining.slice(pos + selectedText.length);
+    }
+
+    // Remaining text
+    if (remaining) {
+      parts.push(<span key={`t-${idx++}`}>{remaining}</span>);
+    }
+
+    return parts;
+  };
 
   return (
     <p data-clause={clauseKey} style={{ ...paragraph, ...style, transition: 'background 0.3s' }}>
-      {text}
-      {hasComments && (
-        <span style={{ marginLeft: '4px', cursor: 'pointer' }} title="Tiene comentarios">💬</span>
-      )}
+      {renderHighlightedText()}
     </p>
   );
 }
@@ -285,6 +427,7 @@ function renderIPLicenseContent(
   formData: any,
   clausesData: any,
   selectionComments: Array<{ selected_text: string | null; id: string }>,
+  onCommentClick?: (commentId: string) => void,
 ) {
   const d = formData;
   const rawClauses = { ...DEFAULT_IP_CLAUSES, ...(clausesData || {}) };
@@ -351,7 +494,7 @@ function renderIPLicenseContent(
       <p style={sectionTitle}>CLÁUSULAS</p>
 
       <p style={clauseTitle}>1. OBJETO</p>
-      <ClauseParagraph clauseKey="1.1" text={c.objeto_1_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="1.1" text={c.objeto_1_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
         <p style={subItem}><strong>a. </strong><strong>Título de la obra Grabación: </strong>{s(d.grabacion_titulo)}</p>
@@ -362,10 +505,10 @@ function renderIPLicenseContent(
         <p style={subItem}><strong>f. </strong><strong>Carácter de la intervención: </strong>{s(d.grabacion_caracter)}</p>
       </div>
 
-      <ClauseParagraph clauseKey="1.2" text={c.objeto_1_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="1.2" text={c.objeto_1_2} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>2. ALCANCE DE LA CESIÓN DE DERECHOS</p>
-      <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
         <p style={{ marginBottom: '4px' }}><strong>a. PERIODO: </strong>A perpetuidad.</p>
@@ -373,26 +516,26 @@ function renderIPLicenseContent(
         <p style={{ marginBottom: '4px' }}><strong>c. MEDIOS: </strong>Todos los medios existentes durante la vigencia de este contrato.</p>
       </div>
 
-      <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} />
-      <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
         <p style={subItem}><strong>a. </strong><strong>Nombre artístico: </strong>{s(d.acreditacion_nombre)}</p>
         <p style={subItem}><strong>b. </strong><strong>Carácter de la intervención: </strong>{s(d.acreditacion_caracter)}</p>
       </div>
 
-      <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} />
-      <ClauseParagraph clauseKey="2.5" text={c.alcance_2_5} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="2.5" text={c.alcance_2_5} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>3. CONTRAPRESTACIÓN</p>
-      <ClauseParagraph clauseKey="3.1" text={c.contraprestacion_3_1} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.2" text={c.contraprestacion_3_2} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.3" text={c.contraprestacion_3_3} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.4" text={c.contraprestacion_3_4} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.5" text={c.contraprestacion_3_5} comments={selectionComments} />
+      <ClauseParagraph clauseKey="3.1" text={c.contraprestacion_3_1} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.2" text={c.contraprestacion_3_2} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.3" text={c.contraprestacion_3_3} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.4" text={c.contraprestacion_3_4} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.5" text={c.contraprestacion_3_5} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>4. NOTIFICACIONES</p>
-      <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
         <p style={subItem}><strong>a. </strong><strong>De la PRODUCTORA: </strong>{s(d.productora_email)}</p>
@@ -400,13 +543,13 @@ function renderIPLicenseContent(
       </div>
 
       <p style={clauseTitle}>5. CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS</p>
-      <ClauseParagraph clauseKey="5.1" text={c.confidencialidad_5_1} comments={selectionComments} />
-      <ClauseParagraph clauseKey="5.2" text={c.confidencialidad_5_2} comments={selectionComments} />
-      <ClauseParagraph clauseKey="5.2b" text={c.confidencialidad_5_2b} comments={selectionComments} />
+      <ClauseParagraph clauseKey="5.1" text={c.confidencialidad_5_1} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="5.2" text={c.confidencialidad_5_2} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="5.2b" text={c.confidencialidad_5_2b} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>6. LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS</p>
-      <ClauseParagraph clauseKey="6.1" text={c.ley_6_1} comments={selectionComments} />
-      <ClauseParagraph clauseKey="6.2" text={c.ley_6_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="6.1" text={c.ley_6_1} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="6.2" text={c.ley_6_2} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p data-clause="cierre" style={{ ...paragraph, marginTop: '28px' }}>
         Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.

@@ -630,6 +630,8 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
           formData,
           clausesData: ipClauses,
           releaseId: effectiveReleaseId,
+          producerEmail: formData.productora_email || undefined,
+          collaboratorEmail: formData.colaboradora_email || undefined,
         });
         if (draft) setCurrentDraft(draft);
       }

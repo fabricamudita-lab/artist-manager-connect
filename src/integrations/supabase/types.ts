@@ -2871,6 +2871,7 @@ export type Database = {
           artist_id: string | null
           booking_id: string | null
           clauses_data: Json | null
+          collaborator_email: string | null
           created_at: string | null
           created_by: string
           draft_type: string
@@ -2878,6 +2879,7 @@ export type Database = {
           firma_lugar: string | null
           form_data: Json
           id: string
+          producer_email: string | null
           release_id: string | null
           share_token: string | null
           signed_pdf_url: string | null
@@ -2889,6 +2891,7 @@ export type Database = {
           artist_id?: string | null
           booking_id?: string | null
           clauses_data?: Json | null
+          collaborator_email?: string | null
           created_at?: string | null
           created_by: string
           draft_type?: string
@@ -2896,6 +2899,7 @@ export type Database = {
           firma_lugar?: string | null
           form_data: Json
           id?: string
+          producer_email?: string | null
           release_id?: string | null
           share_token?: string | null
           signed_pdf_url?: string | null
@@ -2907,6 +2911,7 @@ export type Database = {
           artist_id?: string | null
           booking_id?: string | null
           clauses_data?: Json | null
+          collaborator_email?: string | null
           created_at?: string | null
           created_by?: string
           draft_type?: string
@@ -2914,6 +2919,7 @@ export type Database = {
           firma_lugar?: string | null
           form_data?: Json
           id?: string
+          producer_email?: string | null
           release_id?: string | null
           share_token?: string | null
           signed_pdf_url?: string | null
