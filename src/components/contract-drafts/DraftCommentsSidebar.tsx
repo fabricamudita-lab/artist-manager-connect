@@ -225,10 +225,6 @@ export function DraftCommentsSidebar({
                 {onApproveChange && onRejectChange && (userRole === 'producer' || userRole === 'collaborator') && (
                   <div className="flex gap-1 pt-1">
                     <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => {
-                      if (!userRole || userRole === 'viewer') {
-                        console.error('❌ Attempted approve with invalid role:', userRole);
-                        return;
-                      }
                       console.log('🔘 Approve button clicked with role:', userRole);
                       console.log('📝 Comment ID:', comment.id);
                       console.log('📊 Current approvals - producer:', comment.approved_by_producer, 'collaborator:', comment.approved_by_collaborator);
