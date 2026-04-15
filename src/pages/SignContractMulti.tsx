@@ -163,6 +163,8 @@ export default function SignContractMulti() {
             file_url: legacyData.file_url,
             content: legacyData.content,
             booking_id: legacyData.booking_id,
+            contract_type: 'booking',
+            booking_document_id: legacyData.id,
           },
           booking: bookingData || null,
         });
