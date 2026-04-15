@@ -494,7 +494,7 @@ function renderIPLicenseContent(
       <p style={sectionTitle}>CLÁUSULAS</p>
 
       <p style={clauseTitle}>1. OBJETO</p>
-      <ClauseParagraph clauseKey="1.1" text={c.objeto_1_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="1.1" text={c.objeto_1_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
         <p style={subItem}><strong>a. </strong><strong>Título de la obra Grabación: </strong>{s(d.grabacion_titulo)}</p>
@@ -505,10 +505,10 @@ function renderIPLicenseContent(
         <p style={subItem}><strong>f. </strong><strong>Carácter de la intervención: </strong>{s(d.grabacion_caracter)}</p>
       </div>
 
-      <ClauseParagraph clauseKey="1.2" text={c.objeto_1_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="1.2" text={c.objeto_1_2} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>2. ALCANCE DE LA CESIÓN DE DERECHOS</p>
-      <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
         <p style={{ marginBottom: '4px' }}><strong>a. PERIODO: </strong>A perpetuidad.</p>
@@ -516,26 +516,26 @@ function renderIPLicenseContent(
         <p style={{ marginBottom: '4px' }}><strong>c. MEDIOS: </strong>Todos los medios existentes durante la vigencia de este contrato.</p>
       </div>
 
-      <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} />
-      <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
         <p style={subItem}><strong>a. </strong><strong>Nombre artístico: </strong>{s(d.acreditacion_nombre)}</p>
         <p style={subItem}><strong>b. </strong><strong>Carácter de la intervención: </strong>{s(d.acreditacion_caracter)}</p>
       </div>
 
-      <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} />
-      <ClauseParagraph clauseKey="2.5" text={c.alcance_2_5} comments={selectionComments} />
+      <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="2.5" text={c.alcance_2_5} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>3. CONTRAPRESTACIÓN</p>
-      <ClauseParagraph clauseKey="3.1" text={c.contraprestacion_3_1} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.2" text={c.contraprestacion_3_2} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.3" text={c.contraprestacion_3_3} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.4" text={c.contraprestacion_3_4} comments={selectionComments} />
-      <ClauseParagraph clauseKey="3.5" text={c.contraprestacion_3_5} comments={selectionComments} />
+      <ClauseParagraph clauseKey="3.1" text={c.contraprestacion_3_1} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.2" text={c.contraprestacion_3_2} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.3" text={c.contraprestacion_3_3} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.4" text={c.contraprestacion_3_4} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="3.5" text={c.contraprestacion_3_5} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>4. NOTIFICACIONES</p>
-      <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} />
+      <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
         <p style={subItem}><strong>a. </strong><strong>De la PRODUCTORA: </strong>{s(d.productora_email)}</p>
@@ -543,13 +543,13 @@ function renderIPLicenseContent(
       </div>
 
       <p style={clauseTitle}>5. CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS</p>
-      <ClauseParagraph clauseKey="5.1" text={c.confidencialidad_5_1} comments={selectionComments} />
-      <ClauseParagraph clauseKey="5.2" text={c.confidencialidad_5_2} comments={selectionComments} />
-      <ClauseParagraph clauseKey="5.2b" text={c.confidencialidad_5_2b} comments={selectionComments} />
+      <ClauseParagraph clauseKey="5.1" text={c.confidencialidad_5_1} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="5.2" text={c.confidencialidad_5_2} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="5.2b" text={c.confidencialidad_5_2b} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p style={clauseTitle}>6. LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS</p>
-      <ClauseParagraph clauseKey="6.1" text={c.ley_6_1} comments={selectionComments} />
-      <ClauseParagraph clauseKey="6.2" text={c.ley_6_2} comments={selectionComments} />
+      <ClauseParagraph clauseKey="6.1" text={c.ley_6_1} comments={selectionComments} onCommentClick={onCommentClick} />
+      <ClauseParagraph clauseKey="6.2" text={c.ley_6_2} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <p data-clause="cierre" style={{ ...paragraph, marginTop: '28px' }}>
         Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.
