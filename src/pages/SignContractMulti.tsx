@@ -32,7 +32,9 @@ interface SignerData {
     file_name: string;
     file_url: string;
     content: string | null;
-    booking_id: string;
+    booking_id: string | null;
+    contract_type: string;
+    booking_document_id: string | null;
   } | null;
   booking: {
     venue: string | null;
