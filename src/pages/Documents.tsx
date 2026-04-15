@@ -78,6 +78,7 @@ export default function Documents() {
   usePageTitle('Documentos');
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
