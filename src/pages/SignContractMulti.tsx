@@ -82,26 +82,45 @@ export default function SignContractMulti() {
         .single();
 
       if (signerData) {
-        // Fetch document info
-        const { data: docData } = await supabase
-          .from('booking_documents')
-          .select('id, file_name, file_url, content, booking_id')
+        // Fetch document info from unified contracts table
+        const { data: contractData } = await supabase
+          .from('contracts')
+          .select('id, title, file_url, description, booking_id, contract_type, booking_document_id')
           .eq('id', signerData.document_id)
           .single();
 
+        // If contract has a booking_document_id, get content from there
+        let content: string | null = null;
+        if (contractData?.booking_document_id) {
+          const { data: bdData } = await supabase
+            .from('booking_documents')
+            .select('content')
+            .eq('id', contractData.booking_document_id)
+            .single();
+          content = bdData?.content || null;
+        }
+
         let bookingData = null;
-        if (docData?.booking_id) {
+        if (contractData?.booking_id) {
           const { data: booking } = await supabase
             .from('booking_offers')
             .select('venue, ciudad, fecha, promotor, fee, festival_ciclo')
-            .eq('id', docData.booking_id)
+            .eq('id', contractData.booking_id)
             .single();
           bookingData = booking;
         }
 
         setSigner({
           ...signerData,
-          document: docData || null,
+          document: contractData ? {
+            id: contractData.id,
+            file_name: contractData.title,
+            file_url: contractData.file_url || '',
+            content,
+            booking_id: contractData.booking_id,
+            contract_type: contractData.contract_type || 'booking',
+            booking_document_id: contractData.booking_document_id,
+          } : null,
           booking: bookingData,
         } as SignerData);
         return;
