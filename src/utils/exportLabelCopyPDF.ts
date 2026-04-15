@@ -319,7 +319,7 @@ export function exportLabelCopyPDF(
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(`ISRC: ${track.isrc}`, MARGIN_LEFT + 5, y);
-      y += 6;
+      y += 8;
     }
 
     if (track.explicit) {
