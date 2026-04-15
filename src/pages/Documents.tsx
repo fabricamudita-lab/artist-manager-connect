@@ -18,8 +18,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { supabase } from '@/integrations/supabase/client';
 import { 
   FileText, Upload, Download, Eye, Filter, File, Image, Music, Video, 
-  ExternalLink, FolderOpen, LayoutGrid, List, BarChart3, Plus, Trash2 
+  ExternalLink, FolderOpen, LayoutGrid, List, BarChart3, Plus, Trash2, FileEdit 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
