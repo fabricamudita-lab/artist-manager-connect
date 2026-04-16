@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { InlineEdit } from "@/components/ui/inline-edit";
+
 import { toast } from "@/hooks/use-toast";
 import { 
   Mail, 
