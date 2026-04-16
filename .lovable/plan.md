@@ -1,37 +1,28 @@
 
 
-## Plan: Redes sociales dinámicas con botón "+"
+## Plan: Campos personalizados en configuración de visibilidad
 
 ### Objetivo
-En la sección "Redes Sociales" del `ArtistInfoDialog` (panel del manager), permitir añadir perfiles adicionales más allá de los 3 fijos (Instagram, Spotify, TikTok) mediante un botón "+".
+Cuando el manager crea un campo personalizado para un artista, debe aparecer automáticamente en la sección "Configuración de campos" del `ArtistInfoDialog` con un toggle on/off, igual que los campos predefinidos (Stage name, IBAN, etc.). Ese toggle controla si el campo se muestra al artista en el formulario público.
 
-### Diseño
-
-**Redes predefinidas disponibles** (catálogo): Instagram, Spotify, TikTok, YouTube, Apple Music, SoundCloud, Bandcamp, X/Twitter, Facebook, Threads, LinkedIn, Web/Otro.
-
-Las 3 actuales (Instagram, Spotify, TikTok) siguen siendo fijas y editables como hasta ahora. El resto se almacenan en un nuevo campo JSONB `social_links` en la tabla `artists`:
-```json
-[
-  { "platform": "youtube", "url": "https://youtube.com/@..." },
-  { "platform": "soundcloud", "url": "https://..." }
-]
-```
+### Cómo funciona hoy
+- Los campos predefinidos están listados estáticamente en la sección de configuración con switches que escriben en `field_config` (JSONB en `artists`).
+- Los campos personalizados viven en `custom_fields` (catálogo workspace-level por entity_type='artist') y sus valores en `artists.custom_data`.
+- `PublicArtistForm` ya renderiza los campos personalizados al final, pero **sin respetar field_config** — siempre se muestran.
 
 ### Cambios
 
 | Archivo | Cambio |
 |---|---|
-| Migración SQL | Añadir columna `social_links jsonb default '[]'::jsonb` a `artists` |
-| `ArtistInfoDialog.tsx` | Bajo TikTok añadir lista dinámica de redes extras + botón "+ Añadir red social" con popover de catálogo. Cada fila: selector de plataforma (icono) + input URL + botón eliminar |
-| `PublicArtistForm.tsx` | Mostrar las redes extras igual que las 3 fijas (respetando `field_config` con clave `social_links`) y permitir editarlas desde el formulario público |
-| `src/lib/social-platforms.ts` (nuevo) | Catálogo de plataformas con icono, label y placeholder |
+| `ArtistInfoDialog.tsx` (sección configuración de campos) | Cargar `useCustomFields(workspace_id, 'artist')` y, debajo de los grupos predefinidos, añadir un grupo "Campos personalizados" con un switch por cada campo. La clave en `field_config` será `custom_${field.id}` (ej: `custom_abc123: true`) |
+| `src/lib/artistFieldVisibility.ts` (o donde esté `isArtistFieldVisible`) | Aceptar claves dinámicas `custom_<id>` y resolver visibilidad igual que el resto (default: visible si no está en config) |
+| `PublicArtistForm.tsx` | Al renderizar la sección "Campos personalizados", filtrar por `isArtistFieldVisible(field_config, 'custom_${field.id}')` para ocultar los desactivados |
 
 ### UX
-- Botón "+" abre un popover con las plataformas disponibles (filtradas para no duplicar las ya añadidas).
-- Al elegir una, se añade una fila nueva con el input vacío.
-- Botón papelera por fila para eliminar.
-- En el formulario público, las redes extras aparecen junto a Instagram/Spotify/TikTok con su icono correspondiente.
+- Al crear un campo personalizado nuevo, aparece automáticamente en el bloque "Campos personalizados" de la configuración con el switch en ON por defecto.
+- Al borrarlo del catálogo, desaparece también del bloque (no quedan toggles huérfanos).
+- Si se desactiva, no aparece en el formulario público.
 
-### Resultado
-El manager y el artista (vía formulario público) pueden añadir tantos perfiles sociales como quieran sin tocar código.
+### Sin migración
+No hace falta tocar la BD. Reutiliza `field_config` JSONB existente con claves prefijadas `custom_`.
 
