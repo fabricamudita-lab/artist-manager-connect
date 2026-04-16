@@ -141,12 +141,13 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const handleSave = async () => {
     if (!artistId) return;
     try {
-      const updateData: Record<string, string | null> = {};
+      const updateData: Record<string, any> = {};
       for (const key of FORM_FIELDS) {
         updateData[key] = formData[key] || null;
       }
       // name is required
       updateData.name = formData.name;
+      updateData.custom_data = customData;
 
       const { error } = await supabase
         .from('artists')
