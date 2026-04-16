@@ -1,36 +1,23 @@
 
 
-## Plan: Fix "Enlace no válido" on Public Artist Form
+## Plan: Fix public form links to use published URL
 
-### Root Cause
-The public artist form (`/artist-form/:token`) runs without authentication (anon role). It successfully reads from `artist_form_tokens` (step 1), but then fails when trying to SELECT from `artists` (step 2, line 89-93) because the existing RLS SELECT policies on `artists` require either an authenticated user or a shared release context.
+### Problem
+The "Formulario" button in `ArtistInfoDialog.tsx` generates the share link using `window.location.origin`, which in the dev/preview environment resolves to the Lovable preview URL. That URL requires Lovable authentication, defeating the purpose of the public form.
 
-The "Public can view artists for shared releases" policy exists for `anon` but checks for shared release conditions, not artist form tokens.
+### Fix
+In `src/components/ArtistInfoDialog.tsx` (line 249), replace `window.location.origin` with the published app URL `https://artist-manager-connect.lovable.app`.
 
-### Fix: Add RLS Policy
+This same pattern should be checked in any other place that generates public share links (e.g., `usePublicFileSharing.ts` line 36, and any release/sync form link generators).
 
-Create a new SELECT policy on `artists` for the `anon` role that allows reading an artist row when a valid, active, non-expired `artist_form_tokens` entry exists for that artist.
-
-```sql
-CREATE POLICY "Public can view artists with valid form token"
-ON public.artists
-FOR SELECT
-TO anon
-USING (
-  EXISTS (
-    SELECT 1 FROM public.artist_form_tokens
-    WHERE artist_form_tokens.artist_id = artists.id
-      AND artist_form_tokens.is_active = true
-      AND (artist_form_tokens.expires_at IS NULL OR artist_form_tokens.expires_at > now())
-  )
-);
-```
-
-### Files
+### Files to change
 
 | File | Change |
 |------|--------|
-| Database migration | Add the RLS policy above |
+| `src/components/ArtistInfoDialog.tsx` | Line 249: use `https://artist-manager-connect.lovable.app` instead of `window.location.origin` |
+| `src/hooks/usePublicFileSharing.ts` | Line 36: same fix for public file share URLs |
+| Any other public link generators | Same pattern |
 
-No code changes needed. The form logic is correct; it just can't read the artist due to missing RLS access.
+### Consideration
+Hardcoding the published URL is simple and reliable. An alternative is an env variable (`VITE_PUBLIC_URL`), but the published URL is stable and already known.
 
