@@ -1,82 +1,35 @@
 
 
-## Plan: Edición de campos en perfiles del roster + Formulario público para contactos
+## Plan: Fix 404 en formulario de contacto + Formulario público completo para artistas del roster
 
-### Problema
-1. **Artistas del roster**: Al hacer clic en un artista desde Equipos, se abre `ArtistInfoDialog`, que muestra campos fijos sin posibilidad de configurar qué campos solicitar (no tiene el sistema de `field_config` con toggles que sí tiene `EditContactDialog`). Tampoco permite editar campos como tallas, alergias, banco, etc., a menos que seas management.
-2. **Formulario público para contactos**: Los contactos no tienen un equivalente al `/artist-form/:token` para que puedan rellenar su propia información sin acceder a la app.
+### Problema 1: 404 en `/contact-form/:token`
+La ruta existe en el código y el token existe en la base de datos, pero la app publicada no incluye todavía esta ruta. **Se necesita re-publicar la app**. La ruta está correctamente fuera de `ProtectedRoute`.
 
-### Solución
+### Problema 2: Artistas del roster — campos editables y formulario público
+El `ArtistInfoDialog` ya muestra todos los campos (tallas, salud, fiscal, bancarios). Sin embargo, el usuario quiere:
+- Que el **formulario público del artista** (`/artist-form/:token`) también incluya **todos los campos** que tiene la ficha interna (tallas, alergias, banco, fiscal, etc.), no solo los campos básicos de bio/redes.
+- Equivalencia funcional con el formulario de contacto (que usa `field_config` con toggles).
 
-#### 1. Mejorar ArtistInfoDialog para roster
-- Hacer visibles **todos los campos** por defecto (contacto, tallas, salud, banco, notas) sin restricción de `canEdit` para lectura — actualmente los bloques de Datos Fiscales, Bancarios están ocultos con `{canEdit && ...}`
-- Permitir edición de todos los campos para usuarios con rol management (ya funciona, solo falta mostrarlos)
-- Quitar las condiciones `{canEdit && ...}` que ocultan secciones enteras para lectura — todos los datos del artista deben ser visibles para cualquier usuario con acceso
-
-#### 2. Crear sistema de formulario público para contactos (similar a artist_form_tokens)
-
-**Base de datos** — nueva tabla y políticas RLS:
-```sql
-CREATE TABLE public.contact_form_tokens (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  contact_id uuid REFERENCES public.contacts(id) ON DELETE CASCADE NOT NULL,
-  token text UNIQUE DEFAULT substring(gen_random_uuid()::text from 1 for 36) NOT NULL,
-  created_by uuid REFERENCES auth.users(id),
-  expires_at timestamptz,
-  is_active boolean DEFAULT true,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.contact_form_tokens ENABLE ROW LEVEL SECURITY;
-
--- Authenticated users can manage tokens they created
-CREATE POLICY "Users manage own contact form tokens"
-  ON public.contact_form_tokens FOR ALL TO authenticated
-  USING (created_by = auth.uid());
-
--- Anon can read active tokens (for form validation)
-CREATE POLICY "Anon can read active tokens"
-  ON public.contact_form_tokens FOR SELECT TO anon
-  USING (is_active = true AND (expires_at IS NULL OR expires_at > now()));
-
--- Anon can read contacts with valid tokens
-CREATE POLICY "Anon can read contacts via form token"
-  ON public.contacts FOR SELECT TO anon
-  USING (EXISTS (
-    SELECT 1 FROM public.contact_form_tokens
-    WHERE contact_form_tokens.contact_id = contacts.id
-      AND contact_form_tokens.is_active = true
-      AND (contact_form_tokens.expires_at IS NULL OR contact_form_tokens.expires_at > now())
-  ));
-
--- Anon can update contacts via valid token
-CREATE POLICY "Anon can update contacts via form token"
-  ON public.contacts FOR UPDATE TO anon
-  USING (EXISTS (
-    SELECT 1 FROM public.contact_form_tokens
-    WHERE contact_form_tokens.contact_id = contacts.id
-      AND contact_form_tokens.is_active = true
-      AND (contact_form_tokens.expires_at IS NULL OR contact_form_tokens.expires_at > now())
-  ));
-```
-
-**Nuevos archivos**:
-
-| Archivo | Descripción |
-|---------|-------------|
-| `src/pages/PublicContactForm.tsx` | Formulario público que lee `field_config` del contacto y solo muestra los campos activados. Similar a `PublicArtistForm.tsx` |
-
-**Archivos modificados**:
+### Cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/ArtistInfoDialog.tsx` | Eliminar `{canEdit && ...}` de secciones de lectura (Fiscal, Bancarios). Mantener la restricción solo para edición |
-| `src/components/EditContactDialog.tsx` | Añadir botón "Formulario" que genera/copia enlace público usando `contact_form_tokens` |
-| `src/App.tsx` | Añadir ruta `/contact-form/:token` fuera de `ProtectedRoute` |
+| `src/pages/PublicArtistForm.tsx` | Ampliar el formulario público para incluir todos los campos del artista: tallas (clothing_size, shoe_size), salud (allergies, special_needs), datos fiscales (company_name, legal_name, tax_id, nif, tipo_entidad), datos bancarios (bank_name, iban, swift_code), y notas |
+| Re-publicar la app | Necesario para que la ruta `/contact-form/:token` funcione en la URL publicada |
 
-**Flujo del formulario público de contacto**:
-1. Manager abre `EditContactDialog` → activa los campos deseados con los toggles → pulsa botón "Formulario"
-2. Se genera/recupera un token en `contact_form_tokens`
-3. Se copia al portapapeles: `https://artist-manager-connect.lovable.app/contact-form/{token}`
-4. El contacto abre el enlace → ve solo los campos activados en `field_config` → rellena y guarda
+### Consideraciones de escalabilidad
+- Los campos del artista ya están todos en la tabla `artists` — no se necesitan cambios en la base de datos.
+- El formulario público de artista (`/artist-form/:token`) ya tiene RLS configurado para `anon` — solo se amplía el UI.
+- El formulario de contacto (`/contact-form/:token`) ya tiene su tabla de tokens y políticas RLS — solo necesita la re-publicación.
+- No hay riesgo de conflicto con otras funcionalidades: ambos formularios usan tokens aislados con sus propias tablas.
+
+### Detalle técnico
+En `PublicArtistForm.tsx`, añadir secciones colapsables para:
+1. **Tallas**: clothing_size, shoe_size
+2. **Salud**: allergies, special_needs
+3. **Datos Fiscales**: company_name, legal_name, tax_id, nif, tipo_entidad
+4. **Datos Bancarios**: bank_name, iban, swift_code
+5. **Notas**: notes
+
+Todos estos campos ya existen en la tabla `artists` y ya se guardan correctamente desde `ArtistInfoDialog`. El formulario público simplemente los expondrá para que el propio artista los rellene.
 
