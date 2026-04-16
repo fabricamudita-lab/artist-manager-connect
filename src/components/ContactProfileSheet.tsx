@@ -685,8 +685,8 @@ export function ContactProfileSheet({
         <div className="p-4 border-t bg-background flex gap-2">
           {onEdit && (
             <Button 
-              variant="outline"
-              className="flex-1"
+              variant={pulseConfig ? "default" : "outline"}
+              className={`flex-1 transition-all ${pulseConfig ? 'animate-pulse ring-2 ring-primary ring-offset-2' : ''}`}
               onClick={() => {
                 onEdit(contact.id);
                 onOpenChange(false);
