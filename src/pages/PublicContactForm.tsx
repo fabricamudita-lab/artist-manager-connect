@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { User, CheckCircle2, Loader2, Save, Puzzle } from 'lucide-react';
 import mooditaLogo from '@/assets/moodita-logo.png';
+import { loadCustomFieldsForEntity, type CustomField } from '@/hooks/useCustomFields';
 
 const FIELD_LABELS: Record<string, string> = {
   stage_name: 'Nombre artístico',
