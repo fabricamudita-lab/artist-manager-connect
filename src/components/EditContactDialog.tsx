@@ -761,6 +761,17 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               {renderField('preferred_hours', 'textarea')}
               {renderField('notes', 'textarea')}
 
+              {/* Custom Fields */}
+              <CustomFieldsSection
+                fields={customFields}
+                customData={customData}
+                onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
+                onCreateField={async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); }}
+                onDeleteField={async (id) => { await deleteField.mutateAsync(id); }}
+                isEditing={true}
+                isLoading={loadingCustomFields}
+              />
+
               <Separator className="my-6" />
 
               {/* Tags Section */}
