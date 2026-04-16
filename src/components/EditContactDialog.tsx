@@ -19,9 +19,13 @@ import { ContactTagsInput } from './ContactTagsInput';
 import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
 import { detectPreset, getAllPresets } from '@/lib/fieldConfigPresets';
 import { ManageFieldPresetsDialog } from './ManageFieldPresetsDialog';
+import { CustomFieldsSection } from '@/components/CustomFieldsSection';
+import { useCustomFields } from '@/hooks/useCustomFields';
+import { useWorkspaceId } from '@/hooks/useWorkspaceId';
 import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PUBLIC_APP_URL } from '@/lib/public-url';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Artist {
   id: string;
