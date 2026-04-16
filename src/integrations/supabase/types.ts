@@ -3220,20 +3220,31 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          workspace_id: string
         }
         Insert: {
           created_at?: string | null
           created_by?: string | null
           id?: string
           name: string
+          workspace_id: string
         }
         Update: {
           created_at?: string | null
           created_by?: string | null
           id?: string
           name?: string
+          workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "custom_instruments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_room_types: {
         Row: {
