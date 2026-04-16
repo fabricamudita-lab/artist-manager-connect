@@ -108,6 +108,13 @@ export default function PublicArtistForm() {
         phone: artist.phone || '',
         address: artist.address || '',
       });
+      setCustomData(((artist as any).custom_data as Record<string, string>) || {});
+
+      // Load custom fields for this workspace
+      if (artist.workspace_id) {
+        const cf = await loadCustomFieldsForEntity(artist.workspace_id, 'artist');
+        setCustomFields(cf);
+      }
     } catch (err) {
       console.error('Error loading form:', err);
       setError('Error al cargar el formulario.');
