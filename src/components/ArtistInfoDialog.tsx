@@ -622,6 +622,17 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             </CardContent>
           </Card>
 
+          {/* Campos personalizados */}
+          <CustomFieldsSection
+            fields={customFields}
+            customData={customData}
+            onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
+            onCreateField={editing ? async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); } : undefined}
+            onDeleteField={editing ? async (id) => { await deleteField.mutateAsync(id); } : undefined}
+            isEditing={editing}
+            isLoading={loadingCustomFields}
+          />
+
           {/* Botones */}
           {editing && (
             <div className="flex gap-2 justify-end">
