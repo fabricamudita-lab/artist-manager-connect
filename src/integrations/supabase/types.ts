@@ -555,6 +555,7 @@ export type Database = {
           company_name: string | null
           created_at: string
           created_by: string
+          custom_data: Json | null
           description: string | null
           email: string | null
           genre: string | null
@@ -595,6 +596,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           created_by: string
+          custom_data?: Json | null
           description?: string | null
           email?: string | null
           genre?: string | null
@@ -635,6 +637,7 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           created_by?: string
+          custom_data?: Json | null
           description?: string | null
           email?: string | null
           genre?: string | null
@@ -2727,6 +2730,7 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string
+          custom_data: Json | null
           email: string | null
           field_config: Json | null
           iban: string | null
@@ -2760,6 +2764,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by: string
+          custom_data?: Json | null
           email?: string | null
           field_config?: Json | null
           iban?: string | null
@@ -2793,6 +2798,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string
+          custom_data?: Json | null
           email?: string | null
           field_config?: Json | null
           iban?: string | null
@@ -3141,6 +3147,53 @@ export type Database = {
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_fields: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          entity_type: string
+          field_key: string
+          field_type: string
+          id: string
+          label: string
+          section: string | null
+          sort_order: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          entity_type: string
+          field_key: string
+          field_type?: string
+          id?: string
+          label: string
+          section?: string | null
+          sort_order?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          entity_type?: string
+          field_key?: string
+          field_type?: string
+          id?: string
+          label?: string
+          section?: string | null
+          sort_order?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_fields_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
