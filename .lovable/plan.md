@@ -1,33 +1,42 @@
 
 
-## Plan: Aplicar campos personalizados con toggle on/off a "Editar Contacto"
+## Plan: Panel lateral de contacto solo lectura + click-to-copy + pulso en "Configuración"
 
-### Cambios paralelos a los del artista
+### Objetivo
+El panel lateral de contacto (el que muestra "Joan Palà Granado" con email, teléfono, etc.) debe ser **solo lectura**. Toda edición se hace desde el modal "Configuración".
 
-**1. `src/components/EditContactDialog.tsx`** (panel "Configuración de Campos")
-- Después del bloque de toggles fijos (línea ~493) y antes del separador `Hacer público`, añadir un sub-bloque "Campos personalizados" idéntico al de `ArtistInfoDialog`:
-  - Separator + Label "Campos personalizados" en uppercase
-  - Un `Switch` por cada `customFields` con clave `custom_${field.id}` que escribe en `fieldConfig`
-- Usar helper `visible(key)` (con default `true` cuando no está en config) — añadir helper local igual que en ArtistInfoDialog.
-- En `handleSubmit` (línea 261), normalizar las claves `custom_*` para que el JSONB guardado contenga explícitamente `true/false` por cada campo personalizado existente.
-- En el render del formulario (línea 790-798), filtrar `customFields` por `visible(custom_${f.id})` antes de pasar a `<CustomFieldsSection>` para que los desactivados desaparezcan también del editor.
+### Comportamiento
 
-**2. `src/pages/PublicContactForm.tsx`** (formulario público)
-- En la sección "Campos personalizados" (renderizado actual líneas ~221-249), filtrar `customFields` por `isContactFieldVisible(fieldConfig, 'custom_${field.id}')` o helper equivalente con default `true`.
-- Si tras filtrar no hay campos visibles, no renderizar la Card de "Información adicional".
-
-### Detalle clave de comportamiento (mismo que artista)
-- Toggle ON (o ausente) → campo personalizado visible en editor del manager **y** en formulario público.
-- Toggle OFF → desaparece de ambos.
-- Crear un campo personalizado nuevo → aparece automáticamente con toggle ON.
-- Borrar campo del catálogo → desaparece su toggle (no quedan huérfanos).
-
-### Sin migración
-Reutiliza la columna `field_config` JSONB existente en `contacts` con claves prefijadas `custom_<id>`.
-
-### Archivos tocados
-| Archivo | Cambio |
+| Acción del usuario | Resultado |
 |---|---|
-| `src/components/EditContactDialog.tsx` | Sub-bloque de toggles para custom fields + helper `visible` + filtro al renderizar inputs + normalización al guardar |
-| `src/pages/PublicContactForm.tsx` | Filtrado de campos personalizados según `field_config` |
+| Click en campo con valor (ej: email, teléfono, nombre) | Copia el valor al portapapeles + toast "Copiado" |
+| Click en campo vacío ("Añadir teléfono...") | El botón "Configuración" hace pulso (animación ~2s) invitando a editar desde ahí |
+| Hover sobre campo con valor | Cursor `copy`, fondo sutil |
+| Hover sobre campo vacío | Cursor `pointer` |
+
+### Cambios
+
+**1. Identificar el componente del panel lateral**
+- Localizar el componente que renderiza esta vista lateral del contacto (probablemente `ContactSidePanel.tsx`, `ContactQuickView.tsx` o similar dentro de `src/components/contacts/` o `src/components/agenda/`). Buscaré por el texto "Información de contacto" o "Añadir teléfono".
+
+**2. Reemplazar inputs editables por celdas de solo lectura**
+- Sustituir cada `<Input>` por un `<div>` clickable.
+- Nombre, nombre artístico y rol del header → también solo lectura, click-to-copy si tienen valor.
+- Eliminar cualquier `onChange` / handler de guardado del panel.
+
+**3. Hook click-to-copy**
+- Función `handleCopy(value, label)`: usa `navigator.clipboard.writeText(value)` + `toast.success('${label} copiado')`.
+
+**4. Pulso del botón "Configuración"**
+- Estado local `pulseConfig: boolean`.
+- Al click en campo vacío → `setPulseConfig(true)`, después de ~2s vuelve a false.
+- Aplicar clase `animate-pulse ring-2 ring-primary` al botón cuando `pulseConfig` es true.
+
+### Archivo previsto
+- `src/components/contacts/ContactSidePanel.tsx` (o el nombre real que encuentre).
+
+### Resultado
+- Imposible editar accidentalmente desde el panel lateral.
+- UX clara: valores existentes → copiar; valores vacíos → "ve a Configuración" señalado visualmente.
+- Toda la edición real ya queda canalizada por el botón "Configuración" (que abre `EditContactDialog`).
 
