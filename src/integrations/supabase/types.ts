@@ -574,6 +574,7 @@ export type Database = {
           phone: string | null
           profile_id: string | null
           shoe_size: string | null
+          social_links: Json
           special_needs: string | null
           spotify_url: string | null
           stage_name: string | null
@@ -616,6 +617,7 @@ export type Database = {
           phone?: string | null
           profile_id?: string | null
           shoe_size?: string | null
+          social_links?: Json
           special_needs?: string | null
           spotify_url?: string | null
           stage_name?: string | null
@@ -658,6 +660,7 @@ export type Database = {
           phone?: string | null
           profile_id?: string | null
           shoe_size?: string | null
+          social_links?: Json
           special_needs?: string | null
           spotify_url?: string | null
           stage_name?: string | null
