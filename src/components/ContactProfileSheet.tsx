@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { InlineEdit } from "@/components/ui/inline-edit";
+
 import { toast } from "@/hooks/use-toast";
 import { 
   Mail, 
@@ -31,7 +31,7 @@ import {
   Settings,
   Camera
 } from "lucide-react";
-import { Pencil } from "lucide-react";
+
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
 import { ContactLinkedActivity } from '@/components/ContactLinkedActivity';
 import { format } from "date-fns";
@@ -107,7 +107,22 @@ export function ContactProfileSheet({
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [pulseConfig, setPulseConfig] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCopyValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${label} copiado` });
+    } catch {
+      toast({ title: "No se pudo copiar", variant: "destructive" });
+    }
+  };
+
+  const triggerConfigPulse = () => {
+    setPulseConfig(true);
+    setTimeout(() => setPulseConfig(false), 2000);
+  };
 
   useEffect(() => {
     if (open && contactId) {
@@ -275,24 +290,34 @@ export function ContactProfileSheet({
     multiline?: boolean;
     className?: string;
   }) => {
-    const isEmpty = !value || value.trim() === '';
-    
+    const isEmpty = !value || String(value).trim() === '';
+
+    const handleClick = () => {
+      if (isEmpty) {
+        triggerConfigPulse();
+      } else {
+        handleCopyValue(String(value), label);
+      }
+    };
+
     return (
-      <Card className={`${className} ${isEmpty ? 'bg-amber-50/50 dark:bg-amber-950/20 border-dashed border-amber-200/50 dark:border-amber-800/30' : ''}`}>
-        <CardContent className="py-3 flex items-start gap-3 group">
+      <Card
+        className={`${className} ${isEmpty ? 'bg-amber-50/50 dark:bg-amber-950/20 border-dashed border-amber-200/50 dark:border-amber-800/30 cursor-pointer' : 'cursor-copy'} hover:bg-accent/40 transition-colors`}
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
+      >
+        <CardContent className="py-3 flex items-start gap-3">
           <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isEmpty ? 'text-amber-500/60' : 'text-muted-foreground'}`} />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">{label}</p>
-            <InlineEdit
-              value={value || ''}
-              onSave={async (newValue) => {
-                await updateContactField(field, newValue);
-              }}
-              placeholder={`Añadir ${label.toLowerCase()}...`}
-              multiline={multiline}
-            />
+            {isEmpty ? (
+              <p className="text-sm text-muted-foreground/60 italic">Añadir {label.toLowerCase()}...</p>
+            ) : (
+              <p className="text-sm break-words whitespace-pre-wrap">{value}</p>
+            )}
           </div>
-          <Pencil className="h-4 w-4 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
         </CardContent>
       </Card>
     );
@@ -382,35 +407,51 @@ export function ContactProfileSheet({
                 title="Ajustar foto de perfil"
               />
               <div className="flex-1 min-w-0">
-                <InlineEdit
-                  value={contact.name}
-                  onSave={async (newValue) => {
-                    await updateContactField('name', newValue);
-                  }}
-                  placeholder="Nombre"
-                  className="text-2xl font-semibold"
-                />
+                <h2
+                  className="text-2xl font-semibold cursor-copy hover:text-primary transition-colors break-words"
+                  onClick={() => contact.name && handleCopyValue(contact.name, 'Nombre')}
+                  title="Click para copiar"
+                >
+                  {contact.name}
+                </h2>
                 {isFieldVisible('stage_name') && (
-                  <InlineEdit
-                    value={contact.stage_name || ''}
-                    onSave={async (newValue) => {
-                      await updateContactField('stage_name', newValue);
-                    }}
-                    placeholder="Nombre artístico"
-                    className="text-muted-foreground"
-                  />
+                  contact.stage_name ? (
+                    <p
+                      className="text-muted-foreground cursor-copy hover:text-foreground transition-colors break-words"
+                      onClick={() => handleCopyValue(contact.stage_name!, 'Nombre artístico')}
+                      title="Click para copiar"
+                    >
+                      {contact.stage_name}
+                    </p>
+                  ) : (
+                    <p
+                      className="text-muted-foreground/60 italic cursor-pointer text-sm"
+                      onClick={triggerConfigPulse}
+                    >
+                      Añadir nombre artístico...
+                    </p>
+                  )
                 )}
                 {isFieldVisible('role') && (
-                  <InlineEdit
-                    value={contact.role || ''}
-                    onSave={async (newValue) => {
-                      await updateContactField('role', newValue);
-                    }}
-                    placeholder="Rol"
-                    className="text-sm mt-1"
-                  />
+                  contact.role ? (
+                    <p
+                      className="text-sm mt-1 cursor-copy hover:text-primary transition-colors break-words"
+                      onClick={() => handleCopyValue(contact.role!, 'Rol')}
+                      title="Click para copiar"
+                    >
+                      {contact.role}
+                    </p>
+                  ) : (
+                    <p
+                      className="text-sm mt-1 text-muted-foreground/60 italic cursor-pointer"
+                      onClick={triggerConfigPulse}
+                    >
+                      Añadir rol...
+                    </p>
+                  )
                 )}
               </div>
+
             </div>
 
             {/* Action buttons */}
@@ -644,8 +685,8 @@ export function ContactProfileSheet({
         <div className="p-4 border-t bg-background flex gap-2">
           {onEdit && (
             <Button 
-              variant="outline"
-              className="flex-1"
+              variant={pulseConfig ? "default" : "outline"}
+              className={`flex-1 transition-all ${pulseConfig ? 'animate-pulse ring-2 ring-primary ring-offset-2' : ''}`}
               onClick={() => {
                 onEdit(contact.id);
                 onOpenChange(false);
