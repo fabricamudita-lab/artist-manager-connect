@@ -150,7 +150,7 @@ export default function PublicContactForm() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center space-y-4">
-            <CheckCircle2 className="h-12 w-12 mx-auto text-green-500" />
+            <CheckCircle2 className="h-12 w-12 mx-auto text-primary" />
             <p className="text-lg font-medium">¡Información guardada!</p>
             <p className="text-sm text-muted-foreground">Gracias, {contactName}. Tu información ha sido actualizada correctamente.</p>
           </CardContent>
