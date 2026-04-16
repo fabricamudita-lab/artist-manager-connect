@@ -275,7 +275,17 @@ export default function PublicArtistForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {isDebug && (
+          <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+            <CardContent className="p-4 text-xs font-mono space-y-1">
+              <div><strong>DEBUG MODE</strong></div>
+              <div>field_config: {JSON.stringify(fieldConfig)}</div>
+              <div>social={String(v('instagram_url') || v('spotify_url') || v('tiktok_url'))} | sizes={String(v('clothing_size') || v('shoe_size'))} | health={String(v('allergies') || v('special_needs'))} | fiscal={String(v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio'))} | bank={String(v('iban') || v('bank_name') || v('swift_code'))} | notes={String(v('notes'))}</div>
+            </CardContent>
+          </Card>
+        )}
+
+        <form key={formKey} onSubmit={handleSubmit} className="space-y-6">
           {/* General Info */}
           <Card>
             <CardHeader>
