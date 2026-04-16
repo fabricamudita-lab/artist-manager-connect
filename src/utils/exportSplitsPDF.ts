@@ -236,6 +236,7 @@ interface UniqueParticipant {
   name: string;
   hasPublishing: boolean;
   hasMaster: boolean;
+  ipi_number?: string | null;
 }
 
 function collectUniqueParticipants(credits: SplitsCredit[]): UniqueParticipant[] {
@@ -243,11 +244,12 @@ function collectUniqueParticipants(credits: SplitsCredit[]): UniqueParticipant[]
   for (const c of credits) {
     const key = c.name.toLowerCase().trim();
     if (!map.has(key)) {
-      map.set(key, { name: c.name, hasPublishing: false, hasMaster: false });
+      map.set(key, { name: c.name, hasPublishing: false, hasMaster: false, ipi_number: c.ipi_number });
     }
     const entry = map.get(key)!;
     if (c.publishing_percentage != null && c.publishing_percentage > 0) entry.hasPublishing = true;
     if (c.master_percentage != null && c.master_percentage > 0) entry.hasMaster = true;
+    if (!entry.ipi_number && c.ipi_number) entry.ipi_number = c.ipi_number;
   }
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -452,7 +454,10 @@ export function exportSplitsPDF(
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(p.name, colParticipant, y);
-      const ipiValue = p.hasPublishing ? '[A completar]' : 'N/A (Solo Master)';
+      let ipiValue: string;
+      if (p.ipi_number) ipiValue = p.ipi_number;
+      else if (p.hasPublishing) ipiValue = '[A completar]';
+      else ipiValue = 'N/A (Solo Master)';
       doc.text(ipiValue, colIPI, y);
       doc.text('[A completar]', colEmail, y);
       // firma: draw a small line
