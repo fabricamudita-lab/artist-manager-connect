@@ -257,12 +257,9 @@ export default function PublicArtistForm() {
     );
   };
 
-  // Check if any fields in a section are visible
-  const hasSocial = v('instagram_url') || v('spotify_url') || v('tiktok_url');
-  const hasSizes = v('clothing_size') || v('shoe_size');
-  const hasHealth = v('allergies') || v('special_needs');
-  const hasFiscal = v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio');
-  const hasBank = v('iban') || v('bank_name') || v('swift_code');
+  // Debug mode via ?debug=1
+  const isDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1';
+  const formKey = JSON.stringify(fieldConfig);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background py-8 px-4">
