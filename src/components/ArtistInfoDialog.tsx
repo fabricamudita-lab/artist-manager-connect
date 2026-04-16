@@ -589,7 +589,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
 
             {/* Custom Fields */}
             <CustomFieldsSection
-              fields={customFields}
+              fields={customFields.filter((f) => visible(`custom_${f.id}`))}
               customData={customData}
               onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
               onCreateField={canEdit ? async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); } : undefined}
