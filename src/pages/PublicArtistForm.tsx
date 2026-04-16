@@ -257,12 +257,9 @@ export default function PublicArtistForm() {
     );
   };
 
-  // Check if any fields in a section are visible
-  const hasSocial = v('instagram_url') || v('spotify_url') || v('tiktok_url');
-  const hasSizes = v('clothing_size') || v('shoe_size');
-  const hasHealth = v('allergies') || v('special_needs');
-  const hasFiscal = v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio');
-  const hasBank = v('iban') || v('bank_name') || v('swift_code');
+  // Debug mode via ?debug=1
+  const isDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1';
+  const formKey = JSON.stringify(fieldConfig);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background py-8 px-4">
@@ -278,7 +275,17 @@ export default function PublicArtistForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {isDebug && (
+          <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+            <CardContent className="p-4 text-xs font-mono space-y-1">
+              <div><strong>DEBUG MODE</strong></div>
+              <div>field_config: {JSON.stringify(fieldConfig)}</div>
+              <div>social={String(v('instagram_url') || v('spotify_url') || v('tiktok_url'))} | sizes={String(v('clothing_size') || v('shoe_size'))} | health={String(v('allergies') || v('special_needs'))} | fiscal={String(v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio'))} | bank={String(v('iban') || v('bank_name') || v('swift_code'))} | notes={String(v('notes'))}</div>
+            </CardContent>
+          </Card>
+        )}
+
+        <form key={formKey} onSubmit={handleSubmit} className="space-y-6">
           {/* General Info */}
           <Card>
             <CardHeader>
@@ -305,7 +312,7 @@ export default function PublicArtistForm() {
           </Card>
 
           {/* Social Media */}
-          {hasSocial && (
+          {(v('instagram_url') || v('spotify_url') || v('tiktok_url')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -321,7 +328,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Sizes */}
-          {hasSizes && (
+          {(v('clothing_size') || v('shoe_size')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -338,7 +345,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Health */}
-          {hasHealth && (
+          {(v('allergies') || v('special_needs')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -353,7 +360,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Fiscal */}
-          {hasFiscal && (
+          {(v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -380,7 +387,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Banking */}
-          {hasBank && (
+          {(v('iban') || v('bank_name') || v('swift_code')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
