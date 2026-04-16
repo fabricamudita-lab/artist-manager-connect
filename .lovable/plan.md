@@ -1,52 +1,44 @@
 
 
-## Plan: Asegurar que TODOS los campos activados aparezcan en el formulario público
+## Diagnóstico
 
-### Diagnóstico
+He revisado:
+1. **DB**: `field_config = {}` para Klaus Stroink (y todos los artistas tras la migración).
+2. **`isArtistFieldVisible`**: con `{}` devuelve `true` para todos los campos.
+3. **`PublicArtistForm.tsx`**: ya renderiza condicionalmente con `v(field)` los 25+ campos (name, stage_name, genre, email, phone, address, description, instagram, spotify, tiktok, clothing_size, shoe_size, allergies, special_needs, company_name, legal_name, tax_id, nif, tipo_entidad, irpf_type, irpf_porcentaje, actividad_inicio, iban, bank_name, swift_code, notes).
 
-Mirando las capturas, el formulario público de Klaus Stroink solo muestra: nombre, nombre artístico, género, bio, Instagram, Spotify, TikTok, y la sección Fiscal/Bancaria. **Faltan**: email, teléfono, dirección, tallas, salud (alergias / necesidades especiales) y notas.
+**Conclusión**: el código YA respeta `field_config` y debería mostrarlo todo. Si sigues viendo el formulario incompleto, hay 2 causas probables:
 
-El código del formulario público (`PublicArtistForm.tsx`) **ya renderiza condicionalmente** todos esos campos usando `isArtistFieldVisible(fieldConfig, field)`. Por lo tanto, el problema es que el `field_config` guardado en la BD para este artista tiene esos campos explícitamente en `false`.
+### Causa A: Caché del navegador en el formulario público
+La página `/artist-form/:token` se cargó antes de las correcciones y el navegador tiene una versión vieja en caché.
 
-Esto ocurre porque:
-1. El sistema de toggles del `ArtistInfoDialog` guarda el `field_config` tal cual está al pulsar Guardar.
-2. Si el usuario nunca ha tocado los toggles pero el config se inicializó parcial (por ejemplo aplicando "Básico" sin querer, o porque un guardado previo escribió un objeto incompleto), el formulario público respeta esos `false`.
-3. Además los toggles del panel izquierdo se ven todos en ON (porque `visible()` devuelve `true` cuando el campo no está en el config), pero al guardar se persiste solo lo que está en `fieldConfig`, sin convertir los implícitos en explícitos.
+### Causa B: Algunos campos se muestran solo si otros tienen un valor concreto
+He encontrado **un caso real** en el formulario donde un campo solo aparece bajo condición de otro:
+- En el `ArtistInfoDialog` (panel manager), `% IRPF` solo se muestra si `irpf_type === 'personalizado'`.
+- En el `PublicArtistForm` no hay esta condición, pero **sí depende de `irpf_type` ser visible**, lo cual está bien.
 
-### Solución (3 cambios)
+Lo más probable es **caché**.
 
-#### 1. `src/components/ArtistInfoDialog.tsx` — al guardar, normalizar el config
-Antes de hacer `update`, materializar el estado real de los toggles: para cada campo de `ARTIST_FIELD_LABELS`, escribir `true` o `false` explícito en `field_config`. Así lo que ve el usuario en los toggles = lo que se guarda = lo que ve el formulario público. Sin ambigüedad.
+## Plan de acción
 
+### Paso 1: Forzar refresco
+Pedir al usuario que abra el formulario público con **Cmd+Shift+R** (hard reload) o en pestaña incógnito para descartar caché.
+
+### Paso 2: Si tras hard reload sigue faltando, añadir un debug log
+Añadir temporalmente en `PublicArtistForm.tsx` justo después de `setFieldConfig(...)`:
 ```ts
-// Antes de guardar
-const normalizedConfig = Object.fromEntries(
-  Object.keys(ARTIST_FIELD_LABELS).map(f => [f, isArtistFieldVisible(fieldConfig, f)])
-);
-updateData.field_config = normalizedConfig;
+console.log('[PublicArtistForm] field_config recibido:', (artist as any).field_config);
+console.log('[PublicArtistForm] artist data:', artist);
 ```
+Así, en la próxima carga del formulario, podré ver en los logs qué `field_config` está leyendo realmente el cliente y qué campos del artista vienen vacíos vs llenos.
 
-#### 2. `src/components/ArtistInfoDialog.tsx` — botón "Activar todos"
-Añadir un botón pequeño encima de la lista de toggles: **"Activar todos los campos"** que aplica el preset `complete`. Es la salida rápida cuando el usuario quiere recibir toda la información.
+### Paso 3: Garantizar que campos "vacíos" se muestren igual
+Actualmente todos los `renderInput` se renderizan si `v(field)` es true, **independientemente** de que el valor esté vacío. Esto ya está bien — un campo vacío debe mostrarse para que el artista lo rellene. Verificado en código.
 
-#### 3. Migración SQL — resetear configuraciones existentes corruptas (opcional pero recomendado)
-Para artistas con `field_config` parcial (que es lo que está pasando ahora), resetearlo a `{}` (= todo visible por defecto). El usuario podrá luego reconfigurar si quiere ocultar campos.
-
-```sql
-UPDATE public.artists SET field_config = '{}'::jsonb WHERE field_config IS NOT NULL;
-```
-
-> Esto es seguro porque `{}` significa "todos los campos visibles" según `isArtistFieldVisible`. Quien tuviera campos ocultos a propósito tendrá que volver a desactivarlos, pero arregla a todos los que (como tú ahora) ven menos campos de los esperados.
-
-### Archivos afectados
-
+### Archivos a modificar
 | Archivo | Cambio |
-|---------|--------|
-| `src/components/ArtistInfoDialog.tsx` | Normalizar `field_config` al guardar + botón "Activar todos" |
-| Migración SQL | Reset de `field_config` a `{}` en artistas existentes |
+|---|---|
+| `src/pages/PublicArtistForm.tsx` | Añadir 2 `console.log` temporales tras cargar el artista para diagnosticar qué llega al cliente |
 
-### Resultado esperado
-- Después de la migración: el formulario público de Klaus Stroink mostrará **todos** los campos.
-- A partir de ahora, lo que el manager vea en los toggles ON será exactamente lo que aparezca en el formulario público.
-- Si quiere reactivar todo de un clic, tiene el botón "Activar todos".
+Tras ver los logs decidiré si el problema es de datos, de renderizado o de caché, y aplicaremos el fix definitivo.
 
