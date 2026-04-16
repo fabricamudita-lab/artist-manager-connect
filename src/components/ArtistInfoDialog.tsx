@@ -444,167 +444,161 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             </CardContent>
           </Card>
 
-          {/* Datos Fiscales (solo management) */}
-          {canEdit && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">Datos Fiscales</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {renderField("Empresa", "company_name", undefined, "Nombre de empresa")}
-                  {renderField("Nombre legal", "legal_name", undefined, "Nombre legal")}
-                </div>
-                {renderField("CIF / NIF", "tax_id", undefined, "CIF o NIF")}
-              </CardContent>
-            </Card>
-          )}
+          {/* Datos Fiscales */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">Datos Fiscales</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderField("Empresa", "company_name", undefined, "Nombre de empresa")}
+                {renderField("Nombre legal", "legal_name", undefined, "Nombre legal")}
+              </div>
+              {renderField("CIF / NIF", "tax_id", undefined, "CIF o NIF")}
+            </CardContent>
+          </Card>
 
           {/* Perfil Fiscal — IRPF dinámico */}
-          {canEdit && (
-            <Card>
-              <Collapsible defaultOpen={false}>
-                <CardHeader className="pb-2">
-                  <CollapsibleTrigger asChild>
-                    <button className="flex items-center justify-between w-full text-left">
-                      <CardTitle className="flex items-center gap-2">
-                        <Receipt className="h-5 w-5" />
-                        Perfil Fiscal
-                      </CardTitle>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
-                    </button>
-                  </CollapsibleTrigger>
-                  <p className="text-xs text-muted-foreground mt-1">Información fiscal — usada en presupuestos y liquidaciones</p>
-                </CardHeader>
-                <CollapsibleContent>
-                  <CardContent className="space-y-4 pt-2">
-                    {/* Tipo de IRPF */}
-                    <div className="space-y-2">
-                      <Label>Tipo de IRPF</Label>
-                      {editing ? (
-                        <Select
-                          value={formData.irpf_type || 'profesional_establecido'}
-                          onValueChange={(v) => setFormData(prev => ({ ...prev, irpf_type: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {IRPF_TYPE_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                <div>
-                                  <span>{opt.label}</span>
-                                  <span className="text-muted-foreground ml-2 text-xs">— {opt.description}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={IRPF_TYPE_OPTIONS.find(o => o.value === (artistData as any)?.irpf_type)?.label || 'Profesional establecido'}
-                          disabled
-                        />
-                      )}
-                    </div>
-
-                    {/* % personalizado — solo visible si tipo = personalizado */}
-                    {(editing ? formData.irpf_type : (artistData as any)?.irpf_type) === 'personalizado' && (
-                      <div className="space-y-2">
-                        <Label>Porcentaje IRPF personalizado (%)</Label>
-                        {editing ? (
-                          <Input
-                            type="number"
-                            value={formData.irpf_porcentaje || '15'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, irpf_porcentaje: e.target.value }))}
-                            min={0}
-                            max={100}
-                          />
-                        ) : (
-                          <Input value={`${(artistData as any)?.irpf_porcentaje ?? 15}%`} disabled />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Fecha inicio actividad */}
-                    <div className="space-y-2">
-                      <Label>Fecha inicio actividad</Label>
-                      {editing ? (
-                        <Input
-                          type="date"
-                          value={formData.actividad_inicio || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, actividad_inicio: e.target.value }))}
-                        />
-                      ) : (
-                        <Input value={(artistData as any)?.actividad_inicio || 'No especificada'} disabled />
-                      )}
-                    </div>
-
-                    {/* Graduated warning */}
-                    {(() => {
-                      const result = getIrpfForArtist(artistData as any);
-                      return result.warning ? (
-                        <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-foreground">
-                          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                          <span>{result.warning}</span>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {/* NIF */}
-                    {renderField("NIF / NIE", "nif", undefined, "12345678A")}
-
-                    {/* Tipo de entidad */}
-                    <div className="space-y-2">
-                      <Label>Tipo de entidad</Label>
-                      {editing ? (
-                        <Select
-                          value={formData.tipo_entidad || 'persona_fisica'}
-                          onValueChange={(v) => setFormData(prev => ({ ...prev, tipo_entidad: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="persona_fisica">Persona física</SelectItem>
-                            <SelectItem value="sociedad">Sociedad</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={(artistData as any)?.tipo_entidad === 'sociedad' ? 'Sociedad' : 'Persona física'}
-                          disabled
-                        />
-                      )}
-                    </div>
-
-                    {/* IRPF calculation preview */}
-                    {!editing && (
-                      <div className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-                        IRPF aplicable: <span className="font-medium text-foreground">{getIrpfForArtist(artistData as any).percentage}%</span>
-                        {' — '}
-                        {getIrpfForArtist(artistData as any).label}
-                      </div>
-                    )}
-                  </CardContent>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
-          )}
-
-          {/* Datos Bancarios (solo management) */}
-          {canEdit && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5" />Datos Bancarios</CardTitle>
+          <Card>
+            <Collapsible defaultOpen={false}>
+              <CardHeader className="pb-2">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full text-left">
+                    <CardTitle className="flex items-center gap-2">
+                      <Receipt className="h-5 w-5" />
+                      Perfil Fiscal
+                    </CardTitle>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <p className="text-xs text-muted-foreground mt-1">Información fiscal — usada en presupuestos y liquidaciones</p>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {renderField("Banco", "bank_name", undefined, "Nombre del banco")}
-                {renderField("IBAN", "iban", undefined, "ES00 0000 0000 0000 0000 0000")}
-                {renderField("Código SWIFT", "swift_code", undefined, "BBVAESMMXXX")}
-              </CardContent>
-            </Card>
-          )}
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-2">
+                  {/* Tipo de IRPF */}
+                  <div className="space-y-2">
+                    <Label>Tipo de IRPF</Label>
+                    {editing ? (
+                      <Select
+                        value={formData.irpf_type || 'profesional_establecido'}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, irpf_type: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {IRPF_TYPE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <div>
+                                <span>{opt.label}</span>
+                                <span className="text-muted-foreground ml-2 text-xs">— {opt.description}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={IRPF_TYPE_OPTIONS.find(o => o.value === (artistData as any)?.irpf_type)?.label || 'Profesional establecido'}
+                        disabled
+                      />
+                    )}
+                  </div>
+
+                  {/* % personalizado — solo visible si tipo = personalizado */}
+                  {(editing ? formData.irpf_type : (artistData as any)?.irpf_type) === 'personalizado' && (
+                    <div className="space-y-2">
+                      <Label>Porcentaje IRPF personalizado (%)</Label>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          value={formData.irpf_porcentaje || '15'}
+                          onChange={(e) => setFormData(prev => ({ ...prev, irpf_porcentaje: e.target.value }))}
+                          min={0}
+                          max={100}
+                        />
+                      ) : (
+                        <Input value={`${(artistData as any)?.irpf_porcentaje ?? 15}%`} disabled />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fecha inicio actividad */}
+                  <div className="space-y-2">
+                    <Label>Fecha inicio actividad</Label>
+                    {editing ? (
+                      <Input
+                        type="date"
+                        value={formData.actividad_inicio || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, actividad_inicio: e.target.value }))}
+                      />
+                    ) : (
+                      <Input value={(artistData as any)?.actividad_inicio || 'No especificada'} disabled />
+                    )}
+                  </div>
+
+                  {/* Graduated warning */}
+                  {(() => {
+                    const result = getIrpfForArtist(artistData as any);
+                    return result.warning ? (
+                      <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-foreground">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                        <span>{result.warning}</span>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* NIF */}
+                  {renderField("NIF / NIE", "nif", undefined, "12345678A")}
+
+                  {/* Tipo de entidad */}
+                  <div className="space-y-2">
+                    <Label>Tipo de entidad</Label>
+                    {editing ? (
+                      <Select
+                        value={formData.tipo_entidad || 'persona_fisica'}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, tipo_entidad: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="persona_fisica">Persona física</SelectItem>
+                          <SelectItem value="sociedad">Sociedad</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={(artistData as any)?.tipo_entidad === 'sociedad' ? 'Sociedad' : 'Persona física'}
+                        disabled
+                      />
+                    )}
+                  </div>
+
+                  {/* IRPF calculation preview */}
+                  {!editing && (
+                    <div className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                      IRPF aplicable: <span className="font-medium text-foreground">{getIrpfForArtist(artistData as any).percentage}%</span>
+                      {' — '}
+                      {getIrpfForArtist(artistData as any).label}
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
+
+          {/* Datos Bancarios */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5" />Datos Bancarios</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {renderField("Banco", "bank_name", undefined, "Nombre del banco")}
+              {renderField("IBAN", "iban", undefined, "ES00 0000 0000 0000 0000 0000")}
+              {renderField("Código SWIFT", "swift_code", undefined, "BBVAESMMXXX")}
+            </CardContent>
+          </Card>
 
           {/* Observaciones */}
           <Card>

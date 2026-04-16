@@ -19,8 +19,9 @@ import { ContactTagsInput } from './ContactTagsInput';
 import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
 import { detectPreset, getAllPresets } from '@/lib/fieldConfigPresets';
 import { ManageFieldPresetsDialog } from './ManageFieldPresetsDialog';
-import { Check, X, Music, Building2, Settings2 } from 'lucide-react';
+import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 
 interface Artist {
   id: string;
@@ -101,6 +102,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [artistSelectOpen, setArtistSelectOpen] = useState(false);
   const [pendingPreset, setPendingPreset] = useState<string | null>(null);
   const [fieldsAtRisk, setFieldsAtRisk] = useState<string[]>([]);
+  const [generatingFormLink, setGeneratingFormLink] = useState(false);
   
   // Project roles state
   const [projectRoles, setProjectRoles] = useState<{ projectId: string; projectName: string; role: string }[]>([]);
@@ -302,6 +304,50 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateFormLink = async () => {
+    setGeneratingFormLink(true);
+    try {
+      const { data: existing } = await supabase
+        .from('contact_form_tokens')
+        .select('token')
+        .eq('contact_id', contact.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      let tokenValue = existing?.token;
+
+      if (!tokenValue) {
+        const { data: newToken, error } = await supabase
+          .from('contact_form_tokens')
+          .insert({
+            contact_id: contact.id,
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+          .select('token')
+          .single();
+
+        if (error) throw error;
+        tokenValue = newToken.token;
+      }
+
+      const url = `${PUBLIC_APP_URL}/contact-form/${tokenValue}`;
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: 'Enlace copiado',
+        description: 'El enlace al formulario se ha copiado al portapapeles.',
+      });
+    } catch (err) {
+      console.error('Error generating form link:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo generar el enlace del formulario.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingFormLink(false);
     }
   };
 
@@ -715,7 +761,20 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                 placeholder="Añadir etiqueta... #prensa #paris"
               />
               
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerateFormLink}
+                  disabled={generatingFormLink}
+                  className="sm:mr-auto"
+                >
+                  {generatingFormLink ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generando...</>
+                  ) : (
+                    <><Share2 className="h-4 w-4 mr-2" />Formulario</>
+                  )}
+                </Button>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancelar
                 </Button>
