@@ -33,9 +33,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
+import { PROCombobox } from '@/components/credits/PROCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { CreditNotesEditor, CreditNoteBadge } from '@/components/credits/CreditNotesEditor';
+import { isValidIPI } from '@/lib/pros';
 import { toast } from 'sonner';
 import { undoableDelete } from '@/utils/undoableDelete';
 import { useTrackCredits, TrackCredit, Track } from '@/hooks/useReleases';
@@ -53,9 +55,11 @@ interface TrackRightsSplitsManagerProps {
   type: 'publishing' | 'master';
   /** Si se proporciona, habilita la edición de notas por canción para este release. */
   releaseId?: string;
+  /** Workspace para sociedades de gestión personalizadas. */
+  workspaceId?: string | null;
 }
 
-export function TrackRightsSplitsManager({ track, type, releaseId }: TrackRightsSplitsManagerProps) {
+export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }: TrackRightsSplitsManagerProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
