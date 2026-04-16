@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { CreditedArtistRoles } from '@/components/releases/CreditedArtistRoles';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
+import { CreditNotesEditor } from '@/components/credits/CreditNotesEditor';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';

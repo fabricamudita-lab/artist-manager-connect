@@ -35,6 +35,7 @@ import {
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { CreditNotesEditor, CreditNoteBadge } from '@/components/credits/CreditNotesEditor';
 import { toast } from 'sonner';
 import { undoableDelete } from '@/utils/undoableDelete';
 import { useTrackCredits, TrackCredit, Track } from '@/hooks/useReleases';
@@ -50,9 +51,11 @@ import {
 interface TrackRightsSplitsManagerProps {
   track: Track;
   type: 'publishing' | 'master';
+  /** Si se proporciona, habilita la edición de notas por canción para este release. */
+  releaseId?: string;
 }
 
-export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManagerProps) {
+export function TrackRightsSplitsManager({ track, type, releaseId }: TrackRightsSplitsManagerProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -235,6 +238,18 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
             <Plus className="h-4 w-4 mr-2" />
             Añadir {type === 'publishing' ? 'autor' : 'participante'}
           </Button>
+        )}
+
+        {releaseId && (
+          <div className="pt-2 border-t">
+            <CreditNotesEditor
+              releaseId={releaseId}
+              scope={type}
+              trackId={track.id}
+              variant="inline"
+              placeholder={`Notas sobre ${type === 'publishing' ? 'autoría' : 'master'} de esta canción…`}
+            />
+          </div>
         )}
       </CollapsibleContent>
     </Collapsible>
