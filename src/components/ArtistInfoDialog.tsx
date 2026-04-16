@@ -393,6 +393,27 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                     />
                   </div>
                 ))}
+
+                {customFields.length > 0 && (
+                  <>
+                    <Separator className="my-2" />
+                    <Label className="text-xs uppercase text-muted-foreground tracking-wide">Campos personalizados</Label>
+                    {customFields.map((field) => {
+                      const key = `custom_${field.id}`;
+                      return (
+                        <div key={field.id} className="flex items-center justify-between">
+                          <Label htmlFor={`config-${key}`} className="text-sm">{field.label}</Label>
+                          <Switch
+                            id={`config-${key}`}
+                            checked={visible(key)}
+                            onCheckedChange={(checked) => updateFieldConfig(key, checked)}
+                            className="data-[state=checked]:bg-primary"
+                          />
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
