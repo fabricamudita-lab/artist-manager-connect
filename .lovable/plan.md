@@ -1,35 +1,102 @@
 
 
-## Plan: Fix 404 en formulario de contacto + Formulario público completo para artistas del roster
+## Plan: Campos personalizados (custom fields) para artistas y contactos
 
-### Problema 1: 404 en `/contact-form/:token`
-La ruta existe en el código y el token existe en la base de datos, pero la app publicada no incluye todavía esta ruta. **Se necesita re-publicar la app**. La ruta está correctamente fuera de `ProtectedRoute`.
+### Contexto actual
+- **Contactos** (`contacts`): Usan `field_config` (JSONB) para controlar visibilidad de ~16 campos predefinidos (email, phone, iban, etc.). Los campos son columnas reales en la tabla.
+- **Artistas** (`artists`): Tienen ~24 columnas fijas (tallas, salud, fiscal, bancarios). No hay sistema de `field_config` ni campos personalizados.
+- **Formularios públicos**: `/artist-form/:token` y `/contact-form/:token` muestran solo campos fijos predefinidos.
+- Ninguna de las dos entidades soporta campos personalizados definidos por el usuario.
 
-### Problema 2: Artistas del roster — campos editables y formulario público
-El `ArtistInfoDialog` ya muestra todos los campos (tallas, salud, fiscal, bancarios). Sin embargo, el usuario quiere:
-- Que el **formulario público del artista** (`/artist-form/:token`) también incluya **todos los campos** que tiene la ficha interna (tallas, alergias, banco, fiscal, etc.), no solo los campos básicos de bio/redes.
-- Equivalencia funcional con el formulario de contacto (que usa `field_config` con toggles).
+### Problema
+El usuario quiere poder **añadir nuevos campos** más allá de los predefinidos, tanto en la ficha interna como en los formularios públicos. Esto aplica a contactos y artistas.
 
-### Cambios
+### Solución: Tabla `custom_fields` + columna JSONB `custom_data`
+
+#### 1. Base de datos (migración)
+
+**Nueva tabla `custom_fields`** — Catálogo de campos personalizados reutilizables:
+```sql
+CREATE TABLE public.custom_fields (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE NOT NULL,
+  entity_type text NOT NULL CHECK (entity_type IN ('artist', 'contact')),
+  field_key text NOT NULL,
+  label text NOT NULL,
+  field_type text NOT NULL DEFAULT 'text' CHECK (field_type IN ('text', 'textarea', 'number', 'date', 'url', 'email', 'phone')),
+  section text DEFAULT 'custom',
+  sort_order integer DEFAULT 0,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(workspace_id, entity_type, field_key)
+);
+
+ALTER TABLE public.custom_fields ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own workspace custom fields"
+  ON public.custom_fields FOR ALL TO authenticated
+  USING (workspace_id IN (
+    SELECT workspace_id FROM workspace_memberships WHERE user_id = auth.uid()
+  ));
+```
+
+**Añadir `custom_data` JSONB a `artists` y `contacts`:**
+```sql
+ALTER TABLE public.artists ADD COLUMN IF NOT EXISTS custom_data jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE public.contacts ADD COLUMN IF NOT EXISTS custom_data jsonb DEFAULT '{}'::jsonb;
+```
+
+**Política RLS para que `anon` pueda leer custom_fields (para formularios públicos):**
+```sql
+CREATE POLICY "Anon can read custom fields for forms"
+  ON public.custom_fields FOR SELECT TO anon USING (true);
+```
+
+**Actualizar política existente de contacts para incluir custom_data en updates anónimos** (ya permitido por las políticas existentes de `contact_form_tokens`).
+
+**Índices:**
+```sql
+CREATE INDEX idx_custom_fields_entity ON public.custom_fields(workspace_id, entity_type);
+CREATE INDEX idx_artist_form_tokens_active ON public.artist_form_tokens(artist_id, is_active);
+CREATE INDEX idx_contact_form_tokens_active ON public.contact_form_tokens(contact_id, is_active);
+```
+
+#### 2. UI interna — Añadir campos personalizados
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/PublicArtistForm.tsx` | Ampliar el formulario público para incluir todos los campos del artista: tallas (clothing_size, shoe_size), salud (allergies, special_needs), datos fiscales (company_name, legal_name, tax_id, nif, tipo_entidad), datos bancarios (bank_name, iban, swift_code), y notas |
-| Re-publicar la app | Necesario para que la ruta `/contact-form/:token` funcione en la URL publicada |
+| `src/components/ArtistInfoDialog.tsx` | En modo edición, añadir sección "Campos personalizados" al final que: (a) muestra los campos existentes de `custom_data`, (b) tiene botón "+ Añadir campo" que abre un mini-form inline para definir label y tipo, (c) guarda en `custom_fields` + actualiza `custom_data` en `artists` |
+| `src/components/EditContactDialog.tsx` | Mismo patrón: sección de campos personalizados con toggle de visibilidad integrado en `field_config`, valores en `custom_data` |
 
-### Consideraciones de escalabilidad
-- Los campos del artista ya están todos en la tabla `artists` — no se necesitan cambios en la base de datos.
-- El formulario público de artista (`/artist-form/:token`) ya tiene RLS configurado para `anon` — solo se amplía el UI.
-- El formulario de contacto (`/contact-form/:token`) ya tiene su tabla de tokens y políticas RLS — solo necesita la re-publicación.
-- No hay riesgo de conflicto con otras funcionalidades: ambos formularios usan tokens aislados con sus propias tablas.
+#### 3. Formularios públicos
 
-### Detalle técnico
-En `PublicArtistForm.tsx`, añadir secciones colapsables para:
-1. **Tallas**: clothing_size, shoe_size
-2. **Salud**: allergies, special_needs
-3. **Datos Fiscales**: company_name, legal_name, tax_id, nif, tipo_entidad
-4. **Datos Bancarios**: bank_name, iban, swift_code
-5. **Notas**: notes
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/PublicArtistForm.tsx` | Cargar `custom_fields` del workspace del artista (via join) y renderizar campos adicionales usando `custom_data`. Guardar valores de vuelta a `custom_data` |
+| `src/pages/PublicContactForm.tsx` | Cargar `custom_fields` del workspace del contacto y renderizar solo los que estén activados en `field_config`. Guardar a `custom_data` |
 
-Todos estos campos ya existen en la tabla `artists` y ya se guardan correctamente desde `ArtistInfoDialog`. El formulario público simplemente los expondrá para que el propio artista los rellene.
+#### 4. Hook reutilizable
+
+Crear `src/hooks/useCustomFields.ts`:
+- Carga campos de `custom_fields` filtrados por `entity_type` y `workspace_id`
+- Funciones para crear/eliminar campos
+- Cache con React Query
+
+### Flujo del usuario
+1. Manager edita artista/contacto → ve sección "Campos personalizados"
+2. Pulsa "+ Añadir campo" → escribe label (ej. "DNI cónyuge"), elige tipo (text/number/date/etc.)
+3. Se crea registro en `custom_fields` y queda disponible para todas las entidades del mismo tipo en el workspace
+4. El valor se guarda en `custom_data` JSONB de esa entidad específica
+5. En formularios públicos, los campos personalizados aparecen automáticamente en una sección final
+
+### Seguridad
+- `custom_fields` protegido por RLS de workspace
+- `custom_data` es JSONB libre pero los formularios públicos solo permiten escribir claves que existan en `custom_fields`
+- Los valores se sanitizan (trim, longitud máxima) en el cliente antes de guardar
+- `anon` solo puede leer `custom_fields` (no crear/modificar)
+
+### Escalabilidad
+- JSONB `custom_data` evita migraciones por cada campo nuevo
+- `custom_fields` es un catálogo por workspace, reutilizable entre entidades
+- Índices GIN opcionales en `custom_data` si se necesita búsqueda en el futuro
 
