@@ -64,6 +64,26 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
   const [isOpen, setIsOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [resolvedWorkspaceId, setResolvedWorkspaceId] = useState<string | null>(workspaceId ?? null);
+
+  // Resolve workspace_id from release if not provided
+  useEffect(() => {
+    if (workspaceId) { setResolvedWorkspaceId(workspaceId); return; }
+    if (!releaseId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('releases')
+        .select('artist:artists(workspace_id)')
+        .eq('id', releaseId)
+        .maybeSingle();
+      if (cancelled) return;
+      const wid = (data as any)?.artist?.workspace_id ?? null;
+      setResolvedWorkspaceId(wid);
+    })();
+    return () => { cancelled = true; };
+  }, [workspaceId, releaseId]);
+
 
   // Use existing track_credits data
   const { data: allCredits = [] } = useTrackCredits(track.id);
