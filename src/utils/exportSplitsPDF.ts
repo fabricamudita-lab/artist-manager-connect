@@ -159,6 +159,16 @@ function drawSplitTable(
       doc.setTextColor(0);
       total += row.percentage;
       y += LINE_HEIGHT + 0.5;
+
+      // IPI line (under the name) — only if available
+      if (row.ipi_number) {
+        doc.setFontSize(7);
+        doc.setTextColor(110);
+        doc.text(`IPI: ${row.ipi_number}`, colName, y);
+        doc.setTextColor(0);
+        doc.setFontSize(9);
+        y += 3.5;
+      }
     }
 
     // Total row
