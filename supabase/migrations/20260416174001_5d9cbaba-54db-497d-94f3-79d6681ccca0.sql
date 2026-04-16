@@ -1,0 +1,1 @@
+UPDATE public.artists SET field_config = '{}'::jsonb WHERE field_config IS NOT NULL AND field_config::text <> '{}';
