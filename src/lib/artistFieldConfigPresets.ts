@@ -31,6 +31,8 @@ export const ARTIST_FIELD_LABELS: Record<string, string> = {
   iban: 'IBAN',
   swift_code: 'SWIFT',
   notes: 'Notas',
+  ipi_number: 'Número IPI (CISAC)',
+  pro_name: 'Sociedad de gestión (PRO)',
 };
 
 const allTrue: ArtistFieldConfig = Object.fromEntries(

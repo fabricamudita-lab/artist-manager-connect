@@ -75,6 +75,7 @@ const FORM_FIELDS = [
   'bank_name', 'iban', 'swift_code',
   'notes',
   'irpf_type', 'irpf_porcentaje', 'actividad_inicio', 'nif', 'tipo_entidad',
+  'ipi_number', 'pro_name',
 ] as const;
 
 type FormData = Record<typeof FORM_FIELDS[number], string>;
