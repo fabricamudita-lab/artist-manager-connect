@@ -158,7 +158,12 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       }
       updateData.name = formData.name;
       updateData.custom_data = customData;
-      updateData.field_config = fieldConfig;
+      // Normalize: explicit true/false for every known field so what the user sees in toggles
+      // is exactly what the public form will render.
+      const normalizedConfig = Object.fromEntries(
+        Object.keys(ARTIST_FIELD_LABELS).map(f => [f, isArtistFieldVisible(fieldConfig, f)])
+      );
+      updateData.field_config = normalizedConfig;
 
       const { error } = await supabase
         .from('artists')
@@ -361,6 +366,15 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                     </SelectContent>
                   </Select>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => applyPreset('complete')}
+                >
+                  Activar todos los campos
+                </Button>
                 <Separator className="my-2" />
                 {Object.entries(ARTIST_FIELD_LABELS).map(([field, label]) => (
                   <div key={field} className="flex items-center justify-between">
