@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
 
 // Import text extraction libraries
-import { getDocument } from 'https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs';
+import { pdfText } from 'jsr:@pdf/pdftext@1.3.2';
 import { extractRawText } from 'https://esm.sh/mammoth@1.6.0';
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
 
@@ -21,26 +21,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const extractTextFromPDF = async (file: Blob): Promise<{ text: string; pageIndex: number }[]> => {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await getDocument({ data: arrayBuffer }).promise;
-    const pages: { text: string; pageIndex: number }[] = [];
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const text = textContent.items
-        .filter((item: any) => item.str)
-        .map((item: any) => item.str)
-        .join(' ');
-      
-      if (text.trim()) {
-        pages.push({ text: text.trim(), pageIndex: i });
-      }
-    }
-    
-    return pages;
+    const pageMap = await pdfText(new Uint8Array(arrayBuffer));
+
+    return Object.entries(pageMap as Record<string, string>)
+      .map(([pageNumber, text]) => ({
+        text: typeof text === 'string' ? text.trim() : '',
+        pageIndex: Number(pageNumber),
+      }))
+      .filter((page) => page.text);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('PDF extraction error:', error);
-    return [{ text: `PDF extraction failed: ${error.message}`, pageIndex: 1 }];
+    return [{ text: `PDF extraction failed: ${message}`, pageIndex: 1 }];
   }
 };
 
