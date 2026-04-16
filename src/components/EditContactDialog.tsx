@@ -22,7 +22,7 @@ import { ManageFieldPresetsDialog } from './ManageFieldPresetsDialog';
 import { CustomFieldsSection } from '@/components/CustomFieldsSection';
 import { useCustomFields } from '@/hooks/useCustomFields';
 import { useWorkspaceId } from '@/hooks/useWorkspaceId';
-import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2 } from 'lucide-react';
+import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { useAuth } from '@/hooks/useAuth';
@@ -840,6 +840,33 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                 label="Etiquetas"
                 placeholder="Añadir etiqueta... #prensa #paris"
               />
+
+              {/* Danger Zone */}
+              <Separator className="my-6" />
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-destructive">Zona de peligro</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Eliminar este contacto es permanente. Si está vinculado a presupuestos, bookings, contratos, splits o cualquier otro registro, no podrás borrarlo hasta desvincularlo primero.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleStartDelete}
+                  disabled={deleting || checkingRefs}
+                >
+                  {checkingRefs ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Comprobando...</>
+                  ) : (
+                    <><Trash2 className="h-4 w-4 mr-2" />Eliminar contacto</>
+                  )}
+                </Button>
+              </div>
               
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
