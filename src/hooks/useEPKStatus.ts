@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -103,7 +104,7 @@ export const useEPKStatus = (projectId?: string, artistId?: string) => {
 
   const getEPKUrl = () => {
     if (epkStatus.slug) {
-      return `${window.location.origin}/epk/${epkStatus.slug}`;
+      return `${PUBLIC_APP_URL}/epk/${epkStatus.slug}`;
     }
     return null;
   };

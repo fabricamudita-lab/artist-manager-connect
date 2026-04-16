@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ export function EPKQuickActions({ epkSlug, epkTitle, artistName }: EPKQuickActio
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const epkUrl = `${window.location.origin}/epk/${epkSlug}`;
+  const epkUrl = `${PUBLIC_APP_URL}/epk/${epkSlug}`;
 
   const handleCopyLink = async () => {
     try {

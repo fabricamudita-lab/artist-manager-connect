@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,7 +34,7 @@ function ShareLinkButton({ releaseId, release }: { releaseId: string; release: a
 
   useEffect(() => {
     if (release?.share_enabled && release?.share_token) {
-      setShareUrl(`${window.location.origin}/shared/release/${release.share_token}`);
+      setShareUrl(`${PUBLIC_APP_URL}/shared/release/${release.share_token}`);
     }
   }, [release]);
 
@@ -47,7 +48,7 @@ function ShareLinkButton({ releaseId, release }: { releaseId: string; release: a
         .eq('id', releaseId);
       
       if (error) throw error;
-      const url = `${window.location.origin}/shared/release/${token}`;
+      const url = `${PUBLIC_APP_URL}/shared/release/${token}`;
       setShareUrl(url);
       await navigator.clipboard.writeText(url);
       setCopied(true);

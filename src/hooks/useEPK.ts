@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -454,7 +455,7 @@ export const useEPK = (epkId?: string) => {
       // Update local state
       setEPK(prev => prev ? { ...prev, slug: slugData } : prev);
 
-      const fullUrl = `${window.location.origin}/epk/${slugData}`;
+      const fullUrl = `${PUBLIC_APP_URL}/epk/${slugData}`;
       return { success: true, slug: slugData, url: fullUrl };
     } catch (error) {
       console.error('Error generating link:', error);
