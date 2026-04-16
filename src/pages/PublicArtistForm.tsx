@@ -11,6 +11,8 @@ import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music, Heart, R
 import mooditaLogo from '@/assets/moodita-logo.png';
 import { loadCustomFieldsForEntity, type CustomField } from '@/hooks/useCustomFields';
 import { isArtistFieldVisible, type ArtistFieldConfig } from '@/lib/artistFieldConfigPresets';
+import { SocialLinksEditor } from '@/components/SocialLinksEditor';
+import type { SocialLink } from '@/lib/social-platforms';
 
 interface ArtistFormData {
   name: string;
@@ -52,6 +54,7 @@ export default function PublicArtistForm() {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customData, setCustomData] = useState<Record<string, string>>({});
   const [fieldConfig, setFieldConfig] = useState<ArtistFieldConfig>({});
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   const [formData, setFormData] = useState<ArtistFormData>({
     name: '', stage_name: '', description: '', genre: '',
@@ -121,6 +124,8 @@ export default function PublicArtistForm() {
         address: artist.address || '',
       });
       setCustomData(((artist as any).custom_data as Record<string, string>) || {});
+      const rawSocial = (artist as any).social_links;
+      setSocialLinks(Array.isArray(rawSocial) ? (rawSocial as SocialLink[]) : []);
 
       if (artist.workspace_id) {
         const cf = await loadCustomFieldsForEntity(artist.workspace_id, 'artist');
@@ -170,6 +175,7 @@ export default function PublicArtistForm() {
           phone: toNull(formData.phone),
           address: toNull(formData.address),
           custom_data: customData,
+          social_links: socialLinks.filter((l) => l.url.trim()),
         } as any)
         .eq('id', artistId);
 
@@ -323,6 +329,10 @@ export default function PublicArtistForm() {
                 {renderInput('instagram_url', 'Instagram', 'https://instagram.com/...')}
                 {renderInput('spotify_url', 'Spotify', 'https://open.spotify.com/artist/...')}
                 {renderInput('tiktok_url', 'TikTok', 'https://tiktok.com/@...')}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Otras redes</Label>
+                  <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
+                </div>
               </CardContent>
             </Card>
           )}
