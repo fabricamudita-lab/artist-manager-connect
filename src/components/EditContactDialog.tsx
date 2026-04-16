@@ -822,7 +822,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
               {/* Custom Fields */}
               <CustomFieldsSection
-                fields={customFields}
+                fields={customFields.filter((f) => visible(`custom_${f.id}`))}
                 customData={customData}
                 onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
                 onCreateField={async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); }}
