@@ -330,12 +330,14 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
       let tokenValue = existing?.token;
 
       if (!tokenValue) {
+        const currentUser = (await supabase.auth.getUser()).data.user;
         const { data: newToken, error } = await supabase
           .from('contact_form_tokens')
           .insert({
             contact_id: contact.id,
-            created_by: (await supabase.auth.getUser()).data.user?.id,
-          })
+            created_by: currentUser?.id,
+            workspace_id: workspaceId,
+          } as any)
           .select('token')
           .single();
 
@@ -521,6 +523,29 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
           {/* Form Panel */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Header */}
+              <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border border-border/50">
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 text-primary font-bold text-lg shrink-0">
+                  {(formData.name || 'C').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold truncate">{formData.name || 'Nuevo contacto'}</h3>
+                  {formData.role && (
+                    <p className="text-sm text-muted-foreground truncate">{formData.role}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    {formData.category && formData.category !== 'general' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                        {formData.category}
+                      </span>
+                    )}
+                    {formData.email && (
+                      <span className="text-xs text-muted-foreground">{formData.email}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Basic Info - Always Required */}
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre *</Label>

@@ -25,6 +25,9 @@ interface ArtistFormData {
   tax_id: string;
   nif: string;
   tipo_entidad: string;
+  irpf_type: string;
+  irpf_porcentaje: string;
+  actividad_inicio: string;
   iban: string;
   bank_name: string;
   swift_code: string;
@@ -54,6 +57,7 @@ export default function PublicArtistForm() {
     name: '', stage_name: '', description: '', genre: '',
     instagram_url: '', spotify_url: '', tiktok_url: '',
     company_name: '', legal_name: '', tax_id: '', nif: '', tipo_entidad: '',
+    irpf_type: '', irpf_porcentaje: '', actividad_inicio: '',
     iban: '', bank_name: '', swift_code: '',
     clothing_size: '', shoe_size: '',
     allergies: '', special_needs: '',
@@ -99,6 +103,9 @@ export default function PublicArtistForm() {
         tax_id: artist.tax_id || '',
         nif: artist.nif || '',
         tipo_entidad: artist.tipo_entidad || '',
+        irpf_type: (artist as any).irpf_type || '',
+        irpf_porcentaje: (artist as any).irpf_porcentaje?.toString() || '',
+        actividad_inicio: (artist as any).actividad_inicio || '',
         iban: artist.iban || '',
         bank_name: artist.bank_name || '',
         swift_code: artist.swift_code || '',
@@ -146,6 +153,9 @@ export default function PublicArtistForm() {
           tax_id: toNull(formData.tax_id),
           nif: toNull(formData.nif),
           tipo_entidad: toNull(formData.tipo_entidad),
+          irpf_type: toNull(formData.irpf_type),
+          irpf_porcentaje: formData.irpf_porcentaje ? parseFloat(formData.irpf_porcentaje) : null,
+          actividad_inicio: toNull(formData.actividad_inicio),
           iban: toNull(formData.iban),
           bank_name: toNull(formData.bank_name),
           swift_code: toNull(formData.swift_code),
@@ -249,7 +259,7 @@ export default function PublicArtistForm() {
   const hasSocial = v('instagram_url') || v('spotify_url') || v('tiktok_url');
   const hasSizes = v('clothing_size') || v('shoe_size');
   const hasHealth = v('allergies') || v('special_needs');
-  const hasFiscal = v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad');
+  const hasFiscal = v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio');
   const hasBank = v('iban') || v('bank_name') || v('swift_code');
 
   return (
@@ -358,6 +368,11 @@ export default function PublicArtistForm() {
                   {renderInput('nif', 'NIF personal', 'NIF personal')}
                 </div>
                 {renderInput('tipo_entidad', 'Tipo de entidad', 'Ej: Autónomo, S.L., S.A....')}
+                {renderInput('irpf_type', 'Tipo de IRPF', 'Ej: Artista, Profesional...')}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderInput('irpf_porcentaje', '% IRPF', 'Ej: 15', 'number')}
+                  {renderInput('actividad_inicio', 'Inicio de actividad', '', 'date')}
+                </div>
               </CardContent>
             </Card>
           )}
