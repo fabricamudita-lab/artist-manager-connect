@@ -407,35 +407,51 @@ export function ContactProfileSheet({
                 title="Ajustar foto de perfil"
               />
               <div className="flex-1 min-w-0">
-                <InlineEdit
-                  value={contact.name}
-                  onSave={async (newValue) => {
-                    await updateContactField('name', newValue);
-                  }}
-                  placeholder="Nombre"
-                  className="text-2xl font-semibold"
-                />
+                <h2
+                  className="text-2xl font-semibold cursor-copy hover:text-primary transition-colors break-words"
+                  onClick={() => contact.name && handleCopyValue(contact.name, 'Nombre')}
+                  title="Click para copiar"
+                >
+                  {contact.name}
+                </h2>
                 {isFieldVisible('stage_name') && (
-                  <InlineEdit
-                    value={contact.stage_name || ''}
-                    onSave={async (newValue) => {
-                      await updateContactField('stage_name', newValue);
-                    }}
-                    placeholder="Nombre artístico"
-                    className="text-muted-foreground"
-                  />
+                  contact.stage_name ? (
+                    <p
+                      className="text-muted-foreground cursor-copy hover:text-foreground transition-colors break-words"
+                      onClick={() => handleCopyValue(contact.stage_name!, 'Nombre artístico')}
+                      title="Click para copiar"
+                    >
+                      {contact.stage_name}
+                    </p>
+                  ) : (
+                    <p
+                      className="text-muted-foreground/60 italic cursor-pointer text-sm"
+                      onClick={triggerConfigPulse}
+                    >
+                      Añadir nombre artístico...
+                    </p>
+                  )
                 )}
                 {isFieldVisible('role') && (
-                  <InlineEdit
-                    value={contact.role || ''}
-                    onSave={async (newValue) => {
-                      await updateContactField('role', newValue);
-                    }}
-                    placeholder="Rol"
-                    className="text-sm mt-1"
-                  />
+                  contact.role ? (
+                    <p
+                      className="text-sm mt-1 cursor-copy hover:text-primary transition-colors break-words"
+                      onClick={() => handleCopyValue(contact.role!, 'Rol')}
+                      title="Click para copiar"
+                    >
+                      {contact.role}
+                    </p>
+                  ) : (
+                    <p
+                      className="text-sm mt-1 text-muted-foreground/60 italic cursor-pointer"
+                      onClick={triggerConfigPulse}
+                    >
+                      Añadir rol...
+                    </p>
+                  )
                 )}
               </div>
+
             </div>
 
             {/* Action buttons */}
