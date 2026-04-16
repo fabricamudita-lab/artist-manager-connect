@@ -92,6 +92,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const [formData, setFormData] = useState<FormData>(emptyForm());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [customData, setCustomData] = useState<Record<string, string>>({});
 
   // Avatar upload states
   const [cropFile, setCropFile] = useState<File | null>(null);
