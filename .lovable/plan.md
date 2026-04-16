@@ -1,36 +1,34 @@
 
 
-## Diagnóstico definitivo
+## Diagnóstico final
 
-Verificado en BD: `field_config = {}` para Klaus Stroink → según `isArtistFieldVisible` TODOS los campos deben ser visibles. El código de `PublicArtistForm.tsx` (líneas 260-265, 322-360) renderiza correctamente las secciones Tallas, Salud y Notas cuando `field_config` está vacío.
+Verificado:
+- **DB**: `field_config = {}` para Klaus Stroink → todos los campos deben ser visibles.
+- **Código actual** (`PublicArtistForm.tsx` líneas 315-411): renderiza correctamente las 7 secciones cuando `field_config` está vacío. La lógica es correcta.
+- **URL publicada**: `https://artist-manager-connect.lovable.app` (dominio Published).
 
-**Conclusión**: el código es correcto. Si el usuario sigue viendo solo 3 secciones (General, Redes Sociales, Fiscal/Bancario), es **caché del navegador** sirviendo un bundle JS antiguo del dominio público (`artist-manager-connect.lovable.app`) anterior a las correcciones.
+### La causa real
 
-## Plan de fix robusto
+El botón "Formulario" del `ArtistInfoDialog` genera un enlace que apunta al **dominio publicado** (`artist-manager-connect.lovable.app`), no al preview. Las correcciones que hicimos en mensajes anteriores están en el **preview**, pero **no se han republicado** todavía. Por eso el usuario sigue viendo el bundle JavaScript antiguo (sin las secciones Tallas, Salud, Notas).
 
-Para descartar caché Y asegurar visibilidad incondicional, voy a:
+Esto es 100% consistente con todo lo verificado: la BD está bien, el código está bien, pero el bundle servido al usuario es el viejo.
 
-### 1. Eliminar el gating por sección (`hasSizes`/`hasHealth`/etc)
-Las secciones Tallas, Salud y Notas se renderizarán siempre que algún campo interno esté activo. Quitar el wrapper `{hasX && (...)}` y dejar que cada `renderInput` decida individualmente. Si TODOS los campos de una sección están `false`, la sección quedará vacía visualmente, así que mantendremos un check sencillo pero **directo sobre los campos individuales** sin variables intermedias que puedan caer en stale closure.
+## Plan de acción
 
-Cambio: en lugar de `const hasSizes = v('clothing_size') || v('shoe_size')` usar inline `{(v('clothing_size') || v('shoe_size')) && <Card>...`. Funcionalmente idéntico pero elimina cualquier posibilidad de timing/closure raro.
+### Opción A (recomendada): Republicar el proyecto
+El usuario debe hacer clic en **"Publish"** (esquina superior derecha de Lovable) para que `artist-manager-connect.lovable.app` reciba el bundle actualizado con todas las secciones.
 
-### 2. Añadir un cache-buster visible
-Inyectar en `PublicArtistForm.tsx` un comentario versión + un `<meta>` de no-cache implícito mediante key dinámica en `<form key={fieldConfig version}>` para forzar remount cuando cambia el config.
+Después de republicar:
+1. Abrir el enlace del formulario en pestaña incógnita (o Cmd+Shift+R).
+2. Verificar las 7 secciones: General, Redes, Tallas, Salud, Fiscal, Bancario, Notas.
+3. Si quiere ver qué `field_config` está leyendo el cliente, añadir `?debug=1` al final de la URL.
 
-### 3. Logs visibles en pantalla (modo debug)
-Añadir un pequeño badge oculto (solo en desarrollo o con `?debug=1`) que muestre el `field_config` recibido y qué secciones renderiza. Así podemos confirmar 100% qué está leyendo el cliente sin abrir DevTools.
+### Opción B (mientras tanto): Probar en el preview
+El enlace del formulario también funciona en el dominio preview. Reemplazar `artist-manager-connect.lovable.app` por `id-preview--86e00f2c-a9ed-4f99-b464-ea2c5dd3f47d.lovable.app` en la URL del formulario para probar inmediatamente con el código más reciente.
 
-### 4. Pedir hard reload tras deploy
-Al final, instrucción clara al usuario: **abre el enlace en pestaña incógnito** o haz Cmd+Shift+R en el dominio `artist-manager-connect.lovable.app` para descargar el bundle nuevo.
+### Sin cambios de código necesarios
+No hay nada que corregir en el código — está todo bien. El fix es operacional: **republicar**.
 
-### Archivos afectados
-
-| Archivo | Cambio |
-|---|---|
-| `src/pages/PublicArtistForm.tsx` | Inline las condiciones de sección + badge debug opcional con `?debug=1` |
-
-### Resultado esperado
-- Tras el deploy + hard reload, aparecerán las 7 secciones: General, Redes, Tallas, Salud, Fiscal, Bancario, Notas (+ Custom Fields si existen).
-- El badge `?debug=1` permitirá verificar en vivo qué `field_config` llega al cliente si vuelve a fallar.
+### Limpieza (opcional, después de confirmar que funciona)
+Una vez confirmado que las secciones aparecen, puedo quitar los logs de debug y el panel `?debug=1` del archivo `PublicArtistForm.tsx`. Pregúntame cuando quieras hacer esa limpieza.
 
