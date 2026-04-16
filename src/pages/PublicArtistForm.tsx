@@ -312,7 +312,7 @@ export default function PublicArtistForm() {
           </Card>
 
           {/* Social Media */}
-          {hasSocial && (
+          {(v('instagram_url') || v('spotify_url') || v('tiktok_url')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -328,7 +328,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Sizes */}
-          {hasSizes && (
+          {(v('clothing_size') || v('shoe_size')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -345,7 +345,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Health */}
-          {hasHealth && (
+          {(v('allergies') || v('special_needs')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -360,7 +360,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Fiscal */}
-          {hasFiscal && (
+          {(v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad') || v('irpf_type') || v('irpf_porcentaje') || v('actividad_inicio')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -387,7 +387,7 @@ export default function PublicArtistForm() {
           )}
 
           {/* Banking */}
-          {hasBank && (
+          {(v('iban') || v('bank_name') || v('swift_code')) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
