@@ -2606,6 +2606,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           token: string
+          workspace_id: string | null
         }
         Insert: {
           contact_id: string
@@ -2615,6 +2616,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           token?: string
+          workspace_id?: string | null
         }
         Update: {
           contact_id?: string
@@ -2624,6 +2626,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           token?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -2631,6 +2634,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_form_tokens_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
