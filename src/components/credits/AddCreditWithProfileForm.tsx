@@ -143,11 +143,40 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
     if (!finalName || !role) return;
     if (role === 'otro_instrumento' && !customInstrument.trim()) return;
 
-    // Save custom instrument to DB for future use
-    if (role === 'otro_instrumento' && customInstrument.trim()) {
-      await supabase
-        .from('custom_instruments')
-        .upsert({ name: customInstrument.trim(), created_by: user?.id }, { onConflict: 'name' });
+    // Save custom instrument to DB for future use (workspace-scoped)
+    if (role === 'otro_instrumento' && customInstrument.trim() && user?.id) {
+      try {
+        // Resolve workspace_id from the artist linked to this credit (release artist)
+        let workspaceId: string | null = null;
+        if (releaseArtistId) {
+          const { data: artist } = await supabase
+            .from('artists')
+            .select('workspace_id')
+            .eq('id', releaseArtistId)
+            .maybeSingle();
+          workspaceId = artist?.workspace_id ?? null;
+        }
+        // Fallback: any workspace the user belongs to
+        if (!workspaceId) {
+          const { data: membership } = await supabase
+            .from('workspace_memberships')
+            .select('workspace_id')
+            .eq('user_id', user.id)
+            .limit(1)
+            .maybeSingle();
+          workspaceId = membership?.workspace_id ?? null;
+        }
+        if (workspaceId) {
+          await supabase
+            .from('custom_instruments')
+            .upsert(
+              [{ name: customInstrument.trim(), created_by: user.id, workspace_id: workspaceId }],
+              { onConflict: 'workspace_id,name' }
+            );
+        }
+      } catch (err) {
+        console.warn('No se pudo guardar el instrumento personalizado', err);
+      }
     }
     
     onSubmit({

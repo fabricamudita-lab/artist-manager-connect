@@ -30,6 +30,13 @@ interface SplitsCredit {
   notes?: string | null;
 }
 
+export interface SplitsNote {
+  /** null = nota global del release */
+  track_id: string | null;
+  scope: 'publishing' | 'master';
+  note: string;
+}
+
 const PAGE_WIDTH = 210;
 const MARGIN_LEFT = 20;
 const MARGIN_RIGHT = 20;
@@ -236,9 +243,54 @@ export function exportSplitsPDF(
   release: SplitsRelease,
   tracks: SplitsTrack[],
   credits: SplitsCredit[],
+  notes: SplitsNote[] = [],
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 20;
+
+  const globalPublishingNote = notes.find((n) => n.track_id === null && n.scope === 'publishing');
+  const globalMasterNote = notes.find((n) => n.track_id === null && n.scope === 'master');
+  const trackNotes = (trackId: string, scope: 'publishing' | 'master') =>
+    notes.find((n) => n.track_id === trackId && n.scope === scope);
+
+  const drawNoteBox = (label: string, text: string): void => {
+    if (!text?.trim()) return;
+    y = addPageIfNeeded(doc, y, 20);
+    const boxX = MARGIN_LEFT;
+    const boxW = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(120, 90, 0);
+    doc.text(label, boxX + 2, y + 4);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(60);
+    const lines = doc.splitTextToSize(text, boxW - 4);
+    const boxH = 6 + lines.length * 4 + 2;
+    doc.setDrawColor(220, 180, 90);
+    doc.setFillColor(255, 248, 225);
+    doc.roundedRect(boxX, y, boxW, boxH, 1, 1, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(120, 90, 0);
+    doc.text(label, boxX + 2, y + 4);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(60);
+    doc.text(lines, boxX + 2, y + 9);
+    doc.setTextColor(0);
+    y += boxH + 4;
+  };
+
+  const drawInlineNote = (text: string): void => {
+    if (!text?.trim()) return;
+    y = addPageIfNeeded(doc, y, 10);
+    const boxW = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT - 5;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(90);
+    const lines = doc.splitTextToSize(`Nota: ${text}`, boxW);
+    doc.text(lines, MARGIN_LEFT + 5, y);
+    doc.setTextColor(0);
+    y += lines.length * 4 + 3;
+  };
 
   // ── Title ──
   doc.setFontSize(16);
@@ -289,6 +341,12 @@ export function exportSplitsPDF(
   doc.setTextColor(0);
   y += 10;
 
+  // ── NOTAS GENERALES (release-level) ──
+  if (globalPublishingNote || globalMasterNote) {
+    if (globalPublishingNote) drawNoteBox('NOTA GENERAL — PUBLISHING', globalPublishingNote.note);
+    if (globalMasterNote) drawNoteBox('NOTA GENERAL — MASTER', globalMasterNote.note);
+  }
+
   // ── DETALLE POR PISTA ──
   y = drawSeparator(doc, y);
   doc.setFontSize(11);
@@ -330,7 +388,12 @@ export function exportSplitsPDF(
       y += 8;
     } else {
       y = drawSplitTable(doc, y, 'AUTORÍA / PUBLISHING (Derechos de Obra)', publishingRows, '% Recaudable', true);
+      const pubNote = trackNotes(track.id, 'publishing');
+      if (pubNote) drawInlineNote(pubNote.note);
+
       y = drawSplitTable(doc, y, 'MASTER / ROYALTIES (Derechos de Fonograma)', masterRows, '%', false);
+      const mstNote = trackNotes(track.id, 'master');
+      if (mstNote) drawInlineNote(mstNote.note);
     }
 
     // separator between tracks
