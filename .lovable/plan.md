@@ -2,88 +2,79 @@
 
 ## Análisis
 
-**Problema 1: Klaus Stroink duplicado**
-En la captura veo dos nodos: uno verde "Artista principal" (KS con estrella) y uno morado "Klaus Stroink ... Compositor, Au...". Esto pasa porque en `/teams` el sistema inyecta automáticamente al artista principal como tarjeta verde (ver memoria `mem://contacts/teams-artist-interaction`), pero además existe un `contact` independiente con el mismo nombre que aparece como miembro morado.
+El usuario pide añadir notas/comentarios a la metadata de **Publishing (Derechos de Autor)** y **Master (Derechos Conexos)** en el módulo de créditos del lanzamiento. Las notas deben:
+- Visualizarse en la app y en el PDF.
+- Poder enlazarse a **todo el release** (álbum/EP) o a **una canción concreta**.
 
-Necesito verificar la lógica exacta antes de proponer fusión. Tengo que mirar:
-- Cómo se renderizan ambas tarjetas en la vista libre (canvas).
-- Si ya existe deduplicación entre artista principal inyectado y contacto homónimo.
-- La función `deduplicateContacts` ya existe pero solo fusiona `contacts` entre sí, NO fusiona artista principal + contacto.
+Antes hay un **build error** que bloquea cualquier cambio:
 
-**Problema 2: Categoría "Banda" → instrumentos Ditto**
-Cuando un miembro tiene la categoría "Banda", debería abrirse un sub-selector con la lista estándar de instrumentos de Ditto (la misma que ya se usa en `distribution_roles` / créditos de tracks). Ya existe esta lista en el proyecto (memoria `mem://releases/distribution-roles` y `mem://releases/credits-rights-system`). Hay que:
-- Reutilizar esa lista (no duplicarla).
-- Añadir opción "Otro" al final que permita escribir uno nuevo.
-- Persistir el instrumento personalizado **a nivel de workspace/proyecto** para que reaparezca en el futuro.
+```
+src/components/credits/AddCreditWithProfileForm.tsx(150,19)
+'name' does not exist in type '{ ...; name: string; workspace_id: string; }[]'
+```
 
-Las indicaciones genéricas del final del mensaje (Prisma, paginación, separar capas, prevenir SQL injection) no aplican literalmente: este proyecto usa Supabase (no Prisma), las consultas van vía cliente Supabase con RLS (no hay SQL crudo expuesto), y la vista de equipos no necesita paginación a este volumen. Lo traduzco a lo que sí aplica: migración SQL para la tabla de instrumentos custom, índices, RLS, validación con Zod en el cliente antes de insertar.
-
-Necesito explorar antes de proponer pasos concretos.
+Esto viene del cambio de tipo de `custom_instruments` a tabla con `workspace_id`. El insert en esa línea está pasando `{ name }` sin `workspace_id`. Hay que arreglarlo antes de tocar nada más.
 
 ## Exploración necesaria
-- `src/pages/Teams.tsx` o equivalente para ver cómo se inyecta el artista y cómo se renderizan los contactos.
-- Lista actual de instrumentos Ditto (buscar `instruments` en `src/lib`).
-- Componente `MemberContextMenu` o similar (el menú "Editar / Categorías / Quitar del equipo").
-- Tabla `contacts.field_config` para ver cómo se almacenan las categorías y si ya hay un campo `instruments`.
+- `src/components/credits/AddCreditWithProfileForm.tsx` (línea 150) — corregir insert.
+- Estructura actual de `/releases/:id/creditos`: cómo se renderiza Publishing y Master, dónde están las cards (la captura muestra cards por canción con % de participación).
+- Modelo de datos: tablas `track_credits` / `release_credits` o similar para entender dónde colgar las notas.
+- Generador del PDF de créditos para inyectar las notas.
 
 ## Plan
 
-### 1. Fusionar artista principal con contacto homónimo en `/teams`
-- En el render de la Vista Libre, detectar cuando un `contact` tiene el mismo nombre normalizado que el artista principal del equipo activo y **no renderizar la tarjeta morada duplicada**: sus categorías/instrumentos se mergean sobre la tarjeta verde del artista.
-- Extender `deduplicateContacts` (botón ya existente o automático) para que también marque el contacto como "alias del artista" (`field_config.alias_of_artist_id`) en lugar de borrarlo, preservando referencias en `track_credits`, `budget_items`, etc.
-- Mostrar un único nodo verde con las categorías combinadas (Artista principal + Compositor + Autor…).
+### 1. Arreglar build error (bloqueante)
+En `AddCreditWithProfileForm.tsx` L150, el insert a `custom_instruments` debe incluir `workspace_id` (resolver desde el artista del release o desde el contexto del usuario). Validar con Zod antes del insert.
 
-### 2. Selector de instrumentos para categoría "Banda"
-- Crear `src/lib/dittoInstruments.ts` reutilizando la lista canónica que ya usa el módulo de créditos/distribución (Lead Vocals, Backing Vocals, Guitar, Bass, Drums, Keys, Synth, Piano, Violin, Cello, Saxophone, Trumpet, Percussion, DJ, Programming, etc.). Si ya existe en `src/lib`, reutilizar.
-- En `TeamCategorySelector.tsx`, cuando el usuario marca **Banda**, abrir un sub-popover con checkboxes de instrumentos + opción **"Otro…"** al final.
-- Los instrumentos seleccionados se guardan en `contacts.field_config.instruments: string[]` (junto a `team_categories`).
-- Mostrar los instrumentos como chips secundarios bajo el nombre del miembro (ej. "Banda · Guitar, Backing Vocals").
-
-### 3. Instrumentos personalizados persistentes (workspace-level)
-Nueva tabla `custom_instruments`:
+### 2. Modelo de datos para notas
+Nueva tabla `credit_notes`:
 
 ```text
-custom_instruments
-  id            uuid PK
-  workspace_id  uuid (FK profiles/workspace, indexado)
-  name          text (único por workspace, indexado)
-  created_by    uuid
-  created_at    timestamptz
+credit_notes
+  id              uuid PK
+  release_id      uuid FK releases (NOT NULL, indexado)
+  track_id        uuid FK tracks (NULL = nota global del release, indexado)
+  scope           text CHECK ('publishing' | 'master')
+  note            text (max 2000 chars)
+  created_by      uuid
+  created_at      timestamptz
+  updated_at      timestamptz
 ```
 
-- Índice único `(workspace_id, lower(name))` para evitar duplicados case-insensitive.
-- Índice btree en `workspace_id` para listado rápido.
-- RLS: `SELECT/INSERT` permitido a miembros del workspace (`auth.uid()` con membership).
-- Hook `useCustomInstruments(workspaceId)` que lista + permite añadir.
-- Al elegir "Otro…" y escribir un nombre, se valida con Zod (`z.string().trim().min(1).max(40).regex(/^[\p{L}\p{N}\s\-']+$/u)`) y se inserta. A partir de ahí aparece en la lista para todos en el workspace.
+- Índice compuesto `(release_id, scope, track_id)`.
+- RLS reutilizando el patrón de `releases` (acceso vía workspace del artista).
+- Validación Zod en el cliente antes de insert/update (`note: z.string().trim().max(2000)`).
 
-### 4. Capa de datos limpia
-- Toda la lógica de instrumentos (lista Ditto + custom) vive en `src/lib/instruments/` (servicio puro).
-- El componente `TeamCategorySelector` solo consume el hook, sin SQL ni Supabase directo.
-- Validación Zod en el servicio antes de cualquier `insert`.
+### 3. UI en la app (`/releases/:id/creditos`)
+En la sección **Derechos de Autor (Publishing)** y **Derechos Conexos (Master)**:
 
-### 5. Sin romper auth ni panel de usuario
-- No se tocan `profiles`, `auth`, ni `useAuth`. Solo lectura de `workspace_id` desde el perfil activo.
-- RLS replica el patrón ya usado en otras tablas workspace-scoped.
-- El cambio en el render de `/teams` solo afecta a la Vista Libre; las vistas Lista y Cuadrícula reciben el mismo `mergedMembers` pre-procesado.
+- **Nota global del release**: botón "Añadir nota general" en la cabecera de cada sección. Al añadirla se muestra como banner amarillo claro bajo el título.
+- **Nota por canción**: dentro de cada card expandida (cuando el usuario hace click en la chevron), un campo "Notas" (textarea) editable inline con autosave (debounced 800ms).
+- Indicador visual: icono 📝 junto al título de la card si tiene nota.
 
-### 6. Resultado visual esperado
-```text
-ANTES                          DESPUÉS
-[KS verde] Artista principal   [KS verde] Artista principal
-[KS morado] Compositor, Au…    Banda · Guitar, Backing Vocals
-                               Compositor, Autor
-```
+Componente nuevo: `CreditNotesEditor.tsx` reutilizable para ambos scopes.
+
+### 4. Render en el PDF
+En el generador PDF de créditos (buscaré el archivo en `src/lib/pdf/` o similar):
+
+- **Nota global**: cuadro destacado al inicio de cada sección (Publishing / Master).
+- **Nota por canción**: bajo la lista de participantes de cada canción, en cursiva con prefijo "Nota:".
+
+Estilo coherente con la identidad MOODITA ya establecida en otros PDFs.
+
+### 5. Capa de datos limpia
+- Hook `useCreditNotes(releaseId, scope)` con React Query.
+- Mutaciones con invalidación de la query y `onConflict` en upsert por `(release_id, track_id, scope)` para tratarlo como un único registro editable.
+- Sin tocar auth ni el panel lateral.
 
 ### Cambios técnicos resumidos
 | Área | Archivo / objeto |
 |---|---|
-| Migración | nueva tabla `custom_instruments` + índices + RLS |
-| Lista Ditto | `src/lib/instruments/dittoInstruments.ts` |
-| Hook | `src/hooks/useCustomInstruments.ts` |
-| UI categorías | `src/components/TeamCategorySelector.tsx` (sub-popover Banda) |
-| Render canvas | componente Vista Libre de `/teams` (merge artista + contacto homónimo) |
-| Dedupe | extender `src/lib/deduplicateContacts.ts` con merge artista↔contacto |
+| Fix build | `src/components/credits/AddCreditWithProfileForm.tsx` L150 |
+| Migración | nueva tabla `credit_notes` + índices + RLS |
+| Hook | `src/hooks/useCreditNotes.ts` |
+| UI | `src/components/credits/CreditNotesEditor.tsx` + integración en sección Publishing/Master |
+| PDF | extender el generador de créditos para incluir notas |
 
-Sin cambios en autenticación, sin paginación nueva (el volumen no lo requiere), validación Zod en el punto de entrada de instrumentos custom.
+Sin paginación (volumen mínimo: 1 nota por canción + 1 global × scope), sin cambios en RLS de tablas existentes, validación Zod en cliente.
 
