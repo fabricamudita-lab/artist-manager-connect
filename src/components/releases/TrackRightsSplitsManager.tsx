@@ -213,6 +213,7 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
                 type={type}
                 percentageKey={percentageKey}
                 roles={roles}
+                workspaceId={workspaceId}
                 isEditing={editingId === credit.id}
                 onEdit={() => setEditingId(credit.id)}
                 onCancelEdit={() => setEditingId(null)}
@@ -229,6 +230,7 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
             type={type}
             percentageKey={percentageKey}
             roles={roles}
+            workspaceId={workspaceId}
             onSave={handleCreate}
             onCancel={() => setIsAdding(false)}
             isLoading={createCredit.isPending}
@@ -292,6 +294,7 @@ function SplitRow({
   type,
   percentageKey,
   roles,
+  workspaceId,
   isEditing,
   onEdit,
   onCancelEdit,
@@ -303,6 +306,7 @@ function SplitRow({
   type: 'publishing' | 'master';
   percentageKey: 'publishing_percentage' | 'master_percentage';
   roles: { value: string; label: string }[];
+  workspaceId?: string | null;
   isEditing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -361,10 +365,11 @@ function SplitRow({
         </div>
         {type === 'publishing' && (
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <PROCombobox
               value={editProSociety}
-              onChange={(e) => setEditProSociety(e.target.value)}
-              placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+              onValueChange={setEditProSociety}
+              workspaceId={workspaceId}
+              placeholder="Sociedad (PRO)…"
             />
             <Input
               value={editNotes}
@@ -445,6 +450,7 @@ function AddSplitForm({
   type,
   percentageKey,
   roles,
+  workspaceId,
   onSave,
   onCancel,
   isLoading,
@@ -452,6 +458,7 @@ function AddSplitForm({
   type: 'publishing' | 'master';
   percentageKey: 'publishing_percentage' | 'master_percentage';
   roles: { value: string; label: string }[];
+  workspaceId?: string | null;
   onSave: (data: any) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -666,10 +673,11 @@ function AddSplitForm({
             </div>
             {type === 'publishing' && (
               <div className="grid grid-cols-2 gap-3">
-                <Input
+                <PROCombobox
                   value={proSociety}
-                  onChange={(e) => setProSociety(e.target.value)}
-                  placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+                  onValueChange={setProSociety}
+                  workspaceId={workspaceId}
+                  placeholder="Sociedad (PRO)…"
                 />
                 <Input
                   value={creditNotes}
@@ -749,10 +757,11 @@ function AddSplitForm({
       </div>
       {type === 'publishing' && (
         <div className="grid grid-cols-2 gap-3">
-          <Input
+          <PROCombobox
             value={proSociety}
-            onChange={(e) => setProSociety(e.target.value)}
-            placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+            onValueChange={setProSociety}
+            workspaceId={workspaceId}
+            placeholder="Sociedad (PRO)…"
           />
           <Input
             value={creditNotes}
