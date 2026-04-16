@@ -1,0 +1,1 @@
+ALTER TABLE public.artists ADD COLUMN IF NOT EXISTS field_config jsonb DEFAULT '{}'::jsonb;

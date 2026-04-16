@@ -558,6 +558,7 @@ export type Database = {
           custom_data: Json | null
           description: string | null
           email: string | null
+          field_config: Json | null
           genre: string | null
           header_image_url: string | null
           iban: string | null
@@ -599,6 +600,7 @@ export type Database = {
           custom_data?: Json | null
           description?: string | null
           email?: string | null
+          field_config?: Json | null
           genre?: string | null
           header_image_url?: string | null
           iban?: string | null
@@ -640,6 +642,7 @@ export type Database = {
           custom_data?: Json | null
           description?: string | null
           email?: string | null
+          field_config?: Json | null
           genre?: string | null
           header_image_url?: string | null
           iban?: string | null

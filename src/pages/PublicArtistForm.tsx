@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music, Heart, Ruler, StickyNote, Puzzle } from 'lucide-react';
 import mooditaLogo from '@/assets/moodita-logo.png';
 import { loadCustomFieldsForEntity, type CustomField } from '@/hooks/useCustomFields';
+import { isArtistFieldVisible, type ArtistFieldConfig } from '@/lib/artistFieldConfigPresets';
 
 interface ArtistFormData {
   name: string;
@@ -47,6 +48,7 @@ export default function PublicArtistForm() {
   const [artistName, setArtistName] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customData, setCustomData] = useState<Record<string, string>>({});
+  const [fieldConfig, setFieldConfig] = useState<ArtistFieldConfig>({});
 
   const [formData, setFormData] = useState<ArtistFormData>({
     name: '', stage_name: '', description: '', genre: '',
@@ -83,6 +85,7 @@ export default function PublicArtistForm() {
 
       setArtistId(artist.id);
       setArtistName(artist.stage_name || artist.name);
+      setFieldConfig(((artist as any).field_config as ArtistFieldConfig) || {});
       setFormData({
         name: artist.name || '',
         stage_name: artist.stage_name || '',
@@ -110,7 +113,6 @@ export default function PublicArtistForm() {
       });
       setCustomData(((artist as any).custom_data as Record<string, string>) || {});
 
-      // Load custom fields for this workspace
       if (artist.workspace_id) {
         const cf = await loadCustomFieldsForEntity(artist.workspace_id, 'artist');
         setCustomFields(cf);
@@ -174,6 +176,8 @@ export default function PublicArtistForm() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const v = (field: string) => isArtistFieldVisible(fieldConfig, field);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background">
@@ -221,10 +225,36 @@ export default function PublicArtistForm() {
     );
   }
 
+  const renderInput = (field: keyof ArtistFormData, label: string, placeholder?: string, type = 'text') => {
+    if (!v(field)) return null;
+    return (
+      <div className="space-y-2" key={field}>
+        <Label htmlFor={field}>{label}</Label>
+        <Input id={field} type={type} value={formData[field]} onChange={(e) => updateField(field, e.target.value)} placeholder={placeholder || label} />
+      </div>
+    );
+  };
+
+  const renderTextarea = (field: keyof ArtistFormData, label: string, placeholder?: string, rows = 3) => {
+    if (!v(field)) return null;
+    return (
+      <div className="space-y-2" key={field}>
+        <Label htmlFor={field}>{label}</Label>
+        <Textarea id={field} value={formData[field]} onChange={(e) => updateField(field, e.target.value)} placeholder={placeholder || label} rows={rows} />
+      </div>
+    );
+  };
+
+  // Check if any fields in a section are visible
+  const hasSocial = v('instagram_url') || v('spotify_url') || v('tiktok_url');
+  const hasSizes = v('clothing_size') || v('shoe_size');
+  const hasHealth = v('allergies') || v('special_needs');
+  const hasFiscal = v('company_name') || v('legal_name') || v('tax_id') || v('nif') || v('tipo_entidad');
+  const hasBank = v('iban') || v('bank_name') || v('swift_code');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
         <div className="text-center space-y-2">
           <img src={mooditaLogo} alt="MOODITA" className="h-10 mx-auto mb-4" />
           <div className="inline-flex items-center gap-2 p-3 bg-primary/10 rounded-xl mb-4">
@@ -250,170 +280,119 @@ export default function PublicArtistForm() {
                   <Label htmlFor="name">Nombre completo</Label>
                   <Input id="name" value={formData.name} onChange={(e) => updateField('name', e.target.value)} placeholder="Nombre real" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stage_name">Nombre artístico</Label>
-                  <Input id="stage_name" value={formData.stage_name} onChange={(e) => updateField('stage_name', e.target.value)} placeholder="Nombre artístico" />
-                </div>
+                {renderInput('stage_name', 'Nombre artístico', 'Nombre artístico')}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="genre">Género musical</Label>
-                <Input id="genre" value={formData.genre} onChange={(e) => updateField('genre', e.target.value)} placeholder="Ej: Pop, Indie, Electrónica..." />
-              </div>
+              {renderInput('genre', 'Género musical', 'Ej: Pop, Indie, Electrónica...')}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={formData.email} onChange={(e) => updateField('email', e.target.value)} placeholder="email@ejemplo.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
-                  <Input id="phone" value={formData.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="+34 600 000 000" />
-                </div>
+                {renderInput('email', 'Email', 'email@ejemplo.com', 'email')}
+                {renderInput('phone', 'Teléfono', '+34 600 000 000')}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Dirección</Label>
-                <Input id="address" value={formData.address} onChange={(e) => updateField('address', e.target.value)} placeholder="Dirección completa" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Biografía</Label>
-                <Textarea id="description" value={formData.description} onChange={(e) => updateField('description', e.target.value)} placeholder="Breve descripción del artista..." rows={4} />
-              </div>
+              {renderInput('address', 'Dirección', 'Dirección completa')}
+              {renderTextarea('description', 'Biografía', 'Breve descripción del artista...', 4)}
             </CardContent>
           </Card>
 
           {/* Social Media */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Globe className="h-5 w-5" />Redes Sociales
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="instagram_url">Instagram</Label>
-                <Input id="instagram_url" value={formData.instagram_url} onChange={(e) => updateField('instagram_url', e.target.value)} placeholder="https://instagram.com/..." />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="spotify_url">Spotify</Label>
-                <Input id="spotify_url" value={formData.spotify_url} onChange={(e) => updateField('spotify_url', e.target.value)} placeholder="https://open.spotify.com/artist/..." />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tiktok_url">TikTok</Label>
-                <Input id="tiktok_url" value={formData.tiktok_url} onChange={(e) => updateField('tiktok_url', e.target.value)} placeholder="https://tiktok.com/@..." />
-              </div>
-            </CardContent>
-          </Card>
+          {hasSocial && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Globe className="h-5 w-5" />Redes Sociales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {renderInput('instagram_url', 'Instagram', 'https://instagram.com/...')}
+                {renderInput('spotify_url', 'Spotify', 'https://open.spotify.com/artist/...')}
+                {renderInput('tiktok_url', 'TikTok', 'https://tiktok.com/@...')}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Sizes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Ruler className="h-5 w-5" />Tallas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="clothing_size">Talla de ropa</Label>
-                  <Input id="clothing_size" value={formData.clothing_size} onChange={(e) => updateField('clothing_size', e.target.value)} placeholder="Ej: M, L, XL..." />
+          {hasSizes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Ruler className="h-5 w-5" />Tallas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderInput('clothing_size', 'Talla de ropa', 'Ej: M, L, XL...')}
+                  {renderInput('shoe_size', 'Talla de calzado', 'Ej: 42, 43...')}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="shoe_size">Talla de calzado</Label>
-                  <Input id="shoe_size" value={formData.shoe_size} onChange={(e) => updateField('shoe_size', e.target.value)} placeholder="Ej: 42, 43..." />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Health */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Heart className="h-5 w-5" />Salud y Necesidades
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="allergies">Alergias / Intolerancias</Label>
-                <Textarea id="allergies" value={formData.allergies} onChange={(e) => updateField('allergies', e.target.value)} placeholder="Alergias alimentarias, medicamentos, etc." rows={3} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="special_needs">Necesidades especiales</Label>
-                <Textarea id="special_needs" value={formData.special_needs} onChange={(e) => updateField('special_needs', e.target.value)} placeholder="Cualquier necesidad especial..." rows={3} />
-              </div>
-            </CardContent>
-          </Card>
+          {hasHealth && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Heart className="h-5 w-5" />Salud y Necesidades
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {renderTextarea('allergies', 'Alergias / Intolerancias', 'Alergias alimentarias, medicamentos, etc.', 3)}
+                {renderTextarea('special_needs', 'Necesidades especiales', 'Cualquier necesidad especial...', 3)}
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Fiscal Data */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="h-5 w-5" />Datos Fiscales
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="company_name">Empresa / Razón social</Label>
-                  <Input id="company_name" value={formData.company_name} onChange={(e) => updateField('company_name', e.target.value)} placeholder="Nombre de la empresa" />
+          {/* Fiscal */}
+          {hasFiscal && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="h-5 w-5" />Datos Fiscales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderInput('company_name', 'Empresa / Razón social', 'Nombre de la empresa')}
+                  {renderInput('legal_name', 'Nombre legal', 'Nombre completo legal')}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="legal_name">Nombre legal</Label>
-                  <Input id="legal_name" value={formData.legal_name} onChange={(e) => updateField('legal_name', e.target.value)} placeholder="Nombre completo legal" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderInput('tax_id', 'CIF / NIF', 'Número de identificación fiscal')}
+                  {renderInput('nif', 'NIF personal', 'NIF personal')}
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tax_id">CIF / NIF</Label>
-                  <Input id="tax_id" value={formData.tax_id} onChange={(e) => updateField('tax_id', e.target.value)} placeholder="Número de identificación fiscal" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nif">NIF personal</Label>
-                  <Input id="nif" value={formData.nif} onChange={(e) => updateField('nif', e.target.value)} placeholder="NIF personal" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tipo_entidad">Tipo de entidad</Label>
-                <Input id="tipo_entidad" value={formData.tipo_entidad} onChange={(e) => updateField('tipo_entidad', e.target.value)} placeholder="Ej: Autónomo, S.L., S.A...." />
-              </div>
-            </CardContent>
-          </Card>
+                {renderInput('tipo_entidad', 'Tipo de entidad', 'Ej: Autónomo, S.L., S.A....')}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Banking */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="h-5 w-5" />Datos Bancarios
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="iban">IBAN</Label>
-                <Input id="iban" value={formData.iban} onChange={(e) => updateField('iban', e.target.value)} placeholder="ES00 0000 0000 0000 0000 0000" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="bank_name">Banco</Label>
-                  <Input id="bank_name" value={formData.bank_name} onChange={(e) => updateField('bank_name', e.target.value)} placeholder="Nombre del banco" />
+          {hasBank && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="h-5 w-5" />Datos Bancarios
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {renderInput('iban', 'IBAN', 'ES00 0000 0000 0000 0000 0000')}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderInput('bank_name', 'Banco', 'Nombre del banco')}
+                  {renderInput('swift_code', 'SWIFT / BIC', 'Código SWIFT')}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="swift_code">SWIFT / BIC</Label>
-                  <Input id="swift_code" value={formData.swift_code} onChange={(e) => updateField('swift_code', e.target.value)} placeholder="Código SWIFT" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <StickyNote className="h-5 w-5" />Notas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea id="notes" value={formData.notes} onChange={(e) => updateField('notes', e.target.value)} placeholder="Notas adicionales..." rows={4} />
-            </CardContent>
-          </Card>
+          {v('notes') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <StickyNote className="h-5 w-5" />Notas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea id="notes" value={formData.notes} onChange={(e) => updateField('notes', e.target.value)} placeholder="Notas adicionales..." rows={4} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Custom Fields */}
           {customFields.length > 0 && (
@@ -443,7 +422,6 @@ export default function PublicArtistForm() {
             </Card>
           )}
 
-          {/* Submit */}
           <Button type="submit" className="w-full" size="lg" disabled={saving}>
             {saving ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</>
