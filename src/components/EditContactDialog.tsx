@@ -307,6 +307,50 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
     }
   };
 
+  const handleGenerateFormLink = async () => {
+    setGeneratingFormLink(true);
+    try {
+      const { data: existing } = await supabase
+        .from('contact_form_tokens')
+        .select('token')
+        .eq('contact_id', contact.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      let tokenValue = existing?.token;
+
+      if (!tokenValue) {
+        const { data: newToken, error } = await supabase
+          .from('contact_form_tokens')
+          .insert({
+            contact_id: contact.id,
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+          .select('token')
+          .single();
+
+        if (error) throw error;
+        tokenValue = newToken.token;
+      }
+
+      const url = `${PUBLIC_APP_URL}/contact-form/${tokenValue}`;
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: 'Enlace copiado',
+        description: 'El enlace al formulario se ha copiado al portapapeles.',
+      });
+    } catch (err) {
+      console.error('Error generating form link:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo generar el enlace del formulario.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingFormLink(false);
+    }
+  };
+
   const updateFieldConfig = (field: string, enabled: boolean) => {
     const next = { ...fieldConfig, [field]: enabled };
     setFieldConfig(next);
