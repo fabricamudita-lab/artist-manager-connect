@@ -31,7 +31,7 @@ import {
   Settings,
   Camera
 } from "lucide-react";
-import { Pencil } from "lucide-react";
+
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
 import { ContactLinkedActivity } from '@/components/ContactLinkedActivity';
 import { format } from "date-fns";
