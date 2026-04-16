@@ -90,6 +90,10 @@ const FIELD_LABELS = {
 };
 
 export function EditContactDialog({ contact, open, onOpenChange, onContactUpdated, customCategories = [] }: EditContactDialogProps) {
+  const { user } = useAuth();
+  const { data: workspaceId } = useWorkspaceId(user?.id);
+  const { fields: customFields, isLoading: loadingCustomFields, createField, deleteField } = useCustomFields(workspaceId || undefined, 'contact');
+  const [customData, setCustomData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>(contact.field_config as Record<string, boolean>);
   const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(contact.field_config as Record<string, boolean>));
