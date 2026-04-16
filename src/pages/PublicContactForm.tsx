@@ -121,6 +121,15 @@ export default function PublicContactForm() {
           updateData[field] = formData[field] || null;
         }
       });
+      // Include custom_data - only allow keys that exist in custom_fields
+      if (customFields.length > 0) {
+        const sanitized: Record<string, string> = {};
+        customFields.forEach(cf => {
+          const val = customData[cf.field_key];
+          if (val !== undefined) sanitized[cf.field_key] = val.trim().slice(0, 5000);
+        });
+        updateData.custom_data = sanitized;
+      }
 
       const { error } = await supabase
         .from('contacts')
