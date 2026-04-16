@@ -341,6 +341,12 @@ export function exportSplitsPDF(
   doc.setTextColor(0);
   y += 10;
 
+  // ── NOTAS GENERALES (release-level) ──
+  if (globalPublishingNote || globalMasterNote) {
+    if (globalPublishingNote) drawNoteBox('NOTA GENERAL — PUBLISHING', globalPublishingNote.note);
+    if (globalMasterNote) drawNoteBox('NOTA GENERAL — MASTER', globalMasterNote.note);
+  }
+
   // ── DETALLE POR PISTA ──
   y = drawSeparator(doc, y);
   doc.setFontSize(11);
@@ -382,7 +388,12 @@ export function exportSplitsPDF(
       y += 8;
     } else {
       y = drawSplitTable(doc, y, 'AUTORÍA / PUBLISHING (Derechos de Obra)', publishingRows, '% Recaudable', true);
+      const pubNote = trackNotes(track.id, 'publishing');
+      if (pubNote) drawInlineNote(pubNote.note);
+
       y = drawSplitTable(doc, y, 'MASTER / ROYALTIES (Derechos de Fonograma)', masterRows, '%', false);
+      const mstNote = trackNotes(track.id, 'master');
+      if (mstNote) drawInlineNote(mstNote.note);
     }
 
     // separator between tracks

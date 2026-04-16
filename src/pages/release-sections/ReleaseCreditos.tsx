@@ -167,21 +167,27 @@ export default function ReleaseCreditos() {
     setIsExportingSplits(true);
     try {
       const trackIds = tracks.map((t) => t.id);
-      const { data: creditsData, error } = await supabase
-        .from('track_credits')
-        .select('*')
-        .in('track_id', trackIds);
-      if (error) throw error;
+      const [creditsResult, notesResult] = await Promise.all([
+        supabase.from('track_credits').select('*').in('track_id', trackIds),
+        supabase.from('credit_notes').select('track_id, scope, note').eq('release_id', release.id),
+      ]);
+      if (creditsResult.error) throw creditsResult.error;
+      if (notesResult.error) throw notesResult.error;
 
       exportSplitsPDF(
         release,
         tracks,
-        (creditsData || []).map((c: any) => ({
+        (creditsResult.data || []).map((c: any) => ({
           track_id: c.track_id,
           name: c.name,
           role: c.role,
           publishing_percentage: c.publishing_percentage,
           master_percentage: c.master_percentage,
+        })),
+        (notesResult.data || []).map((n: any) => ({
+          track_id: n.track_id,
+          scope: n.scope,
+          note: n.note,
         })),
       );
       toast.success('Splits de derechos descargado');
