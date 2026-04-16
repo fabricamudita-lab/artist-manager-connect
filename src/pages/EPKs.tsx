@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -159,7 +160,7 @@ export default function EPKs() {
   };
 
   const handleCopyLink = async (slug: string) => {
-    const url = `${window.location.origin}/epk/${slug}`;
+    const url = `${PUBLIC_APP_URL}/epk/${slug}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({

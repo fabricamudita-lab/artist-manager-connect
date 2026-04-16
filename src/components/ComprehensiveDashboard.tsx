@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -338,7 +339,7 @@ export default function ComprehensiveDashboard() {
   };
 
   const copyEPKLink = async (slug: string) => {
-    const url = `${window.location.origin}/epk/${slug}`;
+    const url = `${PUBLIC_APP_URL}/epk/${slug}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({

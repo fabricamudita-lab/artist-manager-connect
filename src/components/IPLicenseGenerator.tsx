@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { supabase } from '@/integrations/supabase/client';
 import { useContractDrafts, type ContractDraft } from '@/hooks/useContractDrafts';
 import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
@@ -647,7 +648,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
       await updateStatus(currentDraft.id, 'en_negociacion');
       setCurrentDraft({ ...currentDraft, status: 'en_negociacion' });
     }
-    const url = `${window.location.origin}/contract-draft/${currentDraft.share_token}`;
+    const url = `${PUBLIC_APP_URL}/contract-draft/${currentDraft.share_token}`;
     await navigator.clipboard.writeText(url);
     setCopiedLink(true);
     toast.success('Link de negociación copiado');
