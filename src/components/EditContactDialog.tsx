@@ -761,7 +761,20 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                 placeholder="Añadir etiqueta... #prensa #paris"
               />
               
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerateFormLink}
+                  disabled={generatingFormLink}
+                  className="sm:mr-auto"
+                >
+                  {generatingFormLink ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generando...</>
+                  ) : (
+                    <><Share2 className="h-4 w-4 mr-2" />Formulario</>
+                  )}
+                </Button>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancelar
                 </Button>
