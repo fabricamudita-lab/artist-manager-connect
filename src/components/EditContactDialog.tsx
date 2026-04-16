@@ -369,6 +369,9 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
     setSelectedPreset(detectPreset(next));
   };
 
+  // Default to true when not yet stored in config
+  const visible = (key: string) => fieldConfig[key] !== false;
+
   const applyPreset = (presetKey: string) => {
     if (presetKey === 'custom') return;
     if (presetKey === '__manage__') {
