@@ -500,7 +500,32 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                   />
                 </div>
               ))}
-              
+
+              {customFields.length > 0 && (
+                <>
+                  <Separator className="my-2" />
+                  <Label className="text-xs uppercase text-muted-foreground tracking-wide">
+                    Campos personalizados
+                  </Label>
+                  {customFields.map((cf) => {
+                    const key = `custom_${cf.id}`;
+                    return (
+                      <div key={cf.id} className="flex items-center justify-between">
+                        <Label htmlFor={`config-${key}`} className="text-sm">
+                          {cf.label}
+                        </Label>
+                        <Switch
+                          id={`config-${key}`}
+                          checked={visible(key)}
+                          onCheckedChange={(checked) => updateFieldConfig(key, checked)}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
               <hr className="my-4" />
               
               <div className="flex items-center justify-between">
