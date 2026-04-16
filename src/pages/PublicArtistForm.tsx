@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music, Heart, Ruler, StickyNote } from 'lucide-react';
+import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music, Heart, Ruler, StickyNote, Puzzle } from 'lucide-react';
 import mooditaLogo from '@/assets/moodita-logo.png';
+import { loadCustomFieldsForEntity, type CustomField } from '@/hooks/useCustomFields';
 
 interface ArtistFormData {
   name: string;
@@ -44,6 +45,8 @@ export default function PublicArtistForm() {
   const [error, setError] = useState<string | null>(null);
   const [artistId, setArtistId] = useState<string | null>(null);
   const [artistName, setArtistName] = useState('');
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customData, setCustomData] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<ArtistFormData>({
     name: '', stage_name: '', description: '', genre: '',
