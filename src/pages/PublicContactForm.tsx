@@ -54,7 +54,7 @@ export default function PublicContactForm() {
       // Validate token
       const { data: tokenData, error: tokenError } = await supabase
         .from('contact_form_tokens')
-        .select('contact_id')
+        .select('contact_id, created_by')
         .eq('token', token)
         .eq('is_active', true)
         .maybeSingle();
