@@ -42,6 +42,8 @@ export default function PublicContactForm() {
   const [contactId, setContactId] = useState<string | null>(null);
   const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customData, setCustomData] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (token) loadContact();
