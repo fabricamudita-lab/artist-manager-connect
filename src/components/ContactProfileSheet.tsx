@@ -290,24 +290,34 @@ export function ContactProfileSheet({
     multiline?: boolean;
     className?: string;
   }) => {
-    const isEmpty = !value || value.trim() === '';
-    
+    const isEmpty = !value || String(value).trim() === '';
+
+    const handleClick = () => {
+      if (isEmpty) {
+        triggerConfigPulse();
+      } else {
+        handleCopyValue(String(value), label);
+      }
+    };
+
     return (
-      <Card className={`${className} ${isEmpty ? 'bg-amber-50/50 dark:bg-amber-950/20 border-dashed border-amber-200/50 dark:border-amber-800/30' : ''}`}>
-        <CardContent className="py-3 flex items-start gap-3 group">
+      <Card
+        className={`${className} ${isEmpty ? 'bg-amber-50/50 dark:bg-amber-950/20 border-dashed border-amber-200/50 dark:border-amber-800/30 cursor-pointer' : 'cursor-copy'} hover:bg-accent/40 transition-colors`}
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
+      >
+        <CardContent className="py-3 flex items-start gap-3">
           <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isEmpty ? 'text-amber-500/60' : 'text-muted-foreground'}`} />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">{label}</p>
-            <InlineEdit
-              value={value || ''}
-              onSave={async (newValue) => {
-                await updateContactField(field, newValue);
-              }}
-              placeholder={`Añadir ${label.toLowerCase()}...`}
-              multiline={multiline}
-            />
+            {isEmpty ? (
+              <p className="text-sm text-muted-foreground/60 italic">Añadir {label.toLowerCase()}...</p>
+            ) : (
+              <p className="text-sm break-words whitespace-pre-wrap">{value}</p>
+            )}
           </div>
-          <Pencil className="h-4 w-4 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
         </CardContent>
       </Card>
     );
