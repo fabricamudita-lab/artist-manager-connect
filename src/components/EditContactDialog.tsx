@@ -22,7 +22,7 @@ import { ManageFieldPresetsDialog } from './ManageFieldPresetsDialog';
 import { CustomFieldsSection } from '@/components/CustomFieldsSection';
 import { useCustomFields } from '@/hooks/useCustomFields';
 import { useWorkspaceId } from '@/hooks/useWorkspaceId';
-import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2 } from 'lucide-react';
+import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { useAuth } from '@/hooks/useAuth';
@@ -111,6 +111,13 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [pendingPreset, setPendingPreset] = useState<string | null>(null);
   const [fieldsAtRisk, setFieldsAtRisk] = useState<string[]>([]);
   const [generatingFormLink, setGeneratingFormLink] = useState(false);
+
+  // Delete contact state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [checkingRefs, setCheckingRefs] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [refsResult, setRefsResult] = useState<{ total: number; breakdown: Record<string, number>; examples: Array<{ type: string; id: string; name?: string }> } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   
   // Project roles state
   const [projectRoles, setProjectRoles] = useState<{ projectId: string; projectName: string; role: string }[]>([]);
@@ -428,6 +435,65 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
   const handlePresetsChanged = () => {
     setAllPresets(getAllPresets());
+  };
+
+  const handleStartDelete = async () => {
+    setCheckingRefs(true);
+    setRefsResult(null);
+    setDeleteConfirmText('');
+    try {
+      const { data, error } = await supabase.functions.invoke('check-contact-references', {
+        body: { contact_id: contact.id },
+      });
+      if (error) throw error;
+      setRefsResult(data);
+      setDeleteOpen(true);
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: 'Error', description: 'No se pudieron comprobar las referencias del contacto', variant: 'destructive' });
+    } finally {
+      setCheckingRefs(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!refsResult || refsResult.total > 0) return;
+    if (deleteConfirmText.trim() !== contact.name.trim()) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-contact', {
+        body: { contact_id: contact.id, confirmation_text: deleteConfirmText },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: 'Contacto eliminado', description: `"${contact.name}" se ha eliminado correctamente.` });
+      setDeleteOpen(false);
+      onOpenChange(false);
+      onContactUpdated();
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: 'Error', description: err?.message || 'No se pudo eliminar el contacto', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const REF_LABELS: Record<string, string> = {
+    budget_items: 'Partidas de presupuesto',
+    solicitudes: 'Solicitudes',
+    solicitudes_promotor: 'Solicitudes (como promotor)',
+    royalty_splits: 'Splits de royalties',
+    song_splits: 'Splits de canciones',
+    track_credits: 'Créditos de tracks',
+    release_assets: 'Activos de lanzamiento (proveedor)',
+    transactions: 'Movimientos financieros',
+    default_royalty_splits: 'Splits por defecto',
+    booking_availability_responses: 'Respuestas de disponibilidad',
+    sync_offers: 'Ofertas de sync',
+    sync_offers_requester: 'Ofertas de sync (solicitante)',
+    sync_splits: 'Splits de sync',
+    track_publishing_splits: 'Splits de publishing',
+    track_master_splits: 'Splits de master',
   };
 
   const renderField = (field: keyof typeof formData, type: 'input' | 'textarea' = 'input') => {
@@ -840,6 +906,33 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                 label="Etiquetas"
                 placeholder="Añadir etiqueta... #prensa #paris"
               />
+
+              {/* Danger Zone */}
+              <Separator className="my-6" />
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-destructive">Zona de peligro</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Eliminar este contacto es permanente. Si está vinculado a presupuestos, bookings, contratos, splits o cualquier otro registro, no podrás borrarlo hasta desvincularlo primero.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleStartDelete}
+                  disabled={deleting || checkingRefs}
+                >
+                  {checkingRefs ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Comprobando...</>
+                  ) : (
+                    <><Trash2 className="h-4 w-4 mr-2" />Eliminar contacto</>
+                  )}
+                </Button>
+              </div>
               
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
@@ -898,6 +991,78 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               <AlertDialogAction onClick={() => confirmApplyPreset(true)}>
                 Mantener
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete contact confirmation */}
+        <AlertDialog open={deleteOpen} onOpenChange={(o) => { if (!deleting) setDeleteOpen(o); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                {refsResult && refsResult.total > 0 ? 'No se puede eliminar' : 'Eliminar contacto'}
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                {refsResult && refsResult.total > 0 ? (
+                  <div className="space-y-3">
+                    <p>
+                      <strong>{contact.name}</strong> está vinculado a {refsResult.total} registro{refsResult.total !== 1 ? 's' : ''} crítico{refsResult.total !== 1 ? 's' : ''}. Eliminarlo provocaría pérdida de información en otros módulos.
+                    </p>
+                    <div className="rounded-md border bg-muted/30 p-3 max-h-48 overflow-y-auto">
+                      <ul className="text-sm space-y-1">
+                        {Object.entries(refsResult.breakdown)
+                          .filter(([, c]) => c > 0)
+                          .map(([key, c]) => (
+                            <li key={key} className="flex justify-between gap-3">
+                              <span className="text-foreground">{REF_LABELS[key] || key}</span>
+                              <span className="font-medium tabular-nums">{c}</span>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                    <p className="text-sm">
+                      Desvincula primero estas referencias desde los módulos correspondientes (presupuestos, splits, finanzas, etc.) o archiva el contacto en su lugar.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p>
+                      Esta acción es <strong>permanente e irreversible</strong>. El contacto <strong>{contact.name}</strong> y sus datos personales (etiquetas, asignaciones de equipo, tokens de formulario) se eliminarán definitivamente.
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="delete-confirm" className="text-sm">
+                        Para confirmar, escribe <span className="font-mono font-semibold text-foreground">{contact.name}</span>:
+                      </Label>
+                      <Input
+                        id="delete-confirm"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder={contact.name}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>
+                {refsResult && refsResult.total > 0 ? 'Entendido' : 'Cancelar'}
+              </AlertDialogCancel>
+              {(!refsResult || refsResult.total === 0) && (
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmDelete}
+                  disabled={deleting || deleteConfirmText.trim() !== contact.name.trim()}
+                >
+                  {deleting ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Eliminando...</>
+                  ) : (
+                    <><Trash2 className="h-4 w-4 mr-2" />Eliminar definitivamente</>
+                  )}
+                </Button>
+              )}
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
