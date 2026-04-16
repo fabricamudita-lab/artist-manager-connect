@@ -129,6 +129,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         fd[key] = (data as any)[key] || '';
       }
       setFormData(fd);
+      setCustomData(((data as any).custom_data as Record<string, string>) || {});
     } catch (error) {
       console.error('Error fetching artist:', error);
       toast({ title: "Error", description: "No se pudo cargar la información del artista.", variant: "destructive" });
