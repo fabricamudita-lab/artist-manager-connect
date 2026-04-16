@@ -89,6 +89,8 @@ export default function PublicArtistForm() {
 
       setArtistId(artist.id);
       setArtistName(artist.stage_name || artist.name);
+      console.log('[PublicArtistForm] field_config recibido:', (artist as any).field_config);
+      console.log('[PublicArtistForm] artist data:', artist);
       setFieldConfig(((artist as any).field_config as ArtistFieldConfig) || {});
       setFormData({
         name: artist.name || '',
