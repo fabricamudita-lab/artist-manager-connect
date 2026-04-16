@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { User, CheckCircle2, Loader2, Save, Puzzle } from 'lucide-react';
 import mooditaLogo from '@/assets/moodita-logo.png';
+import { loadCustomFieldsForEntity, type CustomField } from '@/hooks/useCustomFields';
 
 const FIELD_LABELS: Record<string, string> = {
   stage_name: 'Nombre artístico',
@@ -41,6 +42,8 @@ export default function PublicContactForm() {
   const [contactId, setContactId] = useState<string | null>(null);
   const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customData, setCustomData] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (token) loadContact();
@@ -51,7 +54,7 @@ export default function PublicContactForm() {
       // Validate token
       const { data: tokenData, error: tokenError } = await supabase
         .from('contact_form_tokens')
-        .select('contact_id')
+        .select('contact_id, created_by')
         .eq('token', token)
         .eq('is_active', true)
         .maybeSingle();
@@ -85,6 +88,21 @@ export default function PublicContactForm() {
         }
       });
       setFormData(data);
+      setCustomData(((contact as any).custom_data as Record<string, string>) || {});
+
+      // Load custom fields via creator's workspace
+      if (tokenData.created_by) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('workspace_id')
+          .eq('user_id', tokenData.created_by)
+          .maybeSingle();
+        if (profileData?.workspace_id) {
+          const cf = await loadCustomFieldsForEntity(profileData.workspace_id, 'contact');
+          // Only show custom fields that are enabled in field_config (or all if no config set)
+          setCustomFields(cf);
+        }
+      }
     } catch (err) {
       console.error('Error loading contact form:', err);
       setError('Error al cargar el formulario.');
@@ -103,6 +121,15 @@ export default function PublicContactForm() {
           updateData[field] = formData[field] || null;
         }
       });
+      // Include custom_data - only allow keys that exist in custom_fields
+      if (customFields.length > 0) {
+        const sanitized: Record<string, string> = {};
+        customFields.forEach(cf => {
+          const val = customData[cf.field_key];
+          if (val !== undefined) sanitized[cf.field_key] = val.trim().slice(0, 5000);
+        });
+        updateData.custom_data = sanitized;
+      }
 
       const { error } = await supabase
         .from('contacts')
@@ -205,7 +232,36 @@ export default function PublicContactForm() {
           </CardContent>
         </Card>
 
-        {activeFields.length > 0 && (
+        {/* Custom Fields */}
+        {customFields.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Puzzle className="h-5 w-5" />
+                Información adicional
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {customFields.map((field) => {
+                const value = customData[field.field_key] || '';
+                const isTextarea = field.field_type === 'textarea';
+                const inputType = field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : field.field_type === 'email' ? 'email' : field.field_type === 'url' ? 'url' : field.field_type === 'phone' ? 'tel' : 'text';
+                return (
+                  <div key={field.id} className="space-y-2">
+                    <Label htmlFor={field.field_key}>{field.label}</Label>
+                    {isTextarea ? (
+                      <Textarea id={field.field_key} value={value} onChange={(e) => setCustomData(prev => ({ ...prev, [field.field_key]: e.target.value }))} placeholder={field.label} rows={3} />
+                    ) : (
+                      <Input id={field.field_key} type={inputType} value={value} onChange={(e) => setCustomData(prev => ({ ...prev, [field.field_key]: e.target.value }))} placeholder={field.label} />
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
+        {(activeFields.length > 0 || customFields.length > 0) && (
           <div className="flex justify-center">
             <Button onClick={handleSave} disabled={saving} size="lg">
               {saving ? (

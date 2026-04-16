@@ -19,9 +19,13 @@ import { ContactTagsInput } from './ContactTagsInput';
 import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
 import { detectPreset, getAllPresets } from '@/lib/fieldConfigPresets';
 import { ManageFieldPresetsDialog } from './ManageFieldPresetsDialog';
+import { CustomFieldsSection } from '@/components/CustomFieldsSection';
+import { useCustomFields } from '@/hooks/useCustomFields';
+import { useWorkspaceId } from '@/hooks/useWorkspaceId';
 import { Check, X, Music, Building2, Settings2, Share2, Copy, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PUBLIC_APP_URL } from '@/lib/public-url';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Artist {
   id: string;
@@ -86,6 +90,10 @@ const FIELD_LABELS = {
 };
 
 export function EditContactDialog({ contact, open, onOpenChange, onContactUpdated, customCategories = [] }: EditContactDialogProps) {
+  const { user } = useAuth();
+  const { data: workspaceId } = useWorkspaceId(user?.id);
+  const { fields: customFields, isLoading: loadingCustomFields, createField, deleteField } = useCustomFields(workspaceId || undefined, 'contact');
+  const [customData, setCustomData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>(contact.field_config as Record<string, boolean>);
   const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(contact.field_config as Record<string, boolean>));
@@ -189,6 +197,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
       notes: contact.notes || '',
       is_public: contact.is_public || false,
     });
+    setCustomData(((contact as any).custom_data as Record<string, string>) || {});
   }, [contact]);
 
   const fetchArtists = async () => {
@@ -263,7 +272,8 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
           ...formData,
           tags: tags,
           field_config: updatedFieldConfig,
-        })
+          custom_data: customData,
+        } as any)
         .eq('id', contact.id);
 
       if (error) throw error;
@@ -750,6 +760,17 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               {renderField('contract_url')}
               {renderField('preferred_hours', 'textarea')}
               {renderField('notes', 'textarea')}
+
+              {/* Custom Fields */}
+              <CustomFieldsSection
+                fields={customFields}
+                customData={customData}
+                onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
+                onCreateField={async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); }}
+                onDeleteField={async (id) => { await deleteField.mutateAsync(id); }}
+                isEditing={true}
+                isLoading={loadingCustomFields}
+              />
 
               <Separator className="my-6" />
 

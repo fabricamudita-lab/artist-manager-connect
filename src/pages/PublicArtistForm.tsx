@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music, Heart, Ruler, StickyNote } from 'lucide-react';
+import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music, Heart, Ruler, StickyNote, Puzzle } from 'lucide-react';
 import mooditaLogo from '@/assets/moodita-logo.png';
+import { loadCustomFieldsForEntity, type CustomField } from '@/hooks/useCustomFields';
 
 interface ArtistFormData {
   name: string;
@@ -44,6 +45,8 @@ export default function PublicArtistForm() {
   const [error, setError] = useState<string | null>(null);
   const [artistId, setArtistId] = useState<string | null>(null);
   const [artistName, setArtistName] = useState('');
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customData, setCustomData] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<ArtistFormData>({
     name: '', stage_name: '', description: '', genre: '',
@@ -105,6 +108,13 @@ export default function PublicArtistForm() {
         phone: artist.phone || '',
         address: artist.address || '',
       });
+      setCustomData(((artist as any).custom_data as Record<string, string>) || {});
+
+      // Load custom fields for this workspace
+      if (artist.workspace_id) {
+        const cf = await loadCustomFieldsForEntity(artist.workspace_id, 'artist');
+        setCustomFields(cf);
+      }
     } catch (err) {
       console.error('Error loading form:', err);
       setError('Error al cargar el formulario.');
@@ -145,7 +155,8 @@ export default function PublicArtistForm() {
           email: toNull(formData.email),
           phone: toNull(formData.phone),
           address: toNull(formData.address),
-        })
+          custom_data: customData,
+        } as any)
         .eq('id', artistId);
 
       if (updateError) throw updateError;
@@ -403,6 +414,34 @@ export default function PublicArtistForm() {
               <Textarea id="notes" value={formData.notes} onChange={(e) => updateField('notes', e.target.value)} placeholder="Notas adicionales..." rows={4} />
             </CardContent>
           </Card>
+
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Puzzle className="h-5 w-5" />Información adicional
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {customFields.map((field) => {
+                  const value = customData[field.field_key] || '';
+                  const isTextarea = field.field_type === 'textarea';
+                  const inputType = field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : field.field_type === 'email' ? 'email' : field.field_type === 'url' ? 'url' : field.field_type === 'phone' ? 'tel' : 'text';
+                  return (
+                    <div key={field.id} className="space-y-2">
+                      <Label htmlFor={field.field_key}>{field.label}</Label>
+                      {isTextarea ? (
+                        <Textarea id={field.field_key} value={value} onChange={(e) => setCustomData(prev => ({ ...prev, [field.field_key]: e.target.value }))} placeholder={field.label} rows={3} />
+                      ) : (
+                        <Input id={field.field_key} type={inputType} value={value} onChange={(e) => setCustomData(prev => ({ ...prev, [field.field_key]: e.target.value }))} placeholder={field.label} />
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Submit */}
           <Button type="submit" className="w-full" size="lg" disabled={saving}>

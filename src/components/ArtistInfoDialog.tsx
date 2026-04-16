@@ -21,6 +21,8 @@ import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { GenreCombobox } from '@/components/GenreCombobox';
 import { cn } from '@/lib/utils';
 import { IRPF_TYPE_OPTIONS, getIrpfForArtist } from '@/utils/irpf';
+import { useCustomFields } from '@/hooks/useCustomFields';
+import { CustomFieldsSection } from '@/components/CustomFieldsSection';
 
 interface ArtistData {
   id: string;
@@ -53,6 +55,9 @@ interface ArtistData {
   swift_code: string | null;
   // Notes
   notes: string | null;
+  // Custom
+  workspace_id: string;
+  custom_data: Record<string, string> | null;
 }
 
 const FORM_FIELDS = [
@@ -87,12 +92,17 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const [formData, setFormData] = useState<FormData>(emptyForm());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [customData, setCustomData] = useState<Record<string, string>>({});
 
   // Avatar upload states
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const { fields: customFields, isLoading: loadingCustomFields, createField, deleteField } = useCustomFields(
+    artistData?.workspace_id, 'artist'
+  );
 
   useEffect(() => {
     if (open && artistId) {
@@ -119,6 +129,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         fd[key] = (data as any)[key] || '';
       }
       setFormData(fd);
+      setCustomData(((data as any).custom_data as Record<string, string>) || {});
     } catch (error) {
       console.error('Error fetching artist:', error);
       toast({ title: "Error", description: "No se pudo cargar la información del artista.", variant: "destructive" });
@@ -130,12 +141,13 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const handleSave = async () => {
     if (!artistId) return;
     try {
-      const updateData: Record<string, string | null> = {};
+      const updateData: Record<string, any> = {};
       for (const key of FORM_FIELDS) {
         updateData[key] = formData[key] || null;
       }
       // name is required
       updateData.name = formData.name;
+      updateData.custom_data = customData;
 
       const { error } = await supabase
         .from('artists')
@@ -609,6 +621,17 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               {renderTextareaField("Notas", "notes", "Notas adicionales sobre el artista...", 3)}
             </CardContent>
           </Card>
+
+          {/* Campos personalizados */}
+          <CustomFieldsSection
+            fields={customFields}
+            customData={customData}
+            onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
+            onCreateField={editing ? async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); } : undefined}
+            onDeleteField={editing ? async (id) => { await deleteField.mutateAsync(id); } : undefined}
+            isEditing={editing}
+            isLoading={loadingCustomFields}
+          />
 
           {/* Botones */}
           {editing && (
