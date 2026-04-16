@@ -47,6 +47,7 @@ import ContractDraftView from "./pages/ContractDraftView";
 import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
 import PublicArtistForm from "./pages/PublicArtistForm";
 import PublicReleaseForm from "./pages/PublicReleaseForm";
+import PublicContactForm from "./pages/PublicContactForm";
 
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
@@ -445,6 +446,8 @@ const App = () => (
               <Route path="/artist-form/:token" element={<PublicArtistForm />} />
               {/* Public Release Pitch Form */}
               <Route path="/release-form/:token" element={<PublicReleaseForm />} />
+              {/* Public Contact Form */}
+              <Route path="/contact-form/:token" element={<PublicContactForm />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
