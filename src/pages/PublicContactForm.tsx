@@ -232,7 +232,36 @@ export default function PublicContactForm() {
           </CardContent>
         </Card>
 
-        {activeFields.length > 0 && (
+        {/* Custom Fields */}
+        {customFields.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Puzzle className="h-5 w-5" />
+                Información adicional
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {customFields.map((field) => {
+                const value = customData[field.field_key] || '';
+                const isTextarea = field.field_type === 'textarea';
+                const inputType = field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : field.field_type === 'email' ? 'email' : field.field_type === 'url' ? 'url' : field.field_type === 'phone' ? 'tel' : 'text';
+                return (
+                  <div key={field.id} className="space-y-2">
+                    <Label htmlFor={field.field_key}>{field.label}</Label>
+                    {isTextarea ? (
+                      <Textarea id={field.field_key} value={value} onChange={(e) => setCustomData(prev => ({ ...prev, [field.field_key]: e.target.value }))} placeholder={field.label} rows={3} />
+                    ) : (
+                      <Input id={field.field_key} type={inputType} value={value} onChange={(e) => setCustomData(prev => ({ ...prev, [field.field_key]: e.target.value }))} placeholder={field.label} />
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
+        {(activeFields.length > 0 || customFields.length > 0) && (
           <div className="flex justify-center">
             <Button onClick={handleSave} disabled={saving} size="lg">
               {saving ? (
