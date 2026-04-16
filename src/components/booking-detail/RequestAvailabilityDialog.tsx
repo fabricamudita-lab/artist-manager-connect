@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -171,7 +172,7 @@ export function RequestAvailabilityDialog({
 
   const getShareLink = () => {
     if (!shareToken) return '';
-    return `${window.location.origin}/availability/${shareToken}`;
+    return `${PUBLIC_APP_URL}/availability/${shareToken}`;
   };
 
   const copyShareLink = () => {
