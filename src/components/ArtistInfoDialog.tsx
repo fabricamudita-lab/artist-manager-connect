@@ -100,6 +100,10 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  const { fields: customFields, isLoading: loadingCustomFields, createField, deleteField } = useCustomFields(
+    artistData?.workspace_id, 'artist'
+  );
+
   useEffect(() => {
     if (open && artistId) {
       fetchArtist();
