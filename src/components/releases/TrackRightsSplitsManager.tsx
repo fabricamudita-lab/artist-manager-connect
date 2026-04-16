@@ -233,7 +233,7 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
                 type={type}
                 percentageKey={percentageKey}
                 roles={roles}
-                workspaceId={workspaceId}
+                workspaceId={resolvedWorkspaceId}
                 isEditing={editingId === credit.id}
                 onEdit={() => setEditingId(credit.id)}
                 onCancelEdit={() => setEditingId(null)}
@@ -250,7 +250,7 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
             type={type}
             percentageKey={percentageKey}
             roles={roles}
-            workspaceId={workspaceId}
+            workspaceId={resolvedWorkspaceId}
             onSave={handleCreate}
             onCancel={() => setIsAdding(false)}
             isLoading={createCredit.isPending}
