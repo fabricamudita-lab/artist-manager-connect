@@ -155,7 +155,8 @@ export default function PublicArtistForm() {
           email: toNull(formData.email),
           phone: toNull(formData.phone),
           address: toNull(formData.address),
-        })
+          custom_data: customData,
+        } as any)
         .eq('id', artistId);
 
       if (updateError) throw updateError;
