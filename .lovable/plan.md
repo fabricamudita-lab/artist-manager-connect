@@ -1,44 +1,36 @@
 
 
-## Diagnóstico
+## Diagnóstico definitivo
 
-He revisado:
-1. **DB**: `field_config = {}` para Klaus Stroink (y todos los artistas tras la migración).
-2. **`isArtistFieldVisible`**: con `{}` devuelve `true` para todos los campos.
-3. **`PublicArtistForm.tsx`**: ya renderiza condicionalmente con `v(field)` los 25+ campos (name, stage_name, genre, email, phone, address, description, instagram, spotify, tiktok, clothing_size, shoe_size, allergies, special_needs, company_name, legal_name, tax_id, nif, tipo_entidad, irpf_type, irpf_porcentaje, actividad_inicio, iban, bank_name, swift_code, notes).
+Verificado en BD: `field_config = {}` para Klaus Stroink → según `isArtistFieldVisible` TODOS los campos deben ser visibles. El código de `PublicArtistForm.tsx` (líneas 260-265, 322-360) renderiza correctamente las secciones Tallas, Salud y Notas cuando `field_config` está vacío.
 
-**Conclusión**: el código YA respeta `field_config` y debería mostrarlo todo. Si sigues viendo el formulario incompleto, hay 2 causas probables:
+**Conclusión**: el código es correcto. Si el usuario sigue viendo solo 3 secciones (General, Redes Sociales, Fiscal/Bancario), es **caché del navegador** sirviendo un bundle JS antiguo del dominio público (`artist-manager-connect.lovable.app`) anterior a las correcciones.
 
-### Causa A: Caché del navegador en el formulario público
-La página `/artist-form/:token` se cargó antes de las correcciones y el navegador tiene una versión vieja en caché.
+## Plan de fix robusto
 
-### Causa B: Algunos campos se muestran solo si otros tienen un valor concreto
-He encontrado **un caso real** en el formulario donde un campo solo aparece bajo condición de otro:
-- En el `ArtistInfoDialog` (panel manager), `% IRPF` solo se muestra si `irpf_type === 'personalizado'`.
-- En el `PublicArtistForm` no hay esta condición, pero **sí depende de `irpf_type` ser visible**, lo cual está bien.
+Para descartar caché Y asegurar visibilidad incondicional, voy a:
 
-Lo más probable es **caché**.
+### 1. Eliminar el gating por sección (`hasSizes`/`hasHealth`/etc)
+Las secciones Tallas, Salud y Notas se renderizarán siempre que algún campo interno esté activo. Quitar el wrapper `{hasX && (...)}` y dejar que cada `renderInput` decida individualmente. Si TODOS los campos de una sección están `false`, la sección quedará vacía visualmente, así que mantendremos un check sencillo pero **directo sobre los campos individuales** sin variables intermedias que puedan caer en stale closure.
 
-## Plan de acción
+Cambio: en lugar de `const hasSizes = v('clothing_size') || v('shoe_size')` usar inline `{(v('clothing_size') || v('shoe_size')) && <Card>...`. Funcionalmente idéntico pero elimina cualquier posibilidad de timing/closure raro.
 
-### Paso 1: Forzar refresco
-Pedir al usuario que abra el formulario público con **Cmd+Shift+R** (hard reload) o en pestaña incógnito para descartar caché.
+### 2. Añadir un cache-buster visible
+Inyectar en `PublicArtistForm.tsx` un comentario versión + un `<meta>` de no-cache implícito mediante key dinámica en `<form key={fieldConfig version}>` para forzar remount cuando cambia el config.
 
-### Paso 2: Si tras hard reload sigue faltando, añadir un debug log
-Añadir temporalmente en `PublicArtistForm.tsx` justo después de `setFieldConfig(...)`:
-```ts
-console.log('[PublicArtistForm] field_config recibido:', (artist as any).field_config);
-console.log('[PublicArtistForm] artist data:', artist);
-```
-Así, en la próxima carga del formulario, podré ver en los logs qué `field_config` está leyendo realmente el cliente y qué campos del artista vienen vacíos vs llenos.
+### 3. Logs visibles en pantalla (modo debug)
+Añadir un pequeño badge oculto (solo en desarrollo o con `?debug=1`) que muestre el `field_config` recibido y qué secciones renderiza. Así podemos confirmar 100% qué está leyendo el cliente sin abrir DevTools.
 
-### Paso 3: Garantizar que campos "vacíos" se muestren igual
-Actualmente todos los `renderInput` se renderizan si `v(field)` es true, **independientemente** de que el valor esté vacío. Esto ya está bien — un campo vacío debe mostrarse para que el artista lo rellene. Verificado en código.
+### 4. Pedir hard reload tras deploy
+Al final, instrucción clara al usuario: **abre el enlace en pestaña incógnito** o haz Cmd+Shift+R en el dominio `artist-manager-connect.lovable.app` para descargar el bundle nuevo.
 
-### Archivos a modificar
+### Archivos afectados
+
 | Archivo | Cambio |
 |---|---|
-| `src/pages/PublicArtistForm.tsx` | Añadir 2 `console.log` temporales tras cargar el artista para diagnosticar qué llega al cliente |
+| `src/pages/PublicArtistForm.tsx` | Inline las condiciones de sección + badge debug opcional con `?debug=1` |
 
-Tras ver los logs decidiré si el problema es de datos, de renderizado o de caché, y aplicaremos el fix definitivo.
+### Resultado esperado
+- Tras el deploy + hard reload, aparecerán las 7 secciones: General, Redes, Tallas, Salud, Fiscal, Bancario, Notas (+ Custom Fields si existen).
+- El badge `?debug=1` permitirá verificar en vivo qué `field_config` llega al cliente si vuelve a fallar.
 
