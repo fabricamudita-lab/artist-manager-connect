@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -32,7 +33,7 @@ export const usePublicFileSharing = () => {
       if (error) throw error;
 
       // Generate a share URL
-      const shareUrl = `${window.location.origin}/shared/${publicToken}`;
+      const shareUrl = `${PUBLIC_APP_URL}/shared/${publicToken}`;
       
       return { ...data, shareUrl };
     },

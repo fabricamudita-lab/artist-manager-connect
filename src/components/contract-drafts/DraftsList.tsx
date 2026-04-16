@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +33,7 @@ export function DraftsList({ drafts, loading, onEdit, onDelete, onStatusChange }
   const filtered = filter === 'all' ? drafts : drafts.filter(d => d.status === filter);
 
   const getShareUrl = (draft: ContractDraft) => {
-    return `${window.location.origin}/contract-draft/${draft.share_token}`;
+    return `${PUBLIC_APP_URL}/contract-draft/${draft.share_token}`;
   };
 
   const copyLink = async (draft: ContractDraft) => {

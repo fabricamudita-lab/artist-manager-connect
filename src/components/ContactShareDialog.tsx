@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -48,7 +49,7 @@ export function ContactShareDialog({ contact, open, onOpenChange }: ContactShare
   const [publicLinkEnabled, setPublicLinkEnabled] = useState(contact.is_public);
 
   const publicUrl = contact.public_slug 
-    ? `${window.location.origin}/contact/${contact.public_slug}`
+    ? `${PUBLIC_APP_URL}/contact/${contact.public_slug}`
     : '';
 
   const handleTogglePublicLink = async () => {

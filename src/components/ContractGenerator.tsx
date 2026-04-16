@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import {
   Dialog,
   DialogContent,
@@ -236,7 +237,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       await updateStatus(currentDraft.id, 'en_negociacion');
       setCurrentDraft({ ...currentDraft, status: 'en_negociacion' });
     }
-    const url = `${window.location.origin}/contract-draft/${currentDraft.share_token}`;
+    const url = `${PUBLIC_APP_URL}/contract-draft/${currentDraft.share_token}`;
     await navigator.clipboard.writeText(url);
     setCopiedLink(true);
     sonnerToast.success('Link de negociación copiado');

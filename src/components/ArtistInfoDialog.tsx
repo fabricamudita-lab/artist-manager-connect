@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -246,7 +247,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         tokenValue = (newToken as any).token;
       }
 
-      const url = `${window.location.origin}/artist-form/${tokenValue}`;
+      const url = `${PUBLIC_APP_URL}/artist-form/${tokenValue}`;
       await navigator.clipboard.writeText(url);
       toast({ title: "Enlace copiado", description: "El enlace del formulario se ha copiado al portapapeles." });
     } catch (err) {

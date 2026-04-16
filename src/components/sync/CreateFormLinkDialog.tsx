@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,7 +97,7 @@ export function CreateFormLinkDialog({ open, onOpenChange }: CreateFormLinkDialo
 
       if (error) throw error;
       
-      const formUrl = `${window.location.origin}/sync-request/${data.token}`;
+      const formUrl = `${PUBLIC_APP_URL}/sync-request/${data.token}`;
       setCreatedLink(formUrl);
       fetchExistingLinks();
       
@@ -178,7 +179,7 @@ export function CreateFormLinkDialog({ open, onOpenChange }: CreateFormLinkDialo
     window.open(url, '_blank');
   };
 
-  const getFormUrl = (token: string) => `${window.location.origin}/sync-request/${token}`;
+  const getFormUrl = (token: string) => `${PUBLIC_APP_URL}/sync-request/${token}`;
 
   const isExpired = (expiresAt: string | null) => {
     if (!expiresAt) return false;

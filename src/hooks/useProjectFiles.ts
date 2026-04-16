@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -281,7 +282,7 @@ export function useProjectShare(projectId: string | undefined) {
 
   const getPublicUrl = () => {
     if (!shareInfo?.public_share_token) return null;
-    return `${window.location.origin}/shared/project/${shareInfo.public_share_token}`;
+    return `${PUBLIC_APP_URL}/shared/project/${shareInfo.public_share_token}`;
   };
 
   return {

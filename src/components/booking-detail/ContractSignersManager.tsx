@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -189,7 +190,7 @@ export function ContractSignersManager({ documentId, onSignersChange }: Contract
   };
 
   const handleCopyLink = (signer: ContractSigner) => {
-    const signUrl = `${window.location.origin}/sign/${signer.token}`;
+    const signUrl = `${PUBLIC_APP_URL}/sign/${signer.token}`;
     navigator.clipboard.writeText(signUrl);
     toast({
       title: 'Enlace copiado',

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -286,7 +287,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
       const token = updatedDoc?.contract_token || doc?.contract_token;
       
       if (token) {
-        const signUrl = `${window.location.origin}/sign/${token}`;
+        const signUrl = `${PUBLIC_APP_URL}/sign/${token}`;
         await navigator.clipboard.writeText(signUrl);
         
         toast({
@@ -980,7 +981,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
-                                  const signUrl = `${window.location.origin}/sign/${doc.contract_token}`;
+                                  const signUrl = `${PUBLIC_APP_URL}/sign/${doc.contract_token}`;
                                   navigator.clipboard.writeText(signUrl);
                                   toast({ title: "Enlace copiado", description: "Compártelo con el firmante." });
                                 }}

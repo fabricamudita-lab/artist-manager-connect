@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PUBLIC_APP_URL } from '@/lib/public-url';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -497,7 +498,7 @@ export function AvailabilityStatusCard({
 
   const copyShareLink = () => {
     if (!request?.share_token) return;
-    const link = `${window.location.origin}/availability/${request.share_token}`;
+    const link = `${PUBLIC_APP_URL}/availability/${request.share_token}`;
     navigator.clipboard.writeText(link);
     toast.success('Enlace copiado');
   };
