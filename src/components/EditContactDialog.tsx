@@ -272,7 +272,8 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
           ...formData,
           tags: tags,
           field_config: updatedFieldConfig,
-        })
+          custom_data: customData,
+        } as any)
         .eq('id', contact.id);
 
       if (error) throw error;
