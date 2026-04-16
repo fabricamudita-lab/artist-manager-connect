@@ -1,34 +1,37 @@
 
 
-## Diagnóstico final
+## Plan: Redes sociales dinámicas con botón "+"
 
-Verificado:
-- **DB**: `field_config = {}` para Klaus Stroink → todos los campos deben ser visibles.
-- **Código actual** (`PublicArtistForm.tsx` líneas 315-411): renderiza correctamente las 7 secciones cuando `field_config` está vacío. La lógica es correcta.
-- **URL publicada**: `https://artist-manager-connect.lovable.app` (dominio Published).
+### Objetivo
+En la sección "Redes Sociales" del `ArtistInfoDialog` (panel del manager), permitir añadir perfiles adicionales más allá de los 3 fijos (Instagram, Spotify, TikTok) mediante un botón "+".
 
-### La causa real
+### Diseño
 
-El botón "Formulario" del `ArtistInfoDialog` genera un enlace que apunta al **dominio publicado** (`artist-manager-connect.lovable.app`), no al preview. Las correcciones que hicimos en mensajes anteriores están en el **preview**, pero **no se han republicado** todavía. Por eso el usuario sigue viendo el bundle JavaScript antiguo (sin las secciones Tallas, Salud, Notas).
+**Redes predefinidas disponibles** (catálogo): Instagram, Spotify, TikTok, YouTube, Apple Music, SoundCloud, Bandcamp, X/Twitter, Facebook, Threads, LinkedIn, Web/Otro.
 
-Esto es 100% consistente con todo lo verificado: la BD está bien, el código está bien, pero el bundle servido al usuario es el viejo.
+Las 3 actuales (Instagram, Spotify, TikTok) siguen siendo fijas y editables como hasta ahora. El resto se almacenan en un nuevo campo JSONB `social_links` en la tabla `artists`:
+```json
+[
+  { "platform": "youtube", "url": "https://youtube.com/@..." },
+  { "platform": "soundcloud", "url": "https://..." }
+]
+```
 
-## Plan de acción
+### Cambios
 
-### Opción A (recomendada): Republicar el proyecto
-El usuario debe hacer clic en **"Publish"** (esquina superior derecha de Lovable) para que `artist-manager-connect.lovable.app` reciba el bundle actualizado con todas las secciones.
+| Archivo | Cambio |
+|---|---|
+| Migración SQL | Añadir columna `social_links jsonb default '[]'::jsonb` a `artists` |
+| `ArtistInfoDialog.tsx` | Bajo TikTok añadir lista dinámica de redes extras + botón "+ Añadir red social" con popover de catálogo. Cada fila: selector de plataforma (icono) + input URL + botón eliminar |
+| `PublicArtistForm.tsx` | Mostrar las redes extras igual que las 3 fijas (respetando `field_config` con clave `social_links`) y permitir editarlas desde el formulario público |
+| `src/lib/social-platforms.ts` (nuevo) | Catálogo de plataformas con icono, label y placeholder |
 
-Después de republicar:
-1. Abrir el enlace del formulario en pestaña incógnita (o Cmd+Shift+R).
-2. Verificar las 7 secciones: General, Redes, Tallas, Salud, Fiscal, Bancario, Notas.
-3. Si quiere ver qué `field_config` está leyendo el cliente, añadir `?debug=1` al final de la URL.
+### UX
+- Botón "+" abre un popover con las plataformas disponibles (filtradas para no duplicar las ya añadidas).
+- Al elegir una, se añade una fila nueva con el input vacío.
+- Botón papelera por fila para eliminar.
+- En el formulario público, las redes extras aparecen junto a Instagram/Spotify/TikTok con su icono correspondiente.
 
-### Opción B (mientras tanto): Probar en el preview
-El enlace del formulario también funciona en el dominio preview. Reemplazar `artist-manager-connect.lovable.app` por `id-preview--86e00f2c-a9ed-4f99-b464-ea2c5dd3f47d.lovable.app` en la URL del formulario para probar inmediatamente con el código más reciente.
-
-### Sin cambios de código necesarios
-No hay nada que corregir en el código — está todo bien. El fix es operacional: **republicar**.
-
-### Limpieza (opcional, después de confirmar que funciona)
-Una vez confirmado que las secciones aparecen, puedo quitar los logs de debug y el panel `?debug=1` del archivo `PublicArtistForm.tsx`. Pregúntame cuando quieras hacer esa limpieza.
+### Resultado
+El manager y el artista (vía formulario público) pueden añadir tantos perfiles sociales como quieran sin tocar código.
 
