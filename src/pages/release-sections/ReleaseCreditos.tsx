@@ -523,16 +523,28 @@ export default function ReleaseCreditos() {
         <TabsContent value="publishing">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <FileText className="h-5 w-5 text-primary" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Derechos de Autor (Publishing)</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Define los porcentajes de autoría: compositores, letristas y editoriales.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>Derechos de Autor (Publishing)</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Define los porcentajes de autoría: compositores, letristas y editoriales.
-                  </p>
-                </div>
+                {id && (
+                  <CreditNotesEditor
+                    releaseId={id}
+                    scope="publishing"
+                    trackId={null}
+                    variant="banner"
+                    label="Nota general (Publishing)"
+                    placeholder="Notas sobre los derechos de autor de todo el lanzamiento…"
+                  />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -541,7 +553,7 @@ export default function ReleaseCreditos() {
               ) : tracks && tracks.length > 0 ? (
                 <div className="space-y-3">
                   {tracks.map((track) => (
-                    <TrackRightsSplitsManager key={track.id} track={track} type="publishing" />
+                    <TrackRightsSplitsManager key={track.id} track={track} type="publishing" releaseId={id} />
                   ))}
                 </div>
               ) : (
@@ -558,16 +570,28 @@ export default function ReleaseCreditos() {
         <TabsContent value="master">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Music className="h-5 w-5 text-primary" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Music className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Royalties Master (Fonograma)</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Define los porcentajes de participación en la grabación: artistas, productores y sello.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>Royalties Master (Fonograma)</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Define los porcentajes de participación en la grabación: artistas, productores y sello.
-                  </p>
-                </div>
+                {id && (
+                  <CreditNotesEditor
+                    releaseId={id}
+                    scope="master"
+                    trackId={null}
+                    variant="banner"
+                    label="Nota general (Master)"
+                    placeholder="Notas sobre los derechos conexos de todo el lanzamiento…"
+                  />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -576,7 +600,7 @@ export default function ReleaseCreditos() {
               ) : tracks && tracks.length > 0 ? (
                 <div className="space-y-3">
                   {tracks.map((track) => (
-                    <TrackRightsSplitsManager key={track.id} track={track} type="master" />
+                    <TrackRightsSplitsManager key={track.id} track={track} type="master" releaseId={id} />
                   ))}
                 </div>
               ) : (
