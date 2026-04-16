@@ -258,9 +258,15 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
     setLoading(true);
     try {
-      // Build updated field_config
+      // Build updated field_config (normalize custom_* keys for existing custom fields)
+      const customFieldFlags: Record<string, boolean> = {};
+      customFields.forEach((f) => {
+        const key = `custom_${f.id}`;
+        customFieldFlags[key] = fieldConfig[key] !== false;
+      });
       const updatedFieldConfig = {
         ...fieldConfig,
+        ...customFieldFlags,
         is_team_member: isTeamMember,
         is_management_team: isManagementTeam,
         team_categories: teamCategories,
@@ -368,6 +374,9 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
     setFieldConfig(next);
     setSelectedPreset(detectPreset(next));
   };
+
+  // Default to true when not yet stored in config
+  const visible = (key: string) => fieldConfig[key] !== false;
 
   const applyPreset = (presetKey: string) => {
     if (presetKey === 'custom') return;
@@ -491,7 +500,32 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                   />
                 </div>
               ))}
-              
+
+              {customFields.length > 0 && (
+                <>
+                  <Separator className="my-2" />
+                  <Label className="text-xs uppercase text-muted-foreground tracking-wide">
+                    Campos personalizados
+                  </Label>
+                  {customFields.map((cf) => {
+                    const key = `custom_${cf.id}`;
+                    return (
+                      <div key={cf.id} className="flex items-center justify-between">
+                        <Label htmlFor={`config-${key}`} className="text-sm">
+                          {cf.label}
+                        </Label>
+                        <Switch
+                          id={`config-${key}`}
+                          checked={visible(key)}
+                          onCheckedChange={(checked) => updateFieldConfig(key, checked)}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
               <hr className="my-4" />
               
               <div className="flex items-center justify-between">
@@ -788,7 +822,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
               {/* Custom Fields */}
               <CustomFieldsSection
-                fields={customFields}
+                fields={customFields.filter((f) => visible(`custom_${f.id}`))}
                 customData={customData}
                 onCustomDataChange={(key, value) => setCustomData(prev => ({ ...prev, [key]: value }))}
                 onCreateField={async (label, fieldType) => { await createField.mutateAsync({ label, fieldType }); }}
