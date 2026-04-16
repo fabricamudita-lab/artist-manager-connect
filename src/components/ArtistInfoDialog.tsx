@@ -246,7 +246,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         tokenValue = (newToken as any).token;
       }
 
-      const url = `${window.location.origin}/artist-form/${tokenValue}`;
+      const url = `${PUBLIC_APP_URL}/artist-form/${tokenValue}`;
       await navigator.clipboard.writeText(url);
       toast({ title: "Enlace copiado", description: "El enlace del formulario se ha copiado al portapapeles." });
     } catch (err) {
