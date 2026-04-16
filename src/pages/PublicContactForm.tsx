@@ -88,6 +88,21 @@ export default function PublicContactForm() {
         }
       });
       setFormData(data);
+      setCustomData(((contact as any).custom_data as Record<string, string>) || {});
+
+      // Load custom fields via creator's workspace
+      if (tokenData.created_by) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('workspace_id')
+          .eq('user_id', tokenData.created_by)
+          .maybeSingle();
+        if (profileData?.workspace_id) {
+          const cf = await loadCustomFieldsForEntity(profileData.workspace_id, 'contact');
+          // Only show custom fields that are enabled in field_config (or all if no config set)
+          setCustomFields(cf);
+        }
+      }
     } catch (err) {
       console.error('Error loading contact form:', err);
       setError('Error al cargar el formulario.');
