@@ -258,9 +258,15 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
     setLoading(true);
     try {
-      // Build updated field_config
+      // Build updated field_config (normalize custom_* keys for existing custom fields)
+      const customFieldFlags: Record<string, boolean> = {};
+      customFields.forEach((f) => {
+        const key = `custom_${f.id}`;
+        customFieldFlags[key] = fieldConfig[key] !== false;
+      });
       const updatedFieldConfig = {
         ...fieldConfig,
+        ...customFieldFlags,
         is_team_member: isTeamMember,
         is_management_team: isManagementTeam,
         team_categories: teamCategories,
