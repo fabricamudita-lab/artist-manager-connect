@@ -107,7 +107,22 @@ export function ContactProfileSheet({
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [pulseConfig, setPulseConfig] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCopyValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${label} copiado` });
+    } catch {
+      toast({ title: "No se pudo copiar", variant: "destructive" });
+    }
+  };
+
+  const triggerConfigPulse = () => {
+    setPulseConfig(true);
+    setTimeout(() => setPulseConfig(false), 2000);
+  };
 
   useEffect(() => {
     if (open && contactId) {
