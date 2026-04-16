@@ -168,8 +168,9 @@ export function TrackRightsSplitsManager({ track, type, releaseId }: TrackRights
             <Icon className={`h-4 w-4 ${type === 'publishing' ? 'text-amber-600' : 'text-blue-600'}`} />
           </div>
           <div>
-            <p className="font-medium text-sm">
+            <p className="font-medium text-sm flex items-center gap-1.5">
               {track.title} — {type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master'}
+              {releaseId && <CreditNoteBadge releaseId={releaseId} scope={type} trackId={track.id} />}
             </p>
             <p className="text-xs text-muted-foreground">
               {splits.length} {splits.length === 1 ? 'participante' : 'participantes'}
