@@ -34,25 +34,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  console.log('AuthProvider - Current state:', { user: user?.email, profile: profile?.full_name, loading });
-
   // Separate function to fetch user profile
   const fetchUserProfile = async (session: Session) => {
     try {
-      console.log('Fetching profile for user:', session.user.id);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
       
-      console.log('Profile data:', profileData, 'Error:', error);
-      
       if (error) {
         console.error('Profile fetch error:', error);
         setProfile(null);
       } else if (!profileData) {
-        console.log('No profile found, creating one...');
         const userRoles = session.user.user_metadata?.roles || ['artist'];
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
@@ -70,7 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Failed to create profile:', createError);
           setProfile(null);
         } else {
-          console.log('Created new profile:', newProfile);
           setProfile(newProfile);
         }
       } else {
@@ -85,19 +78,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('Auth hook - Setting up auth state listener');
     let mounted = true;
 
-    // Set up auth state listener
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return;
         
-        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile fetching to avoid blocking the auth callback
         if (session?.user) {
           setTimeout(() => {
             fetchUserProfile(session);
@@ -111,11 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Get initial session
-    console.log('Auth hook - Getting initial session');
+    // Then get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
-      console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) {
@@ -130,25 +118,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
   const signUp = async (email: string, password: string, fullName: string, roles: ('artist' | 'management')[]) => {
     const redirectUrl = `${window.location.origin}/`;
-    
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          roles: roles,
-        }
+        data: { full_name: fullName, roles }
       }
     });
     return { error };
@@ -156,12 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = async (role: 'artist' | 'management') => {
     if (!profile) return;
-    
     const { error } = await supabase
       .from('profiles')
       .update({ active_role: role })
       .eq('user_id', profile.user_id);
-    
     if (!error) {
       setProfile({ ...profile, active_role: role });
     }
@@ -169,13 +148,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const addRole = async (role: 'artist' | 'management') => {
     if (!profile || profile.roles.includes(role)) return;
-    
     const newRoles = [...profile.roles, role];
     const { error } = await supabase
       .from('profiles')
       .update({ roles: newRoles })
       .eq('user_id', profile.user_id);
-    
     if (!error) {
       setProfile({ ...profile, roles: newRoles });
     }
@@ -189,19 +166,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const demoProfile: Profile = {
-    id: 'demo',
-    user_id: 'demo',
-    email: 'demo@moodita.app',
-    full_name: 'MOODITA Management',
-    roles: ['management', 'artist'],
-    active_role: 'management',
-  };
-
   const value = {
     user,
     session,
-    profile: profile ?? (!loading && !user ? demoProfile : profile),
+    profile,
     loading,
     signIn,
     signUp,

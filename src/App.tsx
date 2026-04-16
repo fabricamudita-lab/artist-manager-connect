@@ -71,8 +71,17 @@ import Automatizaciones from "./pages/Automatizaciones";
 import Modelo111 from "./pages/Modelo111";
 const queryClient = new QueryClient();
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+function RootRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return <Navigate to={user ? "/dashboard" : "/auth"} replace />;
+}
+
+function AuthRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Auth />;
 }
 
 const App = () => (
@@ -85,12 +94,8 @@ const App = () => (
           <DevRoleSwitcher />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/auth" element={
-                <PublicRoute>
-                  <Auth />
-                </PublicRoute>
-              } />
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/auth" element={<AuthRedirect />} />
               <Route path="/403" element={<ForbiddenPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
