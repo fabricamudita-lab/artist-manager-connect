@@ -28,6 +28,7 @@ interface SplitsCredit {
   master_percentage: number | null;
   pro_society?: string | null;
   notes?: string | null;
+  ipi_number?: string | null;
 }
 
 export interface SplitsNote {
@@ -65,6 +66,7 @@ interface GroupedSplit {
   percentage: number;
   pro_society?: string | null;
   notes?: string | null;
+  ipi_number?: string | null;
 }
 
 function groupByPerson(credits: SplitsCredit[], type: 'publishing' | 'master'): GroupedSplit[] {
@@ -74,16 +76,17 @@ function groupByPerson(credits: SplitsCredit[], type: 'publishing' | 'master'): 
     if (pct == null || pct <= 0) continue;
     const key = c.name.toLowerCase().trim();
     if (!map.has(key)) {
-      map.set(key, { name: c.name, roles: [], percentage: 0, pro_society: c.pro_society, notes: c.notes });
+      map.set(key, { name: c.name, roles: [], percentage: 0, pro_society: c.pro_society, notes: c.notes, ipi_number: c.ipi_number });
     }
     const entry = map.get(key)!;
     const roleLabel = getRoleLabel(c.role);
     if (!entry.roles.includes(roleLabel)) {
       entry.roles.push(roleLabel);
     }
-    // Keep the first non-empty pro_society and notes
+    // Keep the first non-empty pro_society, notes, ipi
     if (!entry.pro_society && c.pro_society) entry.pro_society = c.pro_society;
     if (!entry.notes && c.notes) entry.notes = c.notes;
+    if (!entry.ipi_number && c.ipi_number) entry.ipi_number = c.ipi_number;
     entry.percentage += pct;
   }
   return Array.from(map.values()).sort((a, b) => b.percentage - a.percentage);
@@ -156,6 +159,16 @@ function drawSplitTable(
       doc.setTextColor(0);
       total += row.percentage;
       y += LINE_HEIGHT + 0.5;
+
+      // IPI line (under the name) — only if available
+      if (row.ipi_number) {
+        doc.setFontSize(7);
+        doc.setTextColor(110);
+        doc.text(`IPI: ${row.ipi_number}`, colName, y);
+        doc.setTextColor(0);
+        doc.setFontSize(9);
+        y += 3.5;
+      }
     }
 
     // Total row
@@ -223,6 +236,7 @@ interface UniqueParticipant {
   name: string;
   hasPublishing: boolean;
   hasMaster: boolean;
+  ipi_number?: string | null;
 }
 
 function collectUniqueParticipants(credits: SplitsCredit[]): UniqueParticipant[] {
@@ -230,11 +244,12 @@ function collectUniqueParticipants(credits: SplitsCredit[]): UniqueParticipant[]
   for (const c of credits) {
     const key = c.name.toLowerCase().trim();
     if (!map.has(key)) {
-      map.set(key, { name: c.name, hasPublishing: false, hasMaster: false });
+      map.set(key, { name: c.name, hasPublishing: false, hasMaster: false, ipi_number: c.ipi_number });
     }
     const entry = map.get(key)!;
     if (c.publishing_percentage != null && c.publishing_percentage > 0) entry.hasPublishing = true;
     if (c.master_percentage != null && c.master_percentage > 0) entry.hasMaster = true;
+    if (!entry.ipi_number && c.ipi_number) entry.ipi_number = c.ipi_number;
   }
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -439,7 +454,10 @@ export function exportSplitsPDF(
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(p.name, colParticipant, y);
-      const ipiValue = p.hasPublishing ? '[A completar]' : 'N/A (Solo Master)';
+      let ipiValue: string;
+      if (p.ipi_number) ipiValue = p.ipi_number;
+      else if (p.hasPublishing) ipiValue = '[A completar]';
+      else ipiValue = 'N/A (Solo Master)';
       doc.text(ipiValue, colIPI, y);
       doc.text('[A completar]', colEmail, y);
       // firma: draw a small line

@@ -168,7 +168,10 @@ export default function ReleaseCreditos() {
     try {
       const trackIds = tracks.map((t) => t.id);
       const [creditsResult, notesResult] = await Promise.all([
-        supabase.from('track_credits').select('*').in('track_id', trackIds),
+        supabase
+          .from('track_credits')
+          .select('*, contact:contacts(ipi_number, pro_name)')
+          .in('track_id', trackIds),
         supabase.from('credit_notes').select('track_id, scope, note').eq('release_id', release.id),
       ]);
       if (creditsResult.error) throw creditsResult.error;
@@ -183,6 +186,9 @@ export default function ReleaseCreditos() {
           role: c.role,
           publishing_percentage: c.publishing_percentage,
           master_percentage: c.master_percentage,
+          pro_society: c.pro_society || c.contact?.pro_name || null,
+          notes: c.notes,
+          ipi_number: c.contact?.ipi_number || null,
         })),
         (notesResult.data || []).map((n: any) => ({
           track_id: n.track_id,

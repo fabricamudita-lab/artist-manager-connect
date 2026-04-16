@@ -33,9 +33,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
+import { PROCombobox } from '@/components/credits/PROCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { CreditNotesEditor, CreditNoteBadge } from '@/components/credits/CreditNotesEditor';
+import { isValidIPI } from '@/lib/pros';
 import { toast } from 'sonner';
 import { undoableDelete } from '@/utils/undoableDelete';
 import { useTrackCredits, TrackCredit, Track } from '@/hooks/useReleases';
@@ -53,13 +55,35 @@ interface TrackRightsSplitsManagerProps {
   type: 'publishing' | 'master';
   /** Si se proporciona, habilita la edición de notas por canción para este release. */
   releaseId?: string;
+  /** Workspace para sociedades de gestión personalizadas. */
+  workspaceId?: string | null;
 }
 
-export function TrackRightsSplitsManager({ track, type, releaseId }: TrackRightsSplitsManagerProps) {
+export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }: TrackRightsSplitsManagerProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [resolvedWorkspaceId, setResolvedWorkspaceId] = useState<string | null>(workspaceId ?? null);
+
+  // Resolve workspace_id from release if not provided
+  useEffect(() => {
+    if (workspaceId) { setResolvedWorkspaceId(workspaceId); return; }
+    if (!releaseId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('releases')
+        .select('artist:artists(workspace_id)')
+        .eq('id', releaseId)
+        .maybeSingle();
+      if (cancelled) return;
+      const wid = (data as any)?.artist?.workspace_id ?? null;
+      setResolvedWorkspaceId(wid);
+    })();
+    return () => { cancelled = true; };
+  }, [workspaceId, releaseId]);
+
 
   // Use existing track_credits data
   const { data: allCredits = [] } = useTrackCredits(track.id);
@@ -209,6 +233,7 @@ export function TrackRightsSplitsManager({ track, type, releaseId }: TrackRights
                 type={type}
                 percentageKey={percentageKey}
                 roles={roles}
+                workspaceId={resolvedWorkspaceId}
                 isEditing={editingId === credit.id}
                 onEdit={() => setEditingId(credit.id)}
                 onCancelEdit={() => setEditingId(null)}
@@ -225,6 +250,7 @@ export function TrackRightsSplitsManager({ track, type, releaseId }: TrackRights
             type={type}
             percentageKey={percentageKey}
             roles={roles}
+            workspaceId={resolvedWorkspaceId}
             onSave={handleCreate}
             onCancel={() => setIsAdding(false)}
             isLoading={createCredit.isPending}
@@ -288,6 +314,7 @@ function SplitRow({
   type,
   percentageKey,
   roles,
+  workspaceId,
   isEditing,
   onEdit,
   onCancelEdit,
@@ -299,6 +326,7 @@ function SplitRow({
   type: 'publishing' | 'master';
   percentageKey: 'publishing_percentage' | 'master_percentage';
   roles: { value: string; label: string }[];
+  workspaceId?: string | null;
   isEditing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -357,10 +385,11 @@ function SplitRow({
         </div>
         {type === 'publishing' && (
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <PROCombobox
               value={editProSociety}
-              onChange={(e) => setEditProSociety(e.target.value)}
-              placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+              onValueChange={setEditProSociety}
+              workspaceId={workspaceId}
+              placeholder="Sociedad (PRO)…"
             />
             <Input
               value={editNotes}
@@ -441,6 +470,7 @@ function AddSplitForm({
   type,
   percentageKey,
   roles,
+  workspaceId,
   onSave,
   onCancel,
   isLoading,
@@ -448,6 +478,7 @@ function AddSplitForm({
   type: 'publishing' | 'master';
   percentageKey: 'publishing_percentage' | 'master_percentage';
   roles: { value: string; label: string }[];
+  workspaceId?: string | null;
   onSave: (data: any) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -662,10 +693,11 @@ function AddSplitForm({
             </div>
             {type === 'publishing' && (
               <div className="grid grid-cols-2 gap-3">
-                <Input
+                <PROCombobox
                   value={proSociety}
-                  onChange={(e) => setProSociety(e.target.value)}
-                  placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+                  onValueChange={setProSociety}
+                  workspaceId={workspaceId}
+                  placeholder="Sociedad (PRO)…"
                 />
                 <Input
                   value={creditNotes}
@@ -745,10 +777,11 @@ function AddSplitForm({
       </div>
       {type === 'publishing' && (
         <div className="grid grid-cols-2 gap-3">
-          <Input
+          <PROCombobox
             value={proSociety}
-            onChange={(e) => setProSociety(e.target.value)}
-            placeholder="Sociedad (PRO) — ej. SGAE, BMI"
+            onValueChange={setProSociety}
+            workspaceId={workspaceId}
+            placeholder="Sociedad (PRO)…"
           />
           <Input
             value={creditNotes}

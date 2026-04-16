@@ -564,6 +564,7 @@ export type Database = {
           iban: string | null
           id: string
           instagram_url: string | null
+          ipi_number: string | null
           irpf_porcentaje: number | null
           irpf_type: string | null
           legal_name: string | null
@@ -572,6 +573,7 @@ export type Database = {
           nif: string | null
           notes: string | null
           phone: string | null
+          pro_name: string | null
           profile_id: string | null
           shoe_size: string | null
           social_links: Json
@@ -607,6 +609,7 @@ export type Database = {
           iban?: string | null
           id?: string
           instagram_url?: string | null
+          ipi_number?: string | null
           irpf_porcentaje?: number | null
           irpf_type?: string | null
           legal_name?: string | null
@@ -615,6 +618,7 @@ export type Database = {
           nif?: string | null
           notes?: string | null
           phone?: string | null
+          pro_name?: string | null
           profile_id?: string | null
           shoe_size?: string | null
           social_links?: Json
@@ -650,6 +654,7 @@ export type Database = {
           iban?: string | null
           id?: string
           instagram_url?: string | null
+          ipi_number?: string | null
           irpf_porcentaje?: number | null
           irpf_type?: string | null
           legal_name?: string | null
@@ -658,6 +663,7 @@ export type Database = {
           nif?: string | null
           notes?: string | null
           phone?: string | null
+          pro_name?: string | null
           profile_id?: string | null
           shoe_size?: string | null
           social_links?: Json
@@ -2751,12 +2757,14 @@ export type Database = {
           field_config: Json | null
           iban: string | null
           id: string
+          ipi_number: string | null
           is_public: boolean | null
           legal_name: string | null
           name: string
           notes: string | null
           phone: string | null
           preferred_hours: string | null
+          pro_name: string | null
           public_slug: string | null
           role: string | null
           shared_with_users: string[] | null
@@ -2785,12 +2793,14 @@ export type Database = {
           field_config?: Json | null
           iban?: string | null
           id?: string
+          ipi_number?: string | null
           is_public?: boolean | null
           legal_name?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           preferred_hours?: string | null
+          pro_name?: string | null
           public_slug?: string | null
           role?: string | null
           shared_with_users?: string[] | null
@@ -2819,12 +2829,14 @@ export type Database = {
           field_config?: Json | null
           iban?: string | null
           id?: string
+          ipi_number?: string | null
           is_public?: boolean | null
           legal_name?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           preferred_hours?: string | null
+          pro_name?: string | null
           public_slug?: string | null
           role?: string | null
           shared_with_users?: string[] | null
@@ -3287,6 +3299,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "custom_instruments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_pros: {
+        Row: {
+          country: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_pros_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
