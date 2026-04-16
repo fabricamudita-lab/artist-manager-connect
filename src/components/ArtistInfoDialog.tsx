@@ -31,6 +31,8 @@ import {
   detectArtistPreset,
   type ArtistFieldConfig,
 } from '@/lib/artistFieldConfigPresets';
+import { SocialLinksEditor } from '@/components/SocialLinksEditor';
+import type { SocialLink } from '@/lib/social-platforms';
 
 interface ArtistData {
   id: string;
@@ -94,6 +96,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [customData, setCustomData] = useState<Record<string, string>>({});
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Field config state
@@ -136,6 +139,8 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       }
       setFormData(fd);
       setCustomData(((data as any).custom_data as Record<string, string>) || {});
+      const rawSocial = (data as any).social_links;
+      setSocialLinks(Array.isArray(rawSocial) ? (rawSocial as SocialLink[]) : []);
 
       const fc = ((data as any).field_config as ArtistFieldConfig) || {};
       setFieldConfig(fc);
@@ -158,6 +163,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       }
       updateData.name = formData.name;
       updateData.custom_data = customData;
+      updateData.social_links = socialLinks.filter((l) => l.url.trim());
       // Normalize: explicit true/false for every known field so what the user sees in toggles
       // is exactly what the public form will render.
       const normalizedConfig = Object.fromEntries(
@@ -466,10 +472,16 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
 
             {/* Social */}
             {(visible('instagram_url') || visible('spotify_url') || visible('tiktok_url')) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderField("Instagram", "instagram_url", "https://instagram.com/...")}
-                {renderField("Spotify", "spotify_url", "https://open.spotify.com/...")}
-                {renderField("TikTok", "tiktok_url", "https://tiktok.com/...")}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {renderField("Instagram", "instagram_url", "https://instagram.com/...")}
+                  {renderField("Spotify", "spotify_url", "https://open.spotify.com/...")}
+                  {renderField("TikTok", "tiktok_url", "https://tiktok.com/...")}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Otras redes</Label>
+                  <SocialLinksEditor value={socialLinks} onChange={setSocialLinks} />
+                </div>
               </div>
             )}
 
