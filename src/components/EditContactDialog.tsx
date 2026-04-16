@@ -111,6 +111,13 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [pendingPreset, setPendingPreset] = useState<string | null>(null);
   const [fieldsAtRisk, setFieldsAtRisk] = useState<string[]>([]);
   const [generatingFormLink, setGeneratingFormLink] = useState(false);
+
+  // Delete contact state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [checkingRefs, setCheckingRefs] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [refsResult, setRefsResult] = useState<{ total: number; breakdown: Record<string, number>; examples: Array<{ type: string; id: string; name?: string }> } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   
   // Project roles state
   const [projectRoles, setProjectRoles] = useState<{ projectId: string; projectName: string; role: string }[]>([]);
