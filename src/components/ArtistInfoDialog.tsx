@@ -21,6 +21,8 @@ import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { GenreCombobox } from '@/components/GenreCombobox';
 import { cn } from '@/lib/utils';
 import { IRPF_TYPE_OPTIONS, getIrpfForArtist } from '@/utils/irpf';
+import { useCustomFields } from '@/hooks/useCustomFields';
+import { CustomFieldsSection } from '@/components/CustomFieldsSection';
 
 interface ArtistData {
   id: string;
@@ -53,6 +55,9 @@ interface ArtistData {
   swift_code: string | null;
   // Notes
   notes: string | null;
+  // Custom
+  workspace_id: string;
+  custom_data: Record<string, string> | null;
 }
 
 const FORM_FIELDS = [
