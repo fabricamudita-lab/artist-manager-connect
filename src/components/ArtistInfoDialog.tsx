@@ -166,9 +166,13 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       updateData.social_links = socialLinks.filter((l) => l.url.trim());
       // Normalize: explicit true/false for every known field so what the user sees in toggles
       // is exactly what the public form will render.
-      const normalizedConfig = Object.fromEntries(
+      const normalizedConfig: Record<string, boolean> = Object.fromEntries(
         Object.keys(ARTIST_FIELD_LABELS).map(f => [f, isArtistFieldVisible(fieldConfig, f)])
       );
+      for (const field of customFields) {
+        const key = `custom_${field.id}`;
+        normalizedConfig[key] = isArtistFieldVisible(fieldConfig, key);
+      }
       updateData.field_config = normalizedConfig;
 
       const { error } = await supabase
