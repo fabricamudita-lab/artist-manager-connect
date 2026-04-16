@@ -197,6 +197,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
       notes: contact.notes || '',
       is_public: contact.is_public || false,
     });
+    setCustomData(((contact as any).custom_data as Record<string, string>) || {});
   }, [contact]);
 
   const fetchArtists = async () => {
