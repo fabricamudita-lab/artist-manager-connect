@@ -578,7 +578,37 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               </div>
             )}
 
-            {/* Banking */}
+            {/* Publishing identity (IPI + PRO) */}
+            {(visible('ipi_number') || visible('pro_name')) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {visible('ipi_number') && (
+                  <div className="space-y-2">
+                    <Label>Número IPI (CISAC)</Label>
+                    <Input
+                      value={formData.ipi_number}
+                      onChange={set('ipi_number')}
+                      placeholder="9–11 dígitos, ej. 00123456789"
+                      inputMode="numeric"
+                      maxLength={11}
+                    />
+                    {formData.ipi_number && !/^\d{9,11}$/.test(formData.ipi_number.trim()) && (
+                      <p className="text-xs text-destructive">Debe tener entre 9 y 11 dígitos.</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Identificador global del autor en sociedades de gestión.</p>
+                  </div>
+                )}
+                {visible('pro_name') && artistData && (
+                  <div className="space-y-2">
+                    <Label>Sociedad de gestión (PRO)</Label>
+                    <PROCombobox
+                      value={formData.pro_name}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, pro_name: v }))}
+                      workspaceId={artistData.workspace_id}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {renderField("Banco", "bank_name", "Nombre del banco")}
               {renderField("IBAN", "iban", "ES00 0000 0000 0000 0000 0000")}
