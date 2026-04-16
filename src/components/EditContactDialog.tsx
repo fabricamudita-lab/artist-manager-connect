@@ -102,6 +102,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [artistSelectOpen, setArtistSelectOpen] = useState(false);
   const [pendingPreset, setPendingPreset] = useState<string | null>(null);
   const [fieldsAtRisk, setFieldsAtRisk] = useState<string[]>([]);
+  const [generatingFormLink, setGeneratingFormLink] = useState(false);
   
   // Project roles state
   const [projectRoles, setProjectRoles] = useState<{ projectId: string; projectName: string; role: string }[]>([]);
