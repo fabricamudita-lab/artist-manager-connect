@@ -424,7 +424,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
 
   y += sectionSpace;
   const mI = recordingType === 'album' ? L.manifiestoIAlbum : L.manifiestoI;
-  addNumberedHanging('I)', mI(s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
+  const tituloObra = recordingType === 'album' ? s(d.album_titulo) : s(d.grabacion_titulo);
+  addNumberedHanging('I)', mI(tituloObra, s(d.productora_nombre_artistico)));
 
   y += sectionSpace;
   addNumberedHanging('II)', recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
@@ -449,12 +450,23 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   addParagraph(c.objeto_1_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
-  addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
-  addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
-  addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
-  addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
-  addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  if (recordingType === 'album') {
+    const SA = L.subItemsObjetoAlbum;
+    addSubItem('a. ', SA.a, s(d.album_titulo));
+    addSubItem('b. ', SA.b, s(d.album_num_tracks));
+    addSubItem('c. ', SA.c, s(d.album_duracion_total));
+    addSubItem('d. ', SA.d, s(d.grabacion_calidad));
+    addSubItem('e. ', SA.e, s(d.grabacion_videoclip));
+    addSubItem('f. ', SA.f, s(d.grabacion_fecha_fijacion));
+    addSubItem('g. ', SA.g, s(d.grabacion_caracter));
+  } else {
+    addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
+    addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
+    addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
+    addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
+    addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
+    addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  }
 
   y += sectionSpace;
   addParagraph(c.objeto_1_2, indent1);
