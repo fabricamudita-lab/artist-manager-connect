@@ -990,6 +990,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 </Select>
               </div>
             )}
+            {recordingType !== 'fullAlbum' && (<>
             <div><Label>Título de la Grabación</Label>
               {tracks.length > 0 && !manualTrack ? (
                 <Select
@@ -1089,6 +1090,46 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 </PopoverContent>
               </Popover>
             </div>
+            </>)}
+            {recordingType === 'fullAlbum' && (
+              <div className="space-y-3 p-3 rounded-md border bg-muted/20">
+                <p className="text-xs text-muted-foreground">La COLABORADORA participa en TODAS las canciones del Álbum con el mismo rol y porcentaje.</p>
+                <div><Label>Título del Álbum</Label><Input value={formData.album_titulo} onChange={e => update('album_titulo', e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Nº de grabaciones</Label><Input type="number" value={formData.album_num_grabaciones} onChange={e => update('album_num_grabaciones', e.target.value)} /></div>
+                  <div><Label>Videoclips (Sí/No)</Label>
+                    <Select value={formData.album_videoclips_si_no} onValueChange={v => update('album_videoclips_si_no', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Sí">Sí</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Fecha fijación desde</Label><Input value={formData.album_fecha_fijacion_desde} onChange={e => update('album_fecha_fijacion_desde', e.target.value)} placeholder="dd/mm/aaaa" /></div>
+                  <div><Label>Fecha fijación hasta</Label><Input value={formData.album_fecha_fijacion_hasta} onChange={e => update('album_fecha_fijacion_hasta', e.target.value)} placeholder="dd/mm/aaaa" /></div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Listado de grabaciones (Anexo I)</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setFormData(p => ({ ...p, album_tracks: [...p.album_tracks, { titulo: '', duracion: '' }] }))}>+ Añadir</Button>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.album_tracks.map((t, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <span className="text-xs text-muted-foreground w-6">{i + 1}.</span>
+                        <Input className="flex-1" placeholder="Título" value={t.titulo} onChange={e => setFormData(p => ({ ...p, album_tracks: p.album_tracks.map((x, j) => j === i ? { ...x, titulo: e.target.value } : x) }))} />
+                        <Input className="w-24" placeholder="MM:SS" value={t.duracion} onChange={e => setFormData(p => ({ ...p, album_tracks: p.album_tracks.map((x, j) => j === i ? { ...x, duracion: e.target.value } : x) }))} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFormData(p => ({ ...p, album_tracks: p.album_tracks.filter((_, j) => j !== i) }))}>×</Button>
+                      </div>
+                    ))}
+                    {formData.album_tracks.length === 0 && <p className="text-xs text-muted-foreground">No hay grabaciones. Selecciona un lanzamiento para autopoblar o añade manualmente.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
             <div><Label>Carácter de la intervención</Label>
               <Select value={formData.grabacion_caracter} onValueChange={v => update('grabacion_caracter', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
