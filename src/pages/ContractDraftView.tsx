@@ -276,7 +276,14 @@ export default function ContractDraftView() {
             }}
           >
             {isIPLicense
-              ? renderIPLicenseContent(formData, draft.clauses_data, selectionComments, scrollToComment)
+              ? renderIPLicenseContent(
+                  formData,
+                  draft.clauses_data,
+                  selectionComments,
+                  scrollToComment,
+                  ((draft as any).recording_type as IPLicenseRecordingType) || 'single',
+                  ((draft as any).language as IPLicenseLanguage) || 'es',
+                )
               : renderBookingContent(formData, draft.clauses_data)}
           </div>
         </TextSelectionHandler>
