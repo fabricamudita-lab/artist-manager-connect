@@ -674,6 +674,8 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
           setCurrentDraft(d);
           if (d.form_data) setFormData(d.form_data as FormData);
           if (d.clauses_data) setIpClauses(d.clauses_data as IPLegalClauses);
+          if (d.recording_type) setRecordingType(d.recording_type as IPLicenseRecordingType);
+          if (d.language) setLanguage(d.language as IPLicenseLanguage);
         }
       })();
     }
