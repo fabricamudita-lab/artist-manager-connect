@@ -176,6 +176,18 @@ export default function ContractDraftView() {
     else toast.success('Marcado como listo para firma');
   };
 
+  // Get comments with selection for highlighting (active = not resolved/approved)
+  // Includes the pending (in-progress) selection so it stays highlighted while composing.
+  const selectionComments = useMemo(() => {
+    const active = comments
+      .filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved')
+      .map(c => ({ id: c.id, selected_text: c.selected_text }));
+    if (pendingSelection?.selectedText) {
+      active.push({ id: '__pending__', selected_text: pendingSelection.selectedText });
+    }
+    return active;
+  }, [comments, pendingSelection]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -198,9 +210,6 @@ export default function ContractDraftView() {
 
   const formData = draft.form_data || {};
   const isIPLicense = draft.draft_type === 'ip_license';
-
-  // Get comments with selection for highlighting
-  const selectionComments = comments.filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved');
 
   return (
     <div className="min-h-screen bg-muted/40 flex">
