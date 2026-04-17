@@ -9,7 +9,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { Disc3, DollarSign, Music, CalendarDays, FileText, AlignLeft, Trash2 } from 'lucide-react';
 
 const cardDisplayConfigSchema = z.object({
@@ -37,6 +39,7 @@ interface ProjectSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   projectName: string;
+  artistId?: string | null;
   config: CardDisplayConfig;
 }
 
@@ -49,12 +52,63 @@ const TOGGLE_OPTIONS: { key: keyof CardDisplayConfig; label: string; icon: React
   { key: 'show_description', label: 'Descripción', icon: <AlignLeft className="h-4 w-4 text-muted-foreground" /> },
 ];
 
-export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectName, config }: ProjectSettingsDialogProps) {
+export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectName, artistId, config }: ProjectSettingsDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [localConfig, setLocalConfig] = useState<CardDisplayConfig>(config);
+  const [localName, setLocalName] = useState(projectName);
+  const [localArtistId, setLocalArtistId] = useState<string | null>(artistId ?? null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Sync state when dialog opens with new props
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      setLocalName(projectName);
+      setLocalArtistId(artistId ?? null);
+      setLocalConfig(config);
+    }
+    onOpenChange(newOpen);
+  };
+
+  const handleNameSave = async () => {
+    const trimmed = localName.trim();
+    if (!trimmed || trimmed.length > 100) {
+      toast({ title: 'Error', description: 'El nombre debe tener entre 1 y 100 caracteres', variant: 'destructive' });
+      setLocalName(projectName);
+      return;
+    }
+    if (trimmed === projectName) return;
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ name: trimmed })
+      .eq('id', projectId);
+
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo guardar el nombre', variant: 'destructive' });
+      setLocalName(projectName);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['proyectos-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+    }
+  };
+
+  const handleArtistChange = async (newArtistId: string | null) => {
+    setLocalArtistId(newArtistId);
+    const { error } = await supabase
+      .from('projects')
+      .update({ artist_id: newArtistId })
+      .eq('id', projectId);
+
+    if (error) {
+      toast({ title: 'Error', description: 'No se pudo cambiar el artista', variant: 'destructive' });
+      setLocalArtistId(artistId ?? null);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['proyectos-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+    }
+  };
 
   const handleToggle = async (key: keyof CardDisplayConfig, value: boolean) => {
     const updated = { ...localConfig, [key]: value };
@@ -92,13 +146,41 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Configuración del proyecto</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* General data */}
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">Datos generales</p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Nombre</Label>
+                  <Input
+                    value={localName}
+                    onChange={(e) => setLocalName(e.target.value)}
+                    onBlur={handleNameSave}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleNameSave(); }}
+                    maxLength={100}
+                    placeholder="Nombre del proyecto"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Perfil vinculado</Label>
+                  <SingleArtistSelector
+                    value={localArtistId}
+                    onValueChange={handleArtistChange}
+                    placeholder="Sin artista vinculado"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
             {/* Card display toggles */}
             <div className="space-y-3">
               <p className="text-sm font-medium text-muted-foreground">Vista previa en tarjeta</p>
