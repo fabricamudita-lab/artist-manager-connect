@@ -85,6 +85,7 @@ import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestion
 import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
 import { ProjectLinkedBudgets } from "@/components/project-detail/ProjectLinkedBudgets";
 import { ProjectLinkedBookings } from "@/components/project-detail/ProjectLinkedBookings";
+import { ProjectSettingsDialog, DEFAULT_CARD_CONFIG, type CardDisplayConfig } from "@/components/ProjectSettingsDialog";
 interface Project {
   id: string;
   name: string;
