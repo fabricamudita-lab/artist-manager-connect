@@ -153,6 +153,7 @@ export default function ProjectDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showLinkEntityDialog, setShowLinkEntityDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [linkedEntities, setLinkedEntities] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -1649,6 +1650,14 @@ export default function ProjectDetail() {
                   <Share2 className="w-4 h-4 mr-2" />
                   Compartir
                 </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSettingsDialog(true)}>
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Configuración</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           </CardHeader>
