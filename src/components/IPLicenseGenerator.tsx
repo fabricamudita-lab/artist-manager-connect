@@ -683,11 +683,30 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
   }, [language, recordingType]);
 
   // Auto-detect recording type from selected release
+  const releaseType = effectiveReleaseId ? releases.find(x => x.id === effectiveReleaseId)?.type : undefined;
+  const isAlbumRelease = releaseType === 'album' || releaseType === 'ep';
   useEffect(() => {
     if (!effectiveReleaseId) return;
-    const r = releases.find(x => x.id === effectiveReleaseId);
-    if (r) setRecordingType(r.type === 'album' || r.type === 'ep' ? 'album' : 'single');
-  }, [effectiveReleaseId, releases]);
+    if (releaseType === 'single') {
+      setRecordingType('single');
+    } else if (isAlbumRelease) {
+      // Default to 'album' but allow user to switch to 'fullAlbum'
+      setRecordingType(prev => (prev === 'album' || prev === 'fullAlbum') ? prev : 'album');
+    }
+  }, [effectiveReleaseId, releaseType, isAlbumRelease]);
+
+  // Auto-populate album_tracks from release tracks when fullAlbum
+  useEffect(() => {
+    if (recordingType !== 'fullAlbum') return;
+    if (formData.album_tracks.length > 0) return;
+    if (tracks.length === 0) return;
+    setFormData(prev => ({
+      ...prev,
+      album_tracks: tracks.map(t => ({ titulo: t.title, duracion: t.duration ? formatDuration(t.duration) : '' })),
+      album_num_grabaciones: prev.album_num_grabaciones || String(tracks.length),
+      album_titulo: prev.album_titulo || (releases.find(r => r.id === effectiveReleaseId)?.title ?? ''),
+    }));
+  }, [recordingType, tracks, formData.album_tracks.length, effectiveReleaseId, releases]);
 
   const handleSaveDraft = async () => {
     setSavingDraft(true);
