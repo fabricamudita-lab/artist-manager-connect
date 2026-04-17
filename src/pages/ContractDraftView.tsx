@@ -13,6 +13,13 @@ import { Input } from '@/components/ui/input';
 import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  getDefaultIPClauses,
+  getPDFLabels,
+  type IPLicenseLanguage,
+  type IPLicenseRecordingType,
+  type IPLegalClauses,
+} from '@/lib/contracts/ipLicenseTemplates';
 
 function formatTimeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
