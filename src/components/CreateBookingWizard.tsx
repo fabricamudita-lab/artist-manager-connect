@@ -211,20 +211,47 @@ export function CreateBookingWizard({
     setShowNewContactForm(false);
   };
 
-  const canProceed = () => {
-    switch (currentStep) {
-      case 0: // General
-        return generalData.fecha && (generalData.venue || generalData.festival_ciclo);
-      case 1: // Buyer
-        return buyerData.contacto || (showNewContactForm && buyerData.newContact.name);
-      case 2: // Deal
-        return dealData.artist_id && (dealData.fee || dealData.door_split_percentage);
-      default:
-        return true;
+  // Phase requires fee/hora when not in 'pendiente' (Interés)
+  const isOfferPhaseOrBeyond = () => dealData.estado !== 'pendiente';
+
+  const getStepMissingFields = (step: number): string[] => {
+    const missing: string[] = [];
+    if (step === 0) {
+      if (!generalData.fecha) missing.push('Fecha');
+      if (!generalData.venue && !generalData.festival_ciclo) missing.push('Venue o Festival/Ciclo');
+      if (isOfferPhaseOrBeyond() && !generalData.hora) missing.push('Hora');
+    } else if (step === 1) {
+      if (showNewContactForm) {
+        if (!buyerData.newContact.name) missing.push('Nombre del nuevo contacto');
+      } else {
+        if (!buyerData.contacto) missing.push('Contacto / Promotor');
+      }
+    } else if (step === 2) {
+      if (!dealData.artist_id) missing.push('Artista');
+      if (isOfferPhaseOrBeyond()) {
+        if (dealData.deal_type === 'flat_fee' && !dealData.fee) missing.push('Fee (€)');
+        if (dealData.deal_type === 'door_split' && !dealData.door_split_percentage) missing.push('Porcentaje de Taquilla (%)');
+      }
     }
+    return missing;
   };
 
+  const getAllMissingFields = (): string[] => {
+    return [0, 1, 2].flatMap(getStepMissingFields);
+  };
+
+  const canProceed = () => getStepMissingFields(currentStep).length === 0;
+
   const handleNext = () => {
+    const missing = getStepMissingFields(currentStep);
+    if (missing.length > 0) {
+      toast({
+        title: 'Faltan campos obligatorios',
+        description: missing.join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
     if (currentStep < WIZARD_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     }
@@ -267,6 +294,15 @@ export function CreateBookingWizard({
   };
 
   const handleSubmit = async () => {
+    const missing = getAllMissingFields();
+    if (missing.length > 0) {
+      toast({
+        title: 'Faltan campos obligatorios',
+        description: missing.join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
     setLoading(true);
     
     try {
@@ -465,7 +501,7 @@ export function CreateBookingWizard({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="hora">Hora</Label>
+          <Label htmlFor="hora">Hora {isOfferPhaseOrBeyond() && <span className="text-destructive">*</span>}</Label>
           <Input
             id="hora"
             type="time"
@@ -551,7 +587,7 @@ export function CreateBookingWizard({
         
         <TabsContent value="existing" className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label>Seleccionar Promotor/Buyer</Label>
+            <Label>Seleccionar Promotor/Buyer <span className="text-destructive">*</span></Label>
             <Select
               value={buyerData.contacto}
               onValueChange={(value) => {
@@ -749,7 +785,7 @@ export function CreateBookingWizard({
 
       {dealData.deal_type === 'flat_fee' ? (
         <div className="space-y-2">
-          <Label htmlFor="fee">Fee (€) <span className="text-destructive">*</span></Label>
+          <Label htmlFor="fee">Fee (€) {isOfferPhaseOrBeyond() && <span className="text-destructive">*</span>}</Label>
           <Input
             id="fee"
             type="number"
@@ -760,7 +796,7 @@ export function CreateBookingWizard({
         </div>
       ) : (
         <div className="space-y-2">
-          <Label htmlFor="door_split">Porcentaje de Taquilla (%) <span className="text-destructive">*</span></Label>
+          <Label htmlFor="door_split">Porcentaje de Taquilla (%) {isOfferPhaseOrBeyond() && <span className="text-destructive">*</span>}</Label>
           <Input
             id="door_split"
             type="number"
@@ -865,6 +901,16 @@ export function CreateBookingWizard({
             <CardDescription>{WIZARD_STEPS[currentStep].description}</CardDescription>
           </CardHeader>
           <CardContent>
+            {(() => {
+              const missing = getStepMissingFields(currentStep);
+              if (missing.length === 0) return null;
+              return (
+                <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  <span className="font-medium">Faltan campos obligatorios: </span>
+                  {missing.join(', ')}
+                </div>
+              );
+            })()}
             {renderCurrentStep()}
           </CardContent>
         </Card>
@@ -883,7 +929,7 @@ export function CreateBookingWizard({
           {currentStep < WIZARD_STEPS.length - 1 ? (
             <Button 
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={loading}
             >
               Siguiente
               <ChevronRight className="h-4 w-4 ml-2" />
@@ -891,7 +937,7 @@ export function CreateBookingWizard({
           ) : (
             <Button 
               onClick={handleSubmit}
-              disabled={loading || !canProceed()}
+              disabled={loading}
             >
               {loading ? 'Creando...' : 'Crear Booking'}
             </Button>
