@@ -3,7 +3,7 @@
 //               {{royalty_porcentaje}}, {{grabacion_titulo}}, {{productora_email}}, {{colaboradora_email}}
 
 export type IPLicenseLanguage = 'es' | 'en';
-export type IPLicenseRecordingType = 'single' | 'album';
+export type IPLicenseRecordingType = 'single' | 'album' | 'fullAlbum';
 
 export interface IPLegalClauses {
   objeto_1_1: string;
