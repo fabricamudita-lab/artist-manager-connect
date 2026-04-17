@@ -29,6 +29,7 @@ import {
   getPDFLabels,
   numberToEnglishText,
   MONTHS_EN,
+  MONTHS_ES,
 } from '@/lib/contracts/ipLicenseTemplates';
 
 function numberToSpanishText(n: number): string {
