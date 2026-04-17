@@ -273,6 +273,21 @@ export const PDF_LABELS_EN: IPPDFLabels = {
   signOff: 'And in acknowledgment of compliance with the provisions of this document and to make effective the rights assignment contained in this License, the Parties sign it in duplicate at the place and on the date stated in the header of this document.',
   signProducer: 'The PRODUCER',
   signCollaborator: 'The COLLABORATOR',
+  manifiestoIIFullAlbum: 'That the PRODUCER has requested the COLLABORATOR to participate, as a musical performer and/or artist, in all the musical works that make up the Album (the Recordings), which are detailed in Annex I, for their exploitation as an integral part of the Album and independently in the form of a phonographic single, including or not including a music video and/or promotional audiovisual materials.',
+  manifiestoIVFullAlbum: 'That the PRODUCER has carried out the fixation of the COLLABORATOR\u2019s performances in the Recordings to the satisfaction of the Parties.',
+  subItemsObjetoFullAlbum: {
+    a: 'Album title:',
+    b: 'Number of recordings included:',
+    c: 'Capacity in which the COLLABORATOR participates:',
+    d: 'Nature of participation:',
+    e: 'Participation in music videos (Yes/No):',
+    f: 'Dates of fixation:',
+    g: 'List of recordings:',
+  },
+  annexTitle: 'ANNEX I',
+  annexSubtitle: 'LIST OF ALBUM RECORDINGS',
+  annexIntro: 'The Album comprises the following recordings:',
+  annexClosing: 'The COLLABORATOR participates in ALL the above recordings with the same capacity and nature of participation specified in Clause 1.1 of this agreement.',
 };
 
 export function getPDFLabels(language: IPLicenseLanguage): IPPDFLabels {
