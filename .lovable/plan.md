@@ -1,50 +1,37 @@
 
 
-## Plan: Validación clara de campos obligatorios en CreateBookingWizard
+## Plan: Auto-detectar y bloquear el tipo de licencia IP según el lanzamiento
 
 ### Contexto
 
-El wizard `CreateBookingWizard` (usado en `/booking`) actualmente solo deshabilita el botón "Siguiente/Crear" cuando faltan campos obligatorios (`canProceed()`), sin decir **qué** falta. El usuario quiere:
-1. Aviso explícito de qué campos faltan.
-2. Asteriscos `*` en todos los campos obligatorios.
-3. **Hora y Fee NO obligatorios en fase Interés**, sí obligatorios en fase Oferta+.
+En `IPLicenseGenerator.tsx` ya existe el estado `recordingType` (`single` | `album`) y un selector manual en el Step 0. Cuando se accede desde un lanzamiento (ruta `/releases/:id/contratos`), el `release.type` (`single`, `ep`, `album`) ya está disponible. Mapeo natural:
+- `single` → `single`
+- `ep` / `album` → `album`
 
-Las peticiones extra (índices DB, Zod backend, paginación, RLS, esquema) **no aplican** aquí: esto es validación de UI sobre un formulario que ya inserta en `booking_offers` (tabla existente con RLS). No se crean tablas, no hay listados nuevos, no hay endpoint backend nuevo. Lo digo por transparencia para no inflar el cambio.
+Hay que:
+1. Pre-seleccionar `recordingType` según `release.type` cuando hay release de contexto.
+2. Bloquear el selector (disabled) para que no se pueda elegir otro tipo incompatible.
+3. Mostrar un texto informativo explicando que el tipo viene determinado por el lanzamiento.
 
-### Reglas de obligatoriedad por fase
+### Exploración pendiente
 
-La fase se determina por `dealData.estado` mapeado a `phase` (línea 283-289):
-- `pendiente` → `interes`
-- `oferta` → `oferta`
-- `negociacion`, `confirmado` → exigen lo mismo que oferta+
+Necesito ver `IPLicenseGenerator.tsx` para confirmar:
+- Cómo recibe el release (prop `releaseId`, `release`, o lookup interno).
+- Dónde está el `Select` de `recordingType` en el Step 0.
+- Si ya existe el `useEffect` de auto-detección (lo mencionaba la memoria) — si existe, reforzarlo + añadir el `disabled`.
 
-| Campo | Interés | Oferta / Negociación / Confirmado |
-|---|---|---|
-| Fecha | ✱ | ✱ |
-| Venue **o** Festival/Ciclo | ✱ (uno de los dos) | ✱ |
-| Contacto/Buyer | ✱ | ✱ |
-| Artista | ✱ | ✱ |
-| **Hora** | opcional | ✱ |
-| **Fee / Door split %** | opcional | ✱ |
-
-(Confirmado ya tiene reglas adicionales en `bookingValidations.ts` — no se tocan.)
-
-### Cambios en `src/components/CreateBookingWizard.tsx`
-
-1. **Función `getMissingFields()`**: recorre los 3 pasos y devuelve lista de campos faltantes con etiqueta legible, considerando la fase elegida en step Deal (o asumiendo Interés mientras no se haya pasado por step Deal).
-2. **Reemplazar `canProceed()`** para usar la nueva lógica condicional por fase.
-3. **Asteriscos `*`**: añadir en `Hora` y `Fee/Door split` solo cuando `estado !== 'pendiente'` (renderizado condicional). El resto de obligatorios ya tienen `*`, salvo:
-   - `Contacto` en step Buyer (añadir `*` al label "Seleccionar Promotor/Buyer").
-4. **`handleSubmit`**: al inicio, si `getMissingFields()` no está vacío, mostrar `toast` destructivo con el mensaje:
-   > "Faltan campos obligatorios: Fecha, Hora, Fee" (lista concreta) y **no** insertar.
-5. **Botón "Siguiente"**: al pulsarlo con campos faltantes del paso actual, mostrar `toast` listando qué falta en ese paso (en vez de quedarse mudo y deshabilitado). Mantenerlo habilitado para que el toast pueda dispararse.
-6. **Banner inline opcional** (ligero): debajo del título de cada paso, si hay faltantes, un `<div>` rojo con la lista. Mejora UX sin reescribir el layout.
-
-### Archivos afectados
+### Cambios previstos
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/CreateBookingWizard.tsx` | Validación condicional por fase, asteriscos dinámicos, toast con lista concreta, banner inline |
+| `src/components/IPLicenseGenerator.tsx` | (a) En el `useEffect` que se dispara al cargar release, setear `recordingType` derivado de `release.type`. (b) Pasar `disabled` al `<SelectTrigger>` del tipo cuando hay release vinculado. (c) Añadir `<p>` con texto: "Tipo determinado por el lanzamiento seleccionado". |
 
-Sin cambios de schema, sin migración, sin edge functions.
+### Comportamiento resultante
+
+- **Desde un lanzamiento** (`/releases/:id/contratos`): el tipo se fija automáticamente y no se puede cambiar.
+- **Desde Documentos generales** (sin release): el selector sigue siendo editable como hasta ahora.
+
+### Memoria
+
+Actualizar `mem://contracts/ip-license-generator` para añadir: "El tipo (single/album) se autodetecta y bloquea cuando el contrato se crea desde un lanzamiento (release.type → recordingType)."
 
