@@ -3519,6 +3519,7 @@ export default function ProjectDetail() {
           onOpenChange={setShowSettingsDialog}
           projectId={project.id}
           projectName={project.name}
+          artistId={project.artist_id}
           config={{ ...DEFAULT_CARD_CONFIG, ...((project as any).card_display_config || {}) }}
         />
       )}
