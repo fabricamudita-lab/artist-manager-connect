@@ -33,6 +33,7 @@ import {
 } from '@/lib/artistFieldConfigPresets';
 import { SocialLinksEditor } from '@/components/SocialLinksEditor';
 import type { SocialLink } from '@/lib/social-platforms';
+import { PROCombobox } from '@/components/credits/PROCombobox';
 
 interface ArtistData {
   id: string;
