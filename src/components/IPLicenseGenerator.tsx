@@ -179,6 +179,9 @@ function resolveClause(text: string, d: FormData, language: IPLicenseLanguage = 
     .replace(/\{\{royalty_texto\}\}/g, royaltyText)
     .replace(/\{\{royalty_porcentaje\}\}/g, s(d.royalty_porcentaje))
     .replace(/\{\{grabacion_titulo\}\}/g, s(d.grabacion_titulo))
+    .replace(/\{\{album_titulo\}\}/g, s(d.album_titulo))
+    .replace(/\{\{album_num_tracks\}\}/g, s(d.album_num_tracks))
+    .replace(/\{\{album_duracion_total\}\}/g, s(d.album_duracion_total))
     .replace(/\{\{productora_email\}\}/g, s(d.productora_email))
     .replace(/\{\{colaboradora_email\}\}/g, s(d.colaboradora_email));
 }
