@@ -199,8 +199,17 @@ export default function ContractDraftView() {
   const formData = draft.form_data || {};
   const isIPLicense = draft.draft_type === 'ip_license';
 
-  // Get comments with selection for highlighting
-  const selectionComments = comments.filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved');
+  // Get comments with selection for highlighting (active = not resolved/approved)
+  const selectionComments = useMemo(() => {
+    const active = comments
+      .filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved')
+      .map(c => ({ id: c.id, selected_text: c.selected_text }));
+    // Include pending (in-progress) selection so it stays highlighted while composing
+    if (pendingSelection?.selectedText) {
+      active.push({ id: '__pending__', selected_text: pendingSelection.selectedText });
+    }
+    return active;
+  }, [comments, pendingSelection]);
 
   return (
     <div className="min-h-screen bg-muted/40 flex">
