@@ -88,18 +88,27 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
     draftType: DraftType; title: string; formData: any; clausesData?: any;
     releaseId?: string; bookingId?: string; artistId?: string;
     producerEmail?: string; collaboratorEmail?: string;
+    recordingType?: DraftRecordingType; language?: DraftLanguage;
   }): Promise<ContractDraft | null> => {
     if (!user) return null;
+    const parsed = saveDraftSchema.safeParse(data);
+    if (!parsed.success) {
+      toast.error('Datos inválidos: ' + parsed.error.issues[0].message);
+      return null;
+    }
+    const v = parsed.data;
     const { data: result, error } = await supabase
       .from('contract_drafts')
       .insert({
-        draft_type: data.draftType, title: data.title, form_data: data.formData,
-        clauses_data: data.clausesData || null, created_by: user.id,
-        release_id: data.releaseId || null, booking_id: data.bookingId || null,
-        artist_id: data.artistId || null,
-        producer_email: data.producerEmail || null,
-        collaborator_email: data.collaboratorEmail || null,
-      })
+        draft_type: v.draftType, title: v.title, form_data: v.formData,
+        clauses_data: v.clausesData || null, created_by: user.id,
+        release_id: v.releaseId || null, booking_id: v.bookingId || null,
+        artist_id: v.artistId || null,
+        producer_email: v.producerEmail || null,
+        collaborator_email: v.collaboratorEmail || null,
+        recording_type: v.recordingType || 'single',
+        language: v.language || 'es',
+      } as any)
       .select().single();
     if (error) { toast.error('Error al guardar borrador: ' + error.message); return null; }
     toast.success('Borrador guardado');
@@ -108,13 +117,22 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
 
   const updateDraft = async (draftId: string, updates: {
     formData?: any; clausesData?: any; title?: string; firmaFecha?: string; firmaLugar?: string;
+    recordingType?: DraftRecordingType; language?: DraftLanguage;
   }): Promise<boolean> => {
+    const parsed = updateDraftSchema.safeParse(updates);
+    if (!parsed.success) {
+      toast.error('Datos inválidos: ' + parsed.error.issues[0].message);
+      return false;
+    }
+    const u = parsed.data;
     const updateObj: any = {};
-    if (updates.formData !== undefined) updateObj.form_data = updates.formData;
-    if (updates.clausesData !== undefined) updateObj.clauses_data = updates.clausesData;
-    if (updates.title !== undefined) updateObj.title = updates.title;
-    if (updates.firmaFecha !== undefined) updateObj.firma_fecha = updates.firmaFecha;
-    if (updates.firmaLugar !== undefined) updateObj.firma_lugar = updates.firmaLugar;
+    if (u.formData !== undefined) updateObj.form_data = u.formData;
+    if (u.clausesData !== undefined) updateObj.clauses_data = u.clausesData;
+    if (u.title !== undefined) updateObj.title = u.title;
+    if (u.firmaFecha !== undefined) updateObj.firma_fecha = u.firmaFecha;
+    if (u.firmaLugar !== undefined) updateObj.firma_lugar = u.firmaLugar;
+    if (u.recordingType !== undefined) updateObj.recording_type = u.recordingType;
+    if (u.language !== undefined) updateObj.language = u.language;
 
     const { error } = await supabase.from('contract_drafts').update(updateObj).eq('id', draftId);
     if (error) { toast.error('Error al actualizar: ' + error.message); return false; }
