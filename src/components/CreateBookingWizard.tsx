@@ -919,7 +919,7 @@ export function CreateBookingWizard({
           {currentStep < WIZARD_STEPS.length - 1 ? (
             <Button 
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={loading}
             >
               Siguiente
               <ChevronRight className="h-4 w-4 ml-2" />
@@ -927,7 +927,7 @@ export function CreateBookingWizard({
           ) : (
             <Button 
               onClick={handleSubmit}
-              disabled={loading || !canProceed()}
+              disabled={loading}
             >
               {loading ? 'Creando...' : 'Crear Booking'}
             </Button>
