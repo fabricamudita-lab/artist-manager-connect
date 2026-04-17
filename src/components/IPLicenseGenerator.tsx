@@ -61,6 +61,11 @@ interface IPLicenseGeneratorProps {
   onDraftSaved?: () => void;
 }
 
+interface AlbumTrack {
+  titulo: string;
+  duracion: string;
+}
+
 interface FormData {
   fecha_dia: string;
   fecha_mes: string;
@@ -90,6 +95,13 @@ interface FormData {
   royalty_porcentaje: string;
   firma_productora: string;
   firma_colaboradora: string;
+  // Full album fields
+  album_titulo: string;
+  album_num_grabaciones: string;
+  album_videoclips_si_no: string;
+  album_fecha_fijacion_desde: string;
+  album_fecha_fijacion_hasta: string;
+  album_tracks: AlbumTrack[];
 }
 
 // === Editable clauses (interface + defaults imported from shared templates) ===
@@ -158,6 +170,9 @@ const defaultData: FormData = {
   grabacion_caracter: 'featured artist', acreditacion_nombre: '', acreditacion_caracter: '',
   calidad_entidad: 'músico intérprete', royalty_porcentaje: '20',
   firma_productora: '', firma_colaboradora: '',
+  album_titulo: '', album_num_grabaciones: '', album_videoclips_si_no: 'No',
+  album_fecha_fijacion_desde: '', album_fecha_fijacion_hasta: '',
+  album_tracks: [],
 };
 
 function s(val: string | undefined): string {
@@ -414,17 +429,20 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   addCenteredSection(L.manifiestan);
 
   y += sectionSpace;
-  const mI = recordingType === 'album' ? L.manifiestoIAlbum : L.manifiestoI;
-  addNumberedHanging('I)', mI(s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
+  const mI = (recordingType === 'album' || recordingType === 'fullAlbum') ? L.manifiestoIAlbum : L.manifiestoI;
+  addNumberedHanging('I)', mI(recordingType === 'fullAlbum' ? s(d.album_titulo) : s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('II)', recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
+  const mII = recordingType === 'fullAlbum'
+    ? L.manifiestoIIFullAlbum
+    : (recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
+  addNumberedHanging('II)', mII);
 
   y += sectionSpace;
   addNumberedHanging('III)', L.manifiestoIII(s(d.colaboradora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('IV)', L.manifiestoIV);
+  addNumberedHanging('IV)', recordingType === 'fullAlbum' ? L.manifiestoIVFullAlbum : L.manifiestoIV);
 
   y += sectionSpace;
   addParagraph(L.paraAcordar, indent1);
@@ -440,12 +458,25 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   addParagraph(c.objeto_1_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
-  addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
-  addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
-  addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
-  addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
-  addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  if (recordingType === 'fullAlbum') {
+    const sf = L.subItemsObjetoFullAlbum;
+    const fechas = `desde ${s(d.album_fecha_fijacion_desde)} hasta ${s(d.album_fecha_fijacion_hasta)}`;
+    const listadoLabel = language === 'en' ? 'According to attached Annex I' : 'Según Anexo I adjunto';
+    addSubItem('a. ', sf.a, s(d.album_titulo));
+    addSubItem('b. ', sf.b, s(d.album_num_grabaciones || (d.album_tracks.length ? String(d.album_tracks.length) : '')));
+    addSubItem('c. ', sf.c, s(d.grabacion_calidad));
+    addSubItem('d. ', sf.d, s(d.grabacion_caracter));
+    addSubItem('e. ', sf.e, s(d.album_videoclips_si_no));
+    addSubItem('f. ', sf.f, fechas);
+    addSubItem('g. ', sf.g, listadoLabel);
+  } else {
+    addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
+    addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
+    addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
+    addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
+    addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
+    addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  }
 
   y += sectionSpace;
   addParagraph(c.objeto_1_2, indent1);
@@ -558,6 +589,55 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
 
   addFooter();
 
+  // === ANEXO I (Full Album only) ===
+  if (recordingType === 'fullAlbum') {
+    pdf.addPage();
+    pageNum++;
+    y = 30;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.text(L.annexTitle, pw / 2, y, { align: 'center' });
+    y += 8;
+    pdf.setFontSize(12);
+    pdf.text(L.annexSubtitle, pw / 2, y, { align: 'center' });
+    y += 14;
+
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(fontSize);
+    pdf.text(L.annexIntro, ml, y);
+    y += 10;
+
+    const tracks = d.album_tracks.length > 0 ? d.album_tracks : Array.from({ length: 5 }, () => ({ titulo: '', duracion: '' }));
+    tracks.forEach((t, i) => {
+      checkPage();
+      const titleLabel = language === 'en' ? 'Title' : 'Título';
+      const durLabel = language === 'en' ? 'Duration' : 'Duración';
+      pdf.text(`${i + 1}. ${titleLabel}: ${s(t.titulo)} | ${durLabel}: ${s(t.duracion)}`, ml, y);
+      y += interline + 1;
+    });
+
+    y += 8;
+    checkPage(20);
+    renderLines(L.annexClosing, ml, cw);
+
+    // Signatures on annex
+    checkPage(50);
+    y += 18;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(fontSize);
+    pdf.text(L.signProducer, ml + colW / 2, y, { align: 'center' });
+    pdf.text(L.signCollaborator, ml + colW + 20 + colW / 2, y, { align: 'center' });
+    y += 25;
+    pdf.line(ml, y, ml + colW, y);
+    pdf.line(ml + colW + 20, y, ml + colW + 20 + colW, y);
+    y += 6;
+    pdf.setFont('times', 'normal');
+    pdf.text(s(d.firma_productora), ml + colW / 2, y, { align: 'center' });
+    pdf.text(s(d.firma_colaboradora), ml + colW + 20 + colW / 2, y, { align: 'center' });
+
+    addFooter();
+  }
+
   return pdf;
 }
 
@@ -603,11 +683,30 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
   }, [language, recordingType]);
 
   // Auto-detect recording type from selected release
+  const releaseType = effectiveReleaseId ? releases.find(x => x.id === effectiveReleaseId)?.type : undefined;
+  const isAlbumRelease = releaseType === 'album' || releaseType === 'ep';
   useEffect(() => {
     if (!effectiveReleaseId) return;
-    const r = releases.find(x => x.id === effectiveReleaseId);
-    if (r) setRecordingType(r.type === 'album' || r.type === 'ep' ? 'album' : 'single');
-  }, [effectiveReleaseId, releases]);
+    if (releaseType === 'single') {
+      setRecordingType('single');
+    } else if (isAlbumRelease) {
+      // Default to 'album' but allow user to switch to 'fullAlbum'
+      setRecordingType(prev => (prev === 'album' || prev === 'fullAlbum') ? prev : 'album');
+    }
+  }, [effectiveReleaseId, releaseType, isAlbumRelease]);
+
+  // Auto-populate album_tracks from release tracks when fullAlbum
+  useEffect(() => {
+    if (recordingType !== 'fullAlbum') return;
+    if (formData.album_tracks.length > 0) return;
+    if (tracks.length === 0) return;
+    setFormData(prev => ({
+      ...prev,
+      album_tracks: tracks.map(t => ({ titulo: t.title, duracion: t.duration ? formatDuration(t.duration) : '' })),
+      album_num_grabaciones: prev.album_num_grabaciones || String(tracks.length),
+      album_titulo: prev.album_titulo || (releases.find(r => r.id === effectiveReleaseId)?.title ?? ''),
+    }));
+  }, [recordingType, tracks, formData.album_tracks.length, effectiveReleaseId, releases]);
 
   const handleSaveDraft = async () => {
     setSavingDraft(true);
@@ -788,17 +887,20 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 <Select
                   value={recordingType}
                   onValueChange={(v) => setRecordingType(v as IPLicenseRecordingType)}
-                  disabled={!!effectiveReleaseId}
+                  disabled={releaseType === 'single'}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="album">Álbum / Album</SelectItem>
+                    <SelectItem value="single" disabled={isAlbumRelease}>Single</SelectItem>
+                    <SelectItem value="album" disabled={releaseType === 'single'}>Álbum (canción individual)</SelectItem>
+                    <SelectItem value="fullAlbum" disabled={releaseType === 'single'}>Álbum completo (todas las canciones)</SelectItem>
                   </SelectContent>
                 </Select>
                 {effectiveReleaseId && (
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Tipo determinado por el lanzamiento
+                    {releaseType === 'single'
+                      ? 'Tipo determinado por el lanzamiento (Single)'
+                      : 'El lanzamiento permite Álbum o Álbum completo'}
                   </p>
                 )}
               </div>
@@ -888,6 +990,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 </Select>
               </div>
             )}
+            {recordingType !== 'fullAlbum' && (<>
             <div><Label>Título de la Grabación</Label>
               {tracks.length > 0 && !manualTrack ? (
                 <Select
@@ -987,6 +1090,46 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 </PopoverContent>
               </Popover>
             </div>
+            </>)}
+            {recordingType === 'fullAlbum' && (
+              <div className="space-y-3 p-3 rounded-md border bg-muted/20">
+                <p className="text-xs text-muted-foreground">La COLABORADORA participa en TODAS las canciones del Álbum con el mismo rol y porcentaje.</p>
+                <div><Label>Título del Álbum</Label><Input value={formData.album_titulo} onChange={e => update('album_titulo', e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Nº de grabaciones</Label><Input type="number" value={formData.album_num_grabaciones} onChange={e => update('album_num_grabaciones', e.target.value)} /></div>
+                  <div><Label>Videoclips (Sí/No)</Label>
+                    <Select value={formData.album_videoclips_si_no} onValueChange={v => update('album_videoclips_si_no', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Sí">Sí</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Fecha fijación desde</Label><Input value={formData.album_fecha_fijacion_desde} onChange={e => update('album_fecha_fijacion_desde', e.target.value)} placeholder="dd/mm/aaaa" /></div>
+                  <div><Label>Fecha fijación hasta</Label><Input value={formData.album_fecha_fijacion_hasta} onChange={e => update('album_fecha_fijacion_hasta', e.target.value)} placeholder="dd/mm/aaaa" /></div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Listado de grabaciones (Anexo I)</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setFormData(p => ({ ...p, album_tracks: [...p.album_tracks, { titulo: '', duracion: '' }] }))}>+ Añadir</Button>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.album_tracks.map((t, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <span className="text-xs text-muted-foreground w-6">{i + 1}.</span>
+                        <Input className="flex-1" placeholder="Título" value={t.titulo} onChange={e => setFormData(p => ({ ...p, album_tracks: p.album_tracks.map((x, j) => j === i ? { ...x, titulo: e.target.value } : x) }))} />
+                        <Input className="w-24" placeholder="MM:SS" value={t.duracion} onChange={e => setFormData(p => ({ ...p, album_tracks: p.album_tracks.map((x, j) => j === i ? { ...x, duracion: e.target.value } : x) }))} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFormData(p => ({ ...p, album_tracks: p.album_tracks.filter((_, j) => j !== i) }))}>×</Button>
+                      </div>
+                    ))}
+                    {formData.album_tracks.length === 0 && <p className="text-xs text-muted-foreground">No hay grabaciones. Selecciona un lanzamiento para autopoblar o añade manualmente.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
             <div><Label>Carácter de la intervención</Label>
               <Select value={formData.grabacion_caracter} onValueChange={v => update('grabacion_caracter', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>

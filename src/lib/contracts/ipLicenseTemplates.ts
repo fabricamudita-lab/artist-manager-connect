@@ -3,7 +3,7 @@
 //               {{royalty_porcentaje}}, {{grabacion_titulo}}, {{productora_email}}, {{colaboradora_email}}
 
 export type IPLicenseLanguage = 'es' | 'en';
-export type IPLicenseRecordingType = 'single' | 'album';
+export type IPLicenseRecordingType = 'single' | 'album' | 'fullAlbum';
 
 export interface IPLegalClauses {
   objeto_1_1: string;
@@ -95,8 +95,48 @@ export const IP_CLAUSES_EN_ALBUM: IPLegalClauses = {
   contraprestacion_3_2: '3.2. In the event that the PRODUCER\u2019s income comes from the exploitation of the Album that incorporates the Recording, said income shall be distributed among the number of recordings included therein to calculate the income corresponding to the Recording and pay the artist royalty accordingly. The method of calculating the royalty, in this case, shall therefore be pro rata tituli (or equal shares for each of the titles).',
 };
 
+// =================================================================
+// SPANISH — FULL ALBUM (collaborator on every track, no proration, with Annex I)
+// =================================================================
+export const IP_CLAUSES_ES_FULL_ALBUM: IPLegalClauses = {
+  ...IP_CLAUSES_ES_ALBUM,
+  objeto_1_1: '1.1. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos de propiedad intelectual que recaen sobre sus interpretaciones musicales, fijadas en todas las Grabaciones que componen el Álbum, las cuales se detallan a continuación:',
+  objeto_1_2: '1.2. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos que recaen sobre su imagen personal, incluyendo nombre civil o artístico, con propósito de mención e información relacionada con las Grabaciones, y, en especial los relativos a su imagen personal vinculada a su interpretación en el caso de que existan grabaciones audiovisuales (en la forma de videoclips o similares) vinculadas a las Grabaciones.',
+  alcance_2_1: '2.1. El alcance de las cesiones de derechos de la COLABORADORA a favor de la PRODUCTORA que son objeto de este contrato, se conceden con la mayor amplitud y de forma ilimitada con la finalidad de que la PRODUCTORA pueda explotar las Grabaciones, el Álbum, los videoclips y/o cualquier material promocional, publicitario y/o informativo que acompañe a los mismos, en todos los formatos y sistemas de explotación de música y audiovisuales, a través de todos los medios de explotación que existan durante la vigencia de la presente cesión de derechos y sin más limitaciones que las establecidas en el presente contrato.',
+  alcance_2_2: '2.2. La COLABORADORA cede a la PRODUCTORA, a título enunciativo, pero sin carácter limitativo, el derecho de reproducción, distribución, comunicación pública y transformación necesarios para la pacífica explotación de las Grabaciones y, en su caso, de los audiovisuales que las acompañen, quedando facultada la PRODUCTORA para contratar con terceros la explotación de los mismos, transfiriendo a dichos terceros los mismos derechos y obligaciones que adquiere la PRODUCTORA en este contrato.',
+  alcance_2_3: '2.3. La PRODUCTORA se compromete a acreditar a la COLABORADORA de la siguiente forma, siguiendo los usos y costumbres del sector y según las posibilidades de cada uno de los medios y sistemas de explotación de las Grabaciones, del Álbum y, en su caso, de los videoclips:',
+  alcance_2_4: '2.4. Sin perjuicio de la cesión de derechos otorgada en este documento, la COLABORADORA podrá acreditar su participación en las entidades de gestión de derechos de propiedad intelectual de los artistas intérpretes y ejecutantes, con relación a las Grabaciones y, en su caso, a los videoclips, en calidad de ({{calidad_entidad}}).',
+  alcance_2_5: '2.5. Queda expresamente acordado que la PRODUCTORA, por sí o por terceros, podrá explotar las Grabaciones de forma independiente —sencillo discográfico o single—; como parte integrante del Álbum; en forma de videoclips incluyendo o no la imagen de la COLABORADORA; en forma de fragmentos para su uso en teasers, trailers, piezas promocionales del Álbum, las Grabaciones, los videoclips o la carrera profesional de {{productora_nombre_artistico}}, y, con carácter general, de forma amplia siempre y cuando las interpretaciones de la COLABORADORA formen parte de las Grabaciones y no se utilicen de forma independiente a estas y estén relacionadas con la explotación, publicidad, promoción y/o comunicación de la carrera y productos de {{productora_nombre_artistico}} y/o la PRODUCTORA.',
+  contraprestacion_3_1: '3.1. En contraprestación por la cesión de derechos que es objeto de este contrato y como remuneración total por la participación de la COLABORADORA en las Grabaciones y, en su caso, los videoclips, la PRODUCTORA abonará a la COLABORADORA, por sí o por terceros, un royalty de artista equivalente al {{royalty_texto}} POR CIENTO ({{royalty_porcentaje}}%) de los ingresos que la PRODUCTORA obtenga por la explotación de las Grabaciones y, en su caso, de los videoclips, independientemente de su procedencia. A estos efectos se considerará explotación de las Grabaciones todo acto de comercialización que sea remunerado, incluyendo, para mayor claridad, los ingresos por venta de las Grabaciones en formato digital y en formato físico; los ingresos recibidos por el streaming de las Grabaciones; los ingresos recibidos por el streaming de los videoclips si los hubiera; los ingresos recibidos de la explotación en forma de sincronización de las Grabaciones y, en general, todo acto de comercialización de las Grabaciones en el Territorio y durante el Periodo.',
+  contraprestacion_3_2: '3.2. Dado que la COLABORADORA participa en todas las grabaciones que componen el Álbum, el cálculo del royalty de artista se realizará sobre la totalidad de los ingresos que la PRODUCTORA obtenga por la explotación del Álbum, sin necesidad de prorrateo entre las grabaciones individuales. En el caso de que alguna de las Grabaciones se explote de forma independiente (como sencillo o en otra compilación), el royalty se calculará únicamente sobre los ingresos de dicha explotación específica aplicando el mismo porcentaje establecido en la Cláusula 3.1.',
+  contraprestacion_3_3: '3.3. La PRODUCTORA será la responsable del pago del royalty de artista a la COLABORADORA, si bien la PRODUCTORA podrá encargar dicho pago a terceros a los que licencie la comercialización y/o distribución de las Grabaciones, de forma temporal o permanente.',
+  contraprestacion_3_4: '3.4. La frecuencia del pago del royalty de artista será semestral, coincidiendo con los pagos que reciba la PRODUCTORA por parte de los terceros a quien licencie la comercialización y/o distribución del Álbum y las Grabaciones y no se aplicarán descuentos por parte de la PRODUCTORA.',
+};
+
+// =================================================================
+// ENGLISH — FULL ALBUM
+// =================================================================
+export const IP_CLAUSES_EN_FULL_ALBUM: IPLegalClauses = {
+  ...IP_CLAUSES_EN_ALBUM,
+  objeto_1_1: '1.1. The COLLABORATOR assigns to the PRODUCER, on an exclusive basis, with the right to sublicense to third parties, all intellectual property rights relating to their musical performances, fixed in all the Recordings that make up the Album, which are detailed below:',
+  objeto_1_2: '1.2. The COLLABORATOR assigns to the PRODUCER, on an exclusive basis, with the right to sublicense to third parties, all rights relating to their personal image, including civil or artistic name, for the purpose of mention and information related to the Recordings, and, in particular, those relating to their personal image linked to their performance in the event that there are audiovisual recordings (in the form of music videos or similar) linked to the Recordings.',
+  alcance_2_1: '2.1. The scope of the COLLABORATOR\u2019s rights assignments in favor of the PRODUCER that are the subject of this agreement are granted in the broadest manner and without limitations, so that the PRODUCER may exploit the Recordings, the Album, the music videos and/or any promotional, advertising and/or informational material accompanying them, in all formats and systems for exploiting music and audiovisual works, through all means of exploitation that exist during the term of this rights assignment and with no further limitations than those established in this agreement.',
+  alcance_2_2: '2.2. The COLLABORATOR assigns to the PRODUCER, by way of illustration but not limitation, the rights of reproduction, distribution, public communication, and transformation necessary for the peaceful exploitation of the Recordings and, where applicable, the audiovisual works accompanying them, the PRODUCER being authorized to contract with third parties the exploitation thereof, transferring to said third parties the same rights and obligations that the PRODUCER acquires under this agreement.',
+  alcance_2_3: '2.3. The PRODUCER undertakes to credit the COLLABORATOR in the following manner, following the customary practices of the industry and according to the possibilities of each of the means and systems for exploiting the Recordings, the Album and, where applicable, the music videos:',
+  alcance_2_4: '2.4. Notwithstanding the rights assignment granted in this document, the COLLABORATOR may register their participation with the collective management organizations for the intellectual property rights of performing artists, in relation to the Recordings and, where applicable, the music videos, in the capacity of ({{calidad_entidad}}).',
+  alcance_2_5: '2.5. It is expressly agreed that the PRODUCER, by themselves or through third parties, may exploit the Recordings independently \u2013 single recording or single \u2013; as an integral part of the Album; in the form of music videos including or not including the image of the COLLABORATOR; in the form of fragments for use in teasers, trailers, promotional pieces for the Album, the Recordings, the music videos or the professional career of {{productora_nombre_artistico}}, and, in general, broadly as long as the COLLABORATOR\u2019s performances are part of the Recordings and are not used independently thereof and are related to the exploitation, advertising, promotion and/or communication of the career and products of {{productora_nombre_artistico}} and/or the PRODUCER.',
+  contraprestacion_3_1: '3.1. As consideration for the rights assignment that is the subject of this agreement and as total remuneration for the COLLABORATOR\u2019s participation in the Recordings and, where applicable, the music videos, the PRODUCER shall pay the COLLABORATOR, by themselves or through third parties, an artist royalty equivalent to {{royalty_texto}} PERCENT ({{royalty_porcentaje}}%) of the income that the PRODUCER obtains from the exploitation of the Recordings and, where applicable, the music videos, regardless of its source. For these purposes, exploitation of the Recordings shall be considered to be any act of commercialization that is remunerated, including, for greater clarity, income from the sale of the Recordings in digital format and physical format; income received from streaming of the Recordings; income received from streaming of the music videos if there are any; income received from exploitation in the form of synchronization of the Recordings and, in general, any act of commercialization of the Recordings in the Territory and during the Period.',
+  contraprestacion_3_2: '3.2. Given that the COLLABORATOR participates in all the recordings that make up the Album, the calculation of the artist royalty shall be made on the totality of the income that the PRODUCER obtains from the exploitation of the Album, without the need for proration among the individual recordings. In the event that any of the Recordings is exploited independently (as a single or in another compilation), the royalty shall be calculated only on the income from said specific exploitation applying the same percentage established in Clause 3.1.',
+  contraprestacion_3_3: '3.3. The PRODUCER shall be responsible for payment of the artist royalty to the COLLABORATOR, although the PRODUCER may entrust said payment to third parties to whom it licenses the commercialization and/or distribution of the Recordings, temporarily or permanently.',
+  contraprestacion_3_4: '3.4. The frequency of payment of the artist royalty shall be semi-annual, coinciding with the payments that the PRODUCER receives from third parties to whom it licenses the commercialization and/or distribution of the Album and the Recordings, and no deductions shall be applied by the PRODUCER.',
+};
+
 export function getDefaultIPClauses(language: IPLicenseLanguage, recordingType: IPLicenseRecordingType): IPLegalClauses {
-  if (language === 'en') return recordingType === 'album' ? IP_CLAUSES_EN_ALBUM : IP_CLAUSES_EN_SINGLE;
+  if (language === 'en') {
+    if (recordingType === 'fullAlbum') return IP_CLAUSES_EN_FULL_ALBUM;
+    return recordingType === 'album' ? IP_CLAUSES_EN_ALBUM : IP_CLAUSES_EN_SINGLE;
+  }
+  if (recordingType === 'fullAlbum') return IP_CLAUSES_ES_FULL_ALBUM;
   return recordingType === 'album' ? IP_CLAUSES_ES_ALBUM : IP_CLAUSES_ES_SINGLE;
 }
 
@@ -119,11 +159,14 @@ export interface IPPDFLabels {
   manifiestoIAlbum: (titulo: string, artistico: string) => string;
   manifiestoII: string;
   manifiestoIIAlbum: string;
+  manifiestoIIFullAlbum: string;
   manifiestoIII: (artistico: string) => string;
   manifiestoIV: string;
+  manifiestoIVFullAlbum: string;
   paraAcordar: string;
   clauseTitles: { objeto: string; alcance: string; contraprestacion: string; notificaciones: string; confidencialidad: string; ley: string };
   subItemsObjeto: { a: string; b: string; c: string; d: string; e: string; f: string };
+  subItemsObjetoFullAlbum: { a: string; b: string; c: string; d: string; e: string; f: string; g: string };
   alcanceLetters: { a: string; b: string; c: string };
   alcancePeriod: string;
   alcanceTerritory: string;
@@ -133,6 +176,10 @@ export interface IPPDFLabels {
   signOff: string;
   signProducer: string;
   signCollaborator: string;
+  annexTitle: string;
+  annexSubtitle: string;
+  annexIntro: string;
+  annexClosing: string;
 }
 
 export const PDF_LABELS_ES: IPPDFLabels = {
@@ -172,6 +219,21 @@ export const PDF_LABELS_ES: IPPDFLabels = {
   signOff: 'Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.',
   signProducer: 'La PRODUCTORA',
   signCollaborator: 'La COLABORADORA',
+  manifiestoIIFullAlbum: 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en todas las obras musicales que componen el Álbum (las Grabaciones), las cuales se detallan en el Anexo I, para su explotación como parte integrante del Álbum e independientemente en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.',
+  manifiestoIVFullAlbum: 'Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en las Grabaciones a satisfacción de las Partes.',
+  subItemsObjetoFullAlbum: {
+    a: 'Título del Álbum:',
+    b: 'Número de grabaciones incluidas:',
+    c: 'Calidad en que interviene la COLABORADORA:',
+    d: 'Carácter de la intervención:',
+    e: 'Participación en videoclips (Sí/No):',
+    f: 'Fecha de las fijaciones:',
+    g: 'Listado de grabaciones:',
+  },
+  annexTitle: 'ANEXO I',
+  annexSubtitle: 'LISTADO DE GRABACIONES DEL ÁLBUM',
+  annexIntro: 'El Álbum comprende las siguientes grabaciones:',
+  annexClosing: 'La COLABORADORA participa en TODAS las grabaciones anteriores con la misma calidad y carácter de intervención especificados en la Cláusula 1.1 del presente contrato.',
 };
 
 export const PDF_LABELS_EN: IPPDFLabels = {
@@ -211,6 +273,21 @@ export const PDF_LABELS_EN: IPPDFLabels = {
   signOff: 'And in acknowledgment of compliance with the provisions of this document and to make effective the rights assignment contained in this License, the Parties sign it in duplicate at the place and on the date stated in the header of this document.',
   signProducer: 'The PRODUCER',
   signCollaborator: 'The COLLABORATOR',
+  manifiestoIIFullAlbum: 'That the PRODUCER has requested the COLLABORATOR to participate, as a musical performer and/or artist, in all the musical works that make up the Album (the Recordings), which are detailed in Annex I, for their exploitation as an integral part of the Album and independently in the form of a phonographic single, including or not including a music video and/or promotional audiovisual materials.',
+  manifiestoIVFullAlbum: 'That the PRODUCER has carried out the fixation of the COLLABORATOR\u2019s performances in the Recordings to the satisfaction of the Parties.',
+  subItemsObjetoFullAlbum: {
+    a: 'Album title:',
+    b: 'Number of recordings included:',
+    c: 'Capacity in which the COLLABORATOR participates:',
+    d: 'Nature of participation:',
+    e: 'Participation in music videos (Yes/No):',
+    f: 'Dates of fixation:',
+    g: 'List of recordings:',
+  },
+  annexTitle: 'ANNEX I',
+  annexSubtitle: 'LIST OF ALBUM RECORDINGS',
+  annexIntro: 'The Album comprises the following recordings:',
+  annexClosing: 'The COLLABORATOR participates in ALL the above recordings with the same capacity and nature of participation specified in Clause 1.1 of this agreement.',
 };
 
 export function getPDFLabels(language: IPLicenseLanguage): IPPDFLabels {
