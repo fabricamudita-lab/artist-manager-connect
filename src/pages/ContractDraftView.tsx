@@ -493,144 +493,210 @@ function renderIPLicenseContent(
   selectionComments: Array<{ selected_text: string | null; id: string }>,
   onCommentClick?: (commentId: string) => void,
 ) {
+// ── IP License ──────────────────────────────────────────────────────────
+function renderIPLicenseContent(
+  formData: any,
+  clausesData: any,
+  selectionComments: Array<{ selected_text: string | null; id: string }>,
+  onCommentClick?: (commentId: string) => void,
+  recordingType: IPLicenseRecordingType = 'single',
+  language: IPLicenseLanguage = 'es',
+) {
   const d = formData;
-  const rawClauses = { ...DEFAULT_IP_CLAUSES, ...(clausesData || {}) };
+  const L = getPDFLabels(language);
+  const defaults = getDefaultIPClauses(language, recordingType) as unknown as Record<string, string>;
+  const rawClauses = { ...defaults, ...(clausesData || {}) };
   const c: Record<string, string> = {};
   for (const k of Object.keys(rawClauses)) {
-    c[k] = resolveClause(rawClauses[k], d);
+    c[k] = resolveClause(rawClauses[k], d, language);
   }
+
+  const isFullAlbum = recordingType === 'fullAlbum';
+  const isAlbumish = recordingType === 'album' || isFullAlbum;
+  const isEN = language === 'en';
+
+  // Header date
+  const dateLine = isEN
+    ? `In Barcelona, on ${s(d.fecha_dia)} of ${s(d.fecha_mes)} ${s(d.fecha_anio)}`
+    : `En Barcelona, a ${s(d.fecha_dia)} de ${s(d.fecha_mes)} de ${s(d.fecha_anio)}`;
+
+  const ambasFinal = isEN
+    ? 'The Parties mutually acknowledge each other\u2019s legal capacity to contract and bind themselves and, to this effect,'
+    : 'Las Partes se reconocen recíprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,';
+
+  // Recitals
+  const recitalI = isAlbumish
+    ? L.manifiestoIAlbum(s(isFullAlbum ? d.album_titulo : d.grabacion_titulo), s(d.productora_nombre_artistico))
+    : L.manifiestoI(s(d.grabacion_titulo), s(d.productora_nombre_artistico));
+  const recitalII = isFullAlbum
+    ? L.manifiestoIIFullAlbum
+    : isAlbumish ? L.manifiestoIIAlbum : L.manifiestoII;
+  const recitalIII = L.manifiestoIII(s(d.colaboradora_nombre_artistico));
+  const recitalIV = isFullAlbum ? L.manifiestoIVFullAlbum : L.manifiestoIV;
+
+  const fechasFijacionFullAlbum = isEN
+    ? `from ${s(d.album_fecha_fijacion_desde)} to ${s(d.album_fecha_fijacion_hasta)}`
+    : `desde ${s(d.album_fecha_fijacion_desde)} hasta ${s(d.album_fecha_fijacion_hasta)}`;
+  const annexRefLabel = isEN ? 'According to attached Annex I' : 'Según Anexo I adjunto';
 
   return (
     <>
       <h2 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '32px' }}>
-        Licencia de Cesión de Derechos de Propiedad Intelectual
+        {L.title}
       </h2>
 
-      <p style={{ textAlign: 'left', marginBottom: '28px' }}>
-        En Barcelona, a {s(d.fecha_dia)} de {s(d.fecha_mes)} de {s(d.fecha_anio)}
-      </p>
+      <p style={{ textAlign: 'left', marginBottom: '28px' }}>{dateLine}</p>
 
-      <p style={sectionTitle}>REUNIDOS</p>
+      <p style={sectionTitle}>{L.reunidos}</p>
 
       <p data-clause="reunidos" style={paragraph}>
-        <strong>DE UNA PARTE, </strong>
-        {s(d.productora_nombre)}, mayor de edad, con {s(d.productora_doc_tipo)} {s(d.productora_dni)} y domicilio a estos efectos en {s(d.productora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará la PRODUCTORA.
+        <strong>{L.deUnaParte}</strong>
+        {L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio))}
       </p>
 
       <p data-clause="reunidos" style={paragraph}>
-        <strong>DE OTRA PARTE, </strong>
-        {s(d.colaboradora_nombre)}, mayor de edad, con {s(d.colaboradora_doc_tipo)} {s(d.colaboradora_dni)} y domicilio a estos efectos en {s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará el COLABORADOR o la COLABORADORA indistintamente.
+        <strong>{L.deOtraParte}</strong>
+        {L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio))}
       </p>
 
-      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>
-        En adelante, ambas partes, serán denominadas conjuntamente como las Partes.
-      </p>
-      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>
-        Las Partes se reconocen recíprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,
-      </p>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{L.ambasPartes}</p>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{ambasFinal}</p>
 
-      <p style={sectionTitle}>MANIFIESTAN</p>
+      <p style={sectionTitle}>{L.manifiestan}</p>
 
-      <p data-clause="manifiestan-I" style={romanItem}>
-        <strong>I) </strong>
-        Que la PRODUCTORA, es una compositora, intérprete y productora fonográfica que, en su calidad de productora fonográfica, está produciendo un sencillo fonográfico titulado tentativamente "{s(d.grabacion_titulo)}" (el Sencillo) que será explotado comercialmente bajo su nombre artístico "{s(d.productora_nombre_artistico)}", por sí o por terceros.
-      </p>
+      <p data-clause="manifiestan-I" style={romanItem}><strong>I) </strong>{recitalI}</p>
+      <p data-clause="manifiestan-II" style={romanItem}><strong>II) </strong>{recitalII}</p>
+      <p data-clause="manifiestan-III" style={romanItem}><strong>III) </strong>{recitalIII}</p>
+      <p data-clause="manifiestan-IV" style={romanItem}><strong>IV) </strong>{recitalIV}</p>
 
-      <p data-clause="manifiestan-II" style={romanItem}>
-        <strong>II) </strong>
-        Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en una o más obras musicales (la/s Grabación/es), las cuales se detallarán, o para su explotación en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.
-      </p>
+      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>{L.paraAcordar}</p>
 
-      <p data-clause="manifiestan-III" style={romanItem}>
-        <strong>III) </strong>
-        Que la COLABORADORA, conocida artísticamente como "{s(d.colaboradora_nombre_artistico)}", es una intérprete musical independiente, facultada para aceptar la propuesta de colaboración de la PRODUCTORA, en los términos que se dirán, que no está sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptación y posterior cesión de derechos de propiedad intelectual sobre sus interpretaciones musicales.
-      </p>
+      <p style={sectionTitle}>{L.clausulas}</p>
 
-      <p data-clause="manifiestan-IV" style={romanItem}>
-        <strong>IV) </strong>
-        Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en la/s Grabación/es a satisfacción de las Partes.
-      </p>
-
-      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>
-        Con la finalidad de acordar los términos y condiciones de la colaboración entre las Partes y formalizar la cesión de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes
-      </p>
-
-      <p style={sectionTitle}>CLÁUSULAS</p>
-
-      <p style={clauseTitle}>1. OBJETO</p>
+      <p style={clauseTitle}>1. {L.clauseTitles.objeto}</p>
       <ClauseParagraph clauseKey="1.1" text={c.objeto_1_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
-        <p style={subItem}><strong>a. </strong><strong>Título de la obra Grabación: </strong>{s(d.grabacion_titulo)}</p>
-        <p style={subItem}><strong>b. </strong><strong>Calidad en que interviene la COLABORADORA: </strong>{s(d.grabacion_calidad)}</p>
-        <p style={subItem}><strong>c. </strong><strong>Duración de la Grabación: </strong>{s(d.grabacion_duracion)}</p>
-        <p style={subItem}><strong>d. </strong><strong>Participación (Sí/No) en videoclip de la Grabación: </strong>{s(d.grabacion_videoclip)}</p>
-        <p style={subItem}><strong>e. </strong><strong>Fecha de la fijación: </strong>{s(d.grabacion_fecha_fijacion)}</p>
-        <p style={subItem}><strong>f. </strong><strong>Carácter de la intervención: </strong>{s(d.grabacion_caracter)}</p>
+        {isFullAlbum ? (
+          <>
+            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjetoFullAlbum.a} </strong>{s(d.album_titulo)}</p>
+            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjetoFullAlbum.b} </strong>{s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : ''))}</p>
+            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjetoFullAlbum.c} </strong>{s(d.grabacion_calidad)}</p>
+            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjetoFullAlbum.d} </strong>{s(d.grabacion_caracter)}</p>
+            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjetoFullAlbum.e} </strong>{s(d.album_videoclips_si_no)}</p>
+            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjetoFullAlbum.f} </strong>{fechasFijacionFullAlbum}</p>
+            <p style={subItem}><strong>g. </strong><strong>{L.subItemsObjetoFullAlbum.g} </strong>{annexRefLabel}</p>
+          </>
+        ) : (
+          <>
+            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjeto.a} </strong>{s(d.grabacion_titulo)}</p>
+            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjeto.b} </strong>{s(d.grabacion_calidad)}</p>
+            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjeto.c} </strong>{s(d.grabacion_duracion)}</p>
+            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjeto.d} </strong>{s(d.grabacion_videoclip)}</p>
+            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjeto.e} </strong>{s(d.grabacion_fecha_fijacion)}</p>
+            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjeto.f} </strong>{s(d.grabacion_caracter)}</p>
+          </>
+        )}
       </div>
 
       <ClauseParagraph clauseKey="1.2" text={c.objeto_1_2} comments={selectionComments} onCommentClick={onCommentClick} />
 
-      <p style={clauseTitle}>2. ALCANCE DE LA CESIÓN DE DERECHOS</p>
+      <p style={clauseTitle}>2. {L.clauseTitles.alcance}</p>
       <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
-        <p style={{ marginBottom: '4px' }}><strong>a. PERIODO: </strong>A perpetuidad.</p>
-        <p style={{ marginBottom: '4px' }}><strong>b. TERRITORIO: </strong>El Universo.</p>
-        <p style={{ marginBottom: '4px' }}><strong>c. MEDIOS: </strong>Todos los medios existentes durante la vigencia de este contrato.</p>
+        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.a} </strong>{L.alcancePeriod}</p>
+        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.b} </strong>{L.alcanceTerritory}</p>
+        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.c} </strong>{L.alcanceMeans}</p>
       </div>
 
       <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
-        <p style={subItem}><strong>a. </strong><strong>Nombre artístico: </strong>{s(d.acreditacion_nombre)}</p>
-        <p style={subItem}><strong>b. </strong><strong>Carácter de la intervención: </strong>{s(d.acreditacion_caracter)}</p>
+        <p style={subItem}><strong>a. </strong><strong>{L.acreditacion.a} </strong>{s(d.acreditacion_nombre)}</p>
+        <p style={subItem}><strong>b. </strong><strong>{L.acreditacion.b} </strong>{s(d.acreditacion_caracter)}</p>
       </div>
 
       <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="2.5" text={c.alcance_2_5} comments={selectionComments} onCommentClick={onCommentClick} />
 
-      <p style={clauseTitle}>3. CONTRAPRESTACIÓN</p>
+      <p style={clauseTitle}>3. {L.clauseTitles.contraprestacion}</p>
       <ClauseParagraph clauseKey="3.1" text={c.contraprestacion_3_1} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="3.2" text={c.contraprestacion_3_2} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="3.3" text={c.contraprestacion_3_3} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="3.4" text={c.contraprestacion_3_4} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="3.5" text={c.contraprestacion_3_5} comments={selectionComments} onCommentClick={onCommentClick} />
 
-      <p style={clauseTitle}>4. NOTIFICACIONES</p>
+      <p style={clauseTitle}>4. {L.clauseTitles.notificaciones}</p>
       <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
-        <p style={subItem}><strong>a. </strong><strong>De la PRODUCTORA: </strong>{s(d.productora_email)}</p>
-        <p style={subItem}><strong>b. </strong><strong>De la COLABORADORA: </strong>{s(d.colaboradora_email)}</p>
+        <p style={subItem}><strong>a. </strong><strong>{L.notificacionesParts.a} </strong>{s(d.productora_email)}</p>
+        <p style={subItem}><strong>b. </strong><strong>{L.notificacionesParts.b} </strong>{s(d.colaboradora_email)}</p>
       </div>
 
-      <p style={clauseTitle}>5. CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS</p>
+      <p style={clauseTitle}>5. {L.clauseTitles.confidencialidad}</p>
       <ClauseParagraph clauseKey="5.1" text={c.confidencialidad_5_1} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="5.2" text={c.confidencialidad_5_2} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="5.2b" text={c.confidencialidad_5_2b} comments={selectionComments} onCommentClick={onCommentClick} />
 
-      <p style={clauseTitle}>6. LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS</p>
+      <p style={clauseTitle}>6. {L.clauseTitles.ley}</p>
       <ClauseParagraph clauseKey="6.1" text={c.ley_6_1} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="6.2" text={c.ley_6_2} comments={selectionComments} onCommentClick={onCommentClick} />
 
-      <p data-clause="cierre" style={{ ...paragraph, marginTop: '28px' }}>
-        Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.
-      </p>
+      <p data-clause="cierre" style={{ ...paragraph, marginTop: '28px' }}>{L.signOff}</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', textAlign: 'center', marginTop: '60px' }}>
         <div>
-          <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>La PRODUCTORA</p>
+          <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>{L.signProducer}</p>
           <div style={{ borderBottom: '1px solid #1a1a1a', width: '200px', margin: '0 auto' }} />
           <p style={{ fontSize: '10pt', marginTop: '6px' }}>{s(d.firma_productora || d.productora_nombre)}</p>
         </div>
         <div>
-          <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>La COLABORADORA</p>
+          <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>{L.signCollaborator}</p>
           <div style={{ borderBottom: '1px solid #1a1a1a', width: '200px', margin: '0 auto' }} />
           <p style={{ fontSize: '10pt', marginTop: '6px' }}>{s(d.firma_colaboradora || d.colaboradora_nombre)}</p>
         </div>
       </div>
+
+      {isFullAlbum && (
+        <div style={{ marginTop: '60px', borderTop: '2px solid #1a1a1a', paddingTop: '40px' }} data-clause="anexo-I">
+          <h2 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '13pt', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
+            {L.annexTitle}
+          </h2>
+          <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11pt', textTransform: 'uppercase', marginBottom: '20px' }}>
+            {L.annexSubtitle}
+          </p>
+          <p style={{ marginBottom: '14px' }}>{L.annexIntro}</p>
+          <ol style={{ paddingLeft: '24px', marginBottom: '20px' }}>
+            {(Array.isArray(d.album_tracks) && d.album_tracks.length > 0
+              ? d.album_tracks
+              : [{ titulo: '', duracion: '' }]
+            ).map((t: { titulo: string; duracion: string }, i: number) => (
+              <li key={i} style={{ marginBottom: '4px' }}>
+                <strong>{isEN ? 'Title' : 'Título'}: </strong>{s(t.titulo)}
+                {' | '}
+                <strong>{isEN ? 'Duration' : 'Duración'}: </strong>{s(t.duracion)}
+              </li>
+            ))}
+          </ol>
+          <p style={{ marginTop: '14px', textAlign: 'justify' }}>{L.annexClosing}</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', textAlign: 'center', marginTop: '40px' }}>
+            <div>
+              <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>{L.signProducer}</p>
+              <div style={{ borderBottom: '1px solid #1a1a1a', width: '200px', margin: '0 auto' }} />
+              <p style={{ fontSize: '10pt', marginTop: '6px' }}>{s(d.firma_productora || d.productora_nombre)}</p>
+            </div>
+            <div>
+              <p style={{ fontWeight: 'bold', marginBottom: '48px' }}>{L.signCollaborator}</p>
+              <div style={{ borderBottom: '1px solid #1a1a1a', width: '200px', margin: '0 auto' }} />
+              <p style={{ fontSize: '10pt', marginTop: '6px' }}>{s(d.firma_colaboradora || d.colaboradora_nombre)}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
