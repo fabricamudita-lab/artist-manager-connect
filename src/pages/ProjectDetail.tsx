@@ -61,7 +61,7 @@ import {
   Home,
   Folder,
 } from "lucide-react";
-import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp, StickyNote, MessageCircle, Circle } from "lucide-react";
+import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp, StickyNote, MessageCircle, Circle, Settings } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { ResponsibleSelector } from "@/components/releases/ResponsibleSelector";
 import type { ResponsibleRef } from "@/components/releases/ResponsibleSelector";
