@@ -21,6 +21,15 @@ import { format, parse } from 'date-fns';
 import jsPDF from 'jspdf';
 import { useTracks, useReleases } from '@/hooks/useReleases';
 import { PersonSearchInput, type PersonData } from '@/components/PersonSearchInput';
+import {
+  type IPLegalClauses,
+  type IPLicenseLanguage,
+  type IPLicenseRecordingType,
+  getDefaultIPClauses,
+  getPDFLabels,
+  numberToEnglishText,
+  MONTHS_EN,
+} from '@/lib/contracts/ipLicenseTemplates';
 
 function numberToSpanishText(n: number): string {
   if (n < 0 || n > 100 || !Number.isInteger(n)) return '';
