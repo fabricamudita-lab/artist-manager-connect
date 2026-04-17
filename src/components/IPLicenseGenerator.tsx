@@ -84,6 +84,10 @@ interface FormData {
   grabacion_videoclip: string;
   grabacion_fecha_fijacion: string;
   grabacion_caracter: string;
+  // Album/EP-specific (used when recordingType === 'album')
+  album_titulo: string;
+  album_num_tracks: string;
+  album_duracion_total: string;
   acreditacion_nombre: string;
   acreditacion_caracter: string;
   calidad_entidad: string;
@@ -155,7 +159,9 @@ const defaultData: FormData = {
   colaboradora_nombre_artistico: '', colaboradora_email: '',
   titulo_sencillo: '', grabacion_titulo: '', grabacion_calidad: 'músico intérprete',
   grabacion_duracion: '', grabacion_videoclip: 'Sí', grabacion_fecha_fijacion: '',
-  grabacion_caracter: 'featured artist', acreditacion_nombre: '', acreditacion_caracter: '',
+  grabacion_caracter: 'featured artist',
+  album_titulo: '', album_num_tracks: '', album_duracion_total: '',
+  acreditacion_nombre: '', acreditacion_caracter: '',
   calidad_entidad: 'músico intérprete', royalty_porcentaje: '20',
   firma_productora: '', firma_colaboradora: '',
 };
@@ -173,6 +179,9 @@ function resolveClause(text: string, d: FormData, language: IPLicenseLanguage = 
     .replace(/\{\{royalty_texto\}\}/g, royaltyText)
     .replace(/\{\{royalty_porcentaje\}\}/g, s(d.royalty_porcentaje))
     .replace(/\{\{grabacion_titulo\}\}/g, s(d.grabacion_titulo))
+    .replace(/\{\{album_titulo\}\}/g, s(d.album_titulo))
+    .replace(/\{\{album_num_tracks\}\}/g, s(d.album_num_tracks))
+    .replace(/\{\{album_duracion_total\}\}/g, s(d.album_duracion_total))
     .replace(/\{\{productora_email\}\}/g, s(d.productora_email))
     .replace(/\{\{colaboradora_email\}\}/g, s(d.colaboradora_email));
 }
@@ -415,7 +424,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
 
   y += sectionSpace;
   const mI = recordingType === 'album' ? L.manifiestoIAlbum : L.manifiestoI;
-  addNumberedHanging('I)', mI(s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
+  const tituloObra = recordingType === 'album' ? s(d.album_titulo) : s(d.grabacion_titulo);
+  addNumberedHanging('I)', mI(tituloObra, s(d.productora_nombre_artistico)));
 
   y += sectionSpace;
   addNumberedHanging('II)', recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
@@ -440,12 +450,23 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   addParagraph(c.objeto_1_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
-  addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
-  addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
-  addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
-  addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
-  addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  if (recordingType === 'album') {
+    const SA = L.subItemsObjetoAlbum;
+    addSubItem('a. ', SA.a, s(d.album_titulo));
+    addSubItem('b. ', SA.b, s(d.album_num_tracks));
+    addSubItem('c. ', SA.c, s(d.album_duracion_total));
+    addSubItem('d. ', SA.d, s(d.grabacion_calidad));
+    addSubItem('e. ', SA.e, s(d.grabacion_videoclip));
+    addSubItem('f. ', SA.f, s(d.grabacion_fecha_fijacion));
+    addSubItem('g. ', SA.g, s(d.grabacion_caracter));
+  } else {
+    addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
+    addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
+    addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
+    addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
+    addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
+    addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  }
 
   y += sectionSpace;
   addParagraph(c.objeto_1_2, indent1);
@@ -608,6 +629,25 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     const r = releases.find(x => x.id === effectiveReleaseId);
     if (r) setRecordingType(r.type === 'album' || r.type === 'ep' ? 'album' : 'single');
   }, [effectiveReleaseId, releases]);
+
+  // Auto-fill album fields when release+tracks are loaded
+  useEffect(() => {
+    if (recordingType !== 'album' || !effectiveReleaseId) return;
+    const r = releases.find(x => x.id === effectiveReleaseId);
+    if (!r) return;
+    setFormData(prev => {
+      const next = { ...prev };
+      if (!prev.album_titulo) next.album_titulo = r.title || '';
+      if (tracks.length > 0) {
+        if (!prev.album_num_tracks) next.album_num_tracks = String(tracks.length);
+        const totalSec = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+        if (!prev.album_duracion_total && totalSec > 0) {
+          next.album_duracion_total = formatDuration(totalSec);
+        }
+      }
+      return next;
+    });
+  }, [recordingType, effectiveReleaseId, releases, tracks]);
 
   const handleSaveDraft = async () => {
     setSavingDraft(true);
