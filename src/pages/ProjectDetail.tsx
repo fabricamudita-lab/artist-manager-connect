@@ -61,7 +61,7 @@ import {
   Home,
   Folder,
 } from "lucide-react";
-import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp, StickyNote, MessageCircle, Circle } from "lucide-react";
+import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp, StickyNote, MessageCircle, Circle, Settings } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { ResponsibleSelector } from "@/components/releases/ResponsibleSelector";
 import type { ResponsibleRef } from "@/components/releases/ResponsibleSelector";
@@ -85,6 +85,7 @@ import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestion
 import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
 import { ProjectLinkedBudgets } from "@/components/project-detail/ProjectLinkedBudgets";
 import { ProjectLinkedBookings } from "@/components/project-detail/ProjectLinkedBookings";
+import { ProjectSettingsDialog, DEFAULT_CARD_CONFIG, type CardDisplayConfig } from "@/components/ProjectSettingsDialog";
 interface Project {
   id: string;
   name: string;
@@ -152,6 +153,7 @@ export default function ProjectDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showLinkEntityDialog, setShowLinkEntityDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [linkedEntities, setLinkedEntities] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -1648,6 +1650,14 @@ export default function ProjectDetail() {
                   <Share2 className="w-4 h-4 mr-2" />
                   Compartir
                 </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSettingsDialog(true)}>
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Configuración</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           </CardHeader>
@@ -3501,6 +3511,17 @@ export default function ProjectDetail() {
             .then(({ data }) => setLinkedEntities(data || []));
         }}
       />
+
+      {/* Project Settings Dialog */}
+      {project && (
+        <ProjectSettingsDialog
+          open={showSettingsDialog}
+          onOpenChange={setShowSettingsDialog}
+          projectId={project.id}
+          projectName={project.name}
+          config={{ ...DEFAULT_CARD_CONFIG, ...((project as any).card_display_config || {}) }}
+        />
+      )}
     </div>
   );
 }

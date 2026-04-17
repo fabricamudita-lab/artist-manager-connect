@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ProjectSettingsDialog, DEFAULT_CARD_CONFIG, type CardDisplayConfig } from '@/components/ProjectSettingsDialog';
 import { 
   FolderOpen, 
   Search, 
@@ -19,7 +20,8 @@ import {
   MessageSquare,
   ChevronRight,
   Plus,
-  ArrowUpDown
+  ArrowUpDown,
+  Settings
 } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,6 +42,7 @@ export default function Proyectos() {
   const [filterArtist, setFilterArtist] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Proyectos | MOODITA";
@@ -64,7 +67,7 @@ export default function Proyectos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, description, artist_id, status, created_at, start_date, end_date_estimada')
+        .select('id, name, description, artist_id, status, created_at, start_date, end_date_estimada, card_display_config')
         .is('parent_folder_id', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -263,6 +266,10 @@ export default function Proyectos() {
               const stats = projectStats?.[project.id] || { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0, bookings: 0 };
               const artistName = project.artist?.stage_name || project.artist?.name;
               const statusKey = project.status || 'en_curso';
+              const cfg: CardDisplayConfig = {
+                ...DEFAULT_CARD_CONFIG,
+                ...((project as any).card_display_config || {}),
+              };
 
               return (
                 <Card
@@ -288,47 +295,63 @@ export default function Proyectos() {
                         <Badge variant="outline" className={STATUS_COLORS[statusKey]}>
                           {STATUS_LABELS[statusKey] || statusKey}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); setSettingsProjectId(project.id); }}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
                         <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {project.description && (
+                    {cfg.show_description && project.description && (
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {project.description}
                       </p>
                     )}
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                        <Disc3 className="h-4 w-4 text-orange-500" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Lanzamientos</p>
-                          <p className="font-semibold">{stats.releases}</p>
-                        </div>
+                    {/* Stats Grid — only visible items */}
+                    {(cfg.show_releases || cfg.show_budgets || cfg.show_events) && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {cfg.show_releases && (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                            <Disc3 className="h-4 w-4 text-orange-500" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Lanzamientos</p>
+                              <p className="font-semibold">{stats.releases}</p>
+                            </div>
+                          </div>
+                        )}
+                        {cfg.show_budgets && (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                            <DollarSign className="h-4 w-4 text-green-500" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Presupuestos</p>
+                              <p className="font-semibold">{stats.budgets}</p>
+                            </div>
+                          </div>
+                        )}
+                        {cfg.show_events && (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                            <Music className="h-4 w-4 text-purple-500" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Eventos</p>
+                              <p className="font-semibold">{stats.bookings}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                        <DollarSign className="h-4 w-4 text-green-500" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Presupuestos</p>
-                          <p className="font-semibold">{stats.budgets}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                        <Music className="h-4 w-4 text-purple-500" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Eventos</p>
-                          <p className="font-semibold">{stats.bookings}</p>
-                        </div>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Total items */}
                     <div className="pt-2 border-t">
                      <Badge variant="secondary" className="text-xs">
                         {stats.budgets + stats.documents + stats.solicitudes + stats.releases + stats.bookings} elementos
-                      </Badge>
+                       </Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -336,6 +359,22 @@ export default function Proyectos() {
             })}
           </div>
         )}
+
+        {/* Settings Dialog */}
+        {settingsProjectId && (() => {
+          const proj = filteredProjects?.find(p => p.id === settingsProjectId);
+          if (!proj) return null;
+          const cfg: CardDisplayConfig = { ...DEFAULT_CARD_CONFIG, ...((proj as any).card_display_config || {}) };
+          return (
+            <ProjectSettingsDialog
+              open={!!settingsProjectId}
+              onOpenChange={(open) => { if (!open) setSettingsProjectId(null); }}
+              projectId={proj.id}
+              projectName={proj.name}
+              config={cfg}
+            />
+          );
+        })()}
       </div>
     </DashboardLayout>
   );

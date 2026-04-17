@@ -5764,6 +5764,7 @@ export type Database = {
       projects: {
         Row: {
           artist_id: string | null
+          card_display_config: Json
           created_at: string
           created_by: string
           description: string | null
@@ -5788,6 +5789,7 @@ export type Database = {
         }
         Insert: {
           artist_id?: string | null
+          card_display_config?: Json
           created_at?: string
           created_by: string
           description?: string | null
@@ -5812,6 +5814,7 @@ export type Database = {
         }
         Update: {
           artist_id?: string | null
+          card_display_config?: Json
           created_at?: string
           created_by?: string
           description?: string | null
