@@ -124,7 +124,6 @@ export interface IPPDFLabels {
   paraAcordar: string;
   clauseTitles: { objeto: string; alcance: string; contraprestacion: string; notificaciones: string; confidencialidad: string; ley: string };
   subItemsObjeto: { a: string; b: string; c: string; d: string; e: string; f: string };
-  subItemsObjetoAlbum: { a: string; b: string; c: string; d: string; e: string; f: string; g: string };
   alcanceLetters: { a: string; b: string; c: string };
   alcancePeriod: string;
   alcanceTerritory: string;
@@ -164,15 +163,6 @@ export const PDF_LABELS_ES: IPPDFLabels = {
     e: 'Fecha de la fijación:',
     f: 'Carácter de la intervención:',
   },
-  subItemsObjetoAlbum: {
-    a: 'Título del Álbum / EP:',
-    b: 'Número de grabaciones del Álbum:',
-    c: 'Duración total del Álbum:',
-    d: 'Calidad en que interviene la COLABORADORA:',
-    e: 'Participación (Sí/No) en videoclip(s) del Álbum:',
-    f: 'Fecha de fijación del fonograma:',
-    g: 'Carácter de la intervención:',
-  },
   alcanceLetters: { a: 'a. PERIODO:', b: 'b. TERRITORIO:', c: 'c. MEDIOS:' },
   alcancePeriod: 'A perpetuidad.',
   alcanceTerritory: 'El Universo.',
@@ -211,15 +201,6 @@ export const PDF_LABELS_EN: IPPDFLabels = {
     d: 'Participation (Yes/No) in music video of the Recording:',
     e: 'Date of fixation:',
     f: 'Nature of participation:',
-  },
-  subItemsObjetoAlbum: {
-    a: 'Title of the Album / EP:',
-    b: 'Number of recordings in the Album:',
-    c: 'Total duration of the Album:',
-    d: 'Capacity in which the COLLABORATOR participates:',
-    e: 'Participation (Yes/No) in music video(s) of the Album:',
-    f: 'Date of fixation of the phonogram:',
-    g: 'Nature of participation:',
   },
   alcanceLetters: { a: 'a. PERIOD:', b: 'b. TERRITORY:', c: 'c. MEANS:' },
   alcancePeriod: 'In perpetuity.',
