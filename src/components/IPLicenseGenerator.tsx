@@ -630,6 +630,25 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     if (r) setRecordingType(r.type === 'album' || r.type === 'ep' ? 'album' : 'single');
   }, [effectiveReleaseId, releases]);
 
+  // Auto-fill album fields when release+tracks are loaded
+  useEffect(() => {
+    if (recordingType !== 'album' || !effectiveReleaseId) return;
+    const r = releases.find(x => x.id === effectiveReleaseId);
+    if (!r) return;
+    setFormData(prev => {
+      const next = { ...prev };
+      if (!prev.album_titulo) next.album_titulo = r.title || '';
+      if (tracks.length > 0) {
+        if (!prev.album_num_tracks) next.album_num_tracks = String(tracks.length);
+        const totalSec = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+        if (!prev.album_duracion_total && totalSec > 0) {
+          next.album_duracion_total = formatDuration(totalSec);
+        }
+      }
+      return next;
+    });
+  }, [recordingType, effectiveReleaseId, releases, tracks]);
+
   const handleSaveDraft = async () => {
     setSavingDraft(true);
     try {
