@@ -563,8 +563,10 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
 
 export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: externalReleaseId, draftId, onDraftSaved }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
+  const [language, setLanguage] = useState<IPLicenseLanguage>('es');
+  const [recordingType, setRecordingType] = useState<IPLicenseRecordingType>('single');
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
-  const [ipClauses, setIpClauses] = useState<IPLegalClauses>({ ...DEFAULT_IP_CLAUSES });
+  const [ipClauses, setIpClauses] = useState<IPLegalClauses>(getDefaultIPClauses('es', 'single'));
   const [manualTrack, setManualTrack] = useState(false);
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | undefined>(externalReleaseId);
   const effectiveReleaseId = externalReleaseId || selectedReleaseId;
