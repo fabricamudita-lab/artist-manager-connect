@@ -887,17 +887,20 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
                 <Select
                   value={recordingType}
                   onValueChange={(v) => setRecordingType(v as IPLicenseRecordingType)}
-                  disabled={!!effectiveReleaseId}
+                  disabled={releaseType === 'single'}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="album">Álbum / Album</SelectItem>
+                    <SelectItem value="single" disabled={isAlbumRelease}>Single</SelectItem>
+                    <SelectItem value="album" disabled={releaseType === 'single'}>Álbum (canción individual)</SelectItem>
+                    <SelectItem value="fullAlbum" disabled={releaseType === 'single'}>Álbum completo (todas las canciones)</SelectItem>
                   </SelectContent>
                 </Select>
                 {effectiveReleaseId && (
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Tipo determinado por el lanzamiento
+                    {releaseType === 'single'
+                      ? 'Tipo determinado por el lanzamiento (Single)'
+                      : 'El lanzamiento permite Álbum o Álbum completo'}
                   </p>
                 )}
               </div>
