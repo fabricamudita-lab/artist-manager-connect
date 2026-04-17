@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { saveDraftSchema, updateDraftSchema } from '@/lib/validation/contractDraft';
 
 export type DraftStatus = 'borrador' | 'en_negociacion' | 'listo_para_firma' | 'firmado';
 export type DraftType = 'ip_license' | 'booking';
+export type DraftRecordingType = 'single' | 'album' | 'fullAlbum';
+export type DraftLanguage = 'es' | 'en';
 
 export interface ContractDraft {
   id: string;
@@ -23,6 +26,8 @@ export interface ContractDraft {
   firma_lugar: string | null;
   producer_email: string | null;
   collaborator_email: string | null;
+  recording_type: DraftRecordingType;
+  language: DraftLanguage;
   created_at: string;
   updated_at: string;
 }
