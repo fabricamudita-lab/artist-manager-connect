@@ -84,6 +84,10 @@ interface FormData {
   grabacion_videoclip: string;
   grabacion_fecha_fijacion: string;
   grabacion_caracter: string;
+  // Album/EP-specific (used when recordingType === 'album')
+  album_titulo: string;
+  album_num_tracks: string;
+  album_duracion_total: string;
   acreditacion_nombre: string;
   acreditacion_caracter: string;
   calidad_entidad: string;
@@ -155,7 +159,9 @@ const defaultData: FormData = {
   colaboradora_nombre_artistico: '', colaboradora_email: '',
   titulo_sencillo: '', grabacion_titulo: '', grabacion_calidad: 'músico intérprete',
   grabacion_duracion: '', grabacion_videoclip: 'Sí', grabacion_fecha_fijacion: '',
-  grabacion_caracter: 'featured artist', acreditacion_nombre: '', acreditacion_caracter: '',
+  grabacion_caracter: 'featured artist',
+  album_titulo: '', album_num_tracks: '', album_duracion_total: '',
+  acreditacion_nombre: '', acreditacion_caracter: '',
   calidad_entidad: 'músico intérprete', royalty_porcentaje: '20',
   firma_productora: '', firma_colaboradora: '',
 };
