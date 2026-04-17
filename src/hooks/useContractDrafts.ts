@@ -383,5 +383,6 @@ export function usePublicDraft(token: string | undefined) {
     addComment, addSelectionComment,
     resolveComment, proposeChange, approveChange, rejectChange,
     refetch: fetchDraft,
+    commentsTotal, loadMoreComments,
   };
 }
