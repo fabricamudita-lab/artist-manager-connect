@@ -359,6 +359,22 @@ export default function Proyectos() {
             })}
           </div>
         )}
+
+        {/* Settings Dialog */}
+        {settingsProjectId && (() => {
+          const proj = filteredProjects?.find(p => p.id === settingsProjectId);
+          if (!proj) return null;
+          const cfg: CardDisplayConfig = { ...DEFAULT_CARD_CONFIG, ...((proj as any).card_display_config || {}) };
+          return (
+            <ProjectSettingsDialog
+              open={!!settingsProjectId}
+              onOpenChange={(open) => { if (!open) setSettingsProjectId(null); }}
+              projectId={proj.id}
+              projectName={proj.name}
+              config={cfg}
+            />
+          );
+        })()}
       </div>
     </DashboardLayout>
   );
