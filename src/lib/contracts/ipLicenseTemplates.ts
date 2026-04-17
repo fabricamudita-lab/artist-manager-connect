@@ -219,6 +219,21 @@ export const PDF_LABELS_ES: IPPDFLabels = {
   signOff: 'Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.',
   signProducer: 'La PRODUCTORA',
   signCollaborator: 'La COLABORADORA',
+  manifiestoIIFullAlbum: 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en todas las obras musicales que componen el Álbum (las Grabaciones), las cuales se detallan en el Anexo I, para su explotación como parte integrante del Álbum e independientemente en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.',
+  manifiestoIVFullAlbum: 'Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en las Grabaciones a satisfacción de las Partes.',
+  subItemsObjetoFullAlbum: {
+    a: 'Título del Álbum:',
+    b: 'Número de grabaciones incluidas:',
+    c: 'Calidad en que interviene la COLABORADORA:',
+    d: 'Carácter de la intervención:',
+    e: 'Participación en videoclips (Sí/No):',
+    f: 'Fecha de las fijaciones:',
+    g: 'Listado de grabaciones:',
+  },
+  annexTitle: 'ANEXO I',
+  annexSubtitle: 'LISTADO DE GRABACIONES DEL ÁLBUM',
+  annexIntro: 'El Álbum comprende las siguientes grabaciones:',
+  annexClosing: 'La COLABORADORA participa en TODAS las grabaciones anteriores con la misma calidad y carácter de intervención especificados en la Cláusula 1.1 del presente contrato.',
 };
 
 export const PDF_LABELS_EN: IPPDFLabels = {
