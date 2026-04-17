@@ -597,6 +597,18 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     }
   }, [draftId, open]);
 
+  // Re-apply default clauses when language or recording type changes (only if user hasn't customized)
+  useEffect(() => {
+    setIpClauses(getDefaultIPClauses(language, recordingType));
+  }, [language, recordingType]);
+
+  // Auto-detect recording type from selected release
+  useEffect(() => {
+    if (!effectiveReleaseId) return;
+    const r = releases.find(x => x.id === effectiveReleaseId);
+    if (r) setRecordingType(r.type === 'album' || r.type === 'ep' ? 'album' : 'single');
+  }, [effectiveReleaseId, releases]);
+
   const handleSaveDraft = async () => {
     setSavingDraft(true);
     try {
