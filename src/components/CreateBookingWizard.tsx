@@ -294,6 +294,15 @@ export function CreateBookingWizard({
   };
 
   const handleSubmit = async () => {
+    const missing = getAllMissingFields();
+    if (missing.length > 0) {
+      toast({
+        title: 'Faltan campos obligatorios',
+        description: missing.join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
     setLoading(true);
     
     try {
