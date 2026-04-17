@@ -204,7 +204,7 @@ export default function ReleasePitch() {
               <CardContent className="flex items-center gap-4 py-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{pitch.name}</h3>
+                    <PitchNameEditor pitch={pitch} releaseId={id!} />
                     <Badge className={PITCH_STATUS_COLORS[pitch.pitch_status] || ''}>
                       {PITCH_STATUS_LABELS[pitch.pitch_status] || pitch.pitch_status}
                     </Badge>
