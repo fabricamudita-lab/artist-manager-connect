@@ -1,29 +1,43 @@
 
 
-## Plan: Añadir versiones en inglés de las Licencias IP (Single y Álbum)
+## Por qué está así (y por qué es confuso)
 
-### Contexto
+Cuando construí el wizard, reutilicé **el mismo paso 3 ("Grabación y Derechos") para Single y para Álbum/EP**, sin diferenciar. La plantilla legal en castellano usa el placeholder `{{titulo_sencillo}}` / `{{grabacion_titulo}}` en cláusulas como *"el/la artista colaborará en la grabación titulada ___"*.
 
-El generador de Licencias IP (`mem://contracts/ip-license-generator`) actualmente soporta versiones en castellano para Single y Álbum. El usuario quiere añadir las mismas dos plantillas en inglés, manteniendo la lógica del wizard de 5 pasos, variables, justificación textual y búsqueda de personas intactas.
+- **Para un Single**: tiene todo el sentido. Es UNA grabación concreta.
+- **Para un Álbum/EP**: la cesión cubre **todas las grabaciones del fonograma**, no una sola canción. Pedir "Título de la grabación" + "Duración" + "Fecha de fijación" de un único track es:
+  1. Confuso (¿por qué solo uno si son 12?).
+  2. Legalmente impreciso (la licencia debería referirse al álbum como obra colectiva).
+  3. Redundante con el campo "Lanzamiento" que ya elegiste arriba.
 
-### Pasos
+No tiene utilidad real en modo álbum — fue un descuido al duplicar las plantillas.
 
-1. **Leer los .pages adjuntos** con `document--parse_document` para extraer el texto exacto en inglés de ambas licencias (Single y Álbum).
-2. **Localizar el generador IP** (probablemente en `src/components/contracts/` o `src/lib/contracts/`) e identificar dónde están las plantillas en castellano y cómo se seleccionan.
-3. **Añadir selector de idioma** (ES / EN) en el paso correspondiente del wizard, por defecto ES para no romper flujos existentes.
-4. **Crear las plantillas EN** como constantes paralelas a las ES, reutilizando exactamente los mismos placeholders (`{{nombre_artista}}`, `{{titulo_obra}}`, etc.) para que la lógica de relleno no cambie.
-5. **Traducir las etiquetas y textos de justificación** al inglés cuando el idioma seleccionado sea EN (cláusulas, encabezados, firmas).
-6. **Verificar exportación PDF**: el componente de generación de PDF debe seguir funcionando idéntico — solo cambia el contenido textual.
+## Plan de cambio
 
-### Archivos previstos
+Hacer que el paso 3 sea **adaptativo según `recordingType`**:
+
+### Modo Single (sin cambios)
+- Selector de track + duración + fecha de fijación + videoclip de ESA grabación.
+
+### Modo Álbum / EP (nuevo)
+- **Ocultar**: selector de track individual, "Título de la Grabación", "Duración" (de un track).
+- **Mostrar en su lugar**:
+  - **Título del álbum/EP**: autocompletado desde el `release` seleccionado, editable.
+  - **Número de grabaciones**: autocompletado contando `tracks.length`, editable.
+  - **Duración total**: suma automática de duraciones de tracks, editable.
+  - **Fecha de fijación del fonograma**: una sola fecha para toda la obra.
+  - **Videoclip(s)**: Sí / No (mantener).
+- Resto del paso (calidad de intervención, carácter, acreditación, royalty) **se mantiene igual** porque aplica al colaborador, no a una canción.
+
+### Cambios técnicos
 
 | Archivo | Cambio |
 |---|---|
-| `src/lib/contracts/ipLicenseTemplates.ts` (o similar) | Añadir `IP_LICENSE_SINGLE_EN` y `IP_LICENSE_ALBUM_EN` |
-| Componente del wizard IP | Añadir Select de idioma; pasar plantilla correcta según ES/EN |
-| Memoria `mem://contracts/ip-license-generator` | Actualizar para reflejar soporte bilingüe |
+| `src/components/IPLicenseGenerator.tsx` | Añadir `FormData` campos `album_titulo`, `album_num_tracks`, `album_duracion_total`. Renderizado condicional del paso 3 según `recordingType`. Auto-cálculo desde `release`+`tracks` cuando se selecciona álbum. |
+| `src/lib/contracts/ipLicenseTemplates.ts` | Verificar/ajustar placeholders en `IP_CLAUSES_ES_ALBUM` y `IP_CLAUSES_EN_ALBUM` para usar `{{album_titulo}}`, `{{album_num_tracks}}`, etc. en vez de `{{titulo_sencillo}}`. |
+| `mem://contracts/ip-license-generator` | Documentar diferenciación Single vs Álbum en paso 3. |
 
-### Antes de implementar
+### Resultado
 
-Necesito leer los dos `.pages` para extraer el texto en inglés y localizar la estructura actual del generador IP en el código.
+El usuario que selecciona "Álbum" o "EP" verá un paso 3 coherente con la naturaleza colectiva del fonograma, sin tener que elegir un track suelto que no representa la obra licenciada.
 
