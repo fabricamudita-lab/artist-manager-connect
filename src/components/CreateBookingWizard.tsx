@@ -901,6 +901,16 @@ export function CreateBookingWizard({
             <CardDescription>{WIZARD_STEPS[currentStep].description}</CardDescription>
           </CardHeader>
           <CardContent>
+            {(() => {
+              const missing = getStepMissingFields(currentStep);
+              if (missing.length === 0) return null;
+              return (
+                <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  <span className="font-medium">Faltan campos obligatorios: </span>
+                  {missing.join(', ')}
+                </div>
+              );
+            })()}
             {renderCurrentStep()}
           </CardContent>
         </Card>
