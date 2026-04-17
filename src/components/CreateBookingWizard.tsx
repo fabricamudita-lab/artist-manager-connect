@@ -501,7 +501,7 @@ export function CreateBookingWizard({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="hora">Hora</Label>
+          <Label htmlFor="hora">Hora {isOfferPhaseOrBeyond() && <span className="text-destructive">*</span>}</Label>
           <Input
             id="hora"
             type="time"
