@@ -785,13 +785,22 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
               </div>
               <div>
                 <Label className="text-xs">Tipo / Type</Label>
-                <Select value={recordingType} onValueChange={(v) => setRecordingType(v as IPLicenseRecordingType)}>
+                <Select
+                  value={recordingType}
+                  onValueChange={(v) => setRecordingType(v as IPLicenseRecordingType)}
+                  disabled={!!effectiveReleaseId}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="single">Single</SelectItem>
                     <SelectItem value="album">Álbum / Album</SelectItem>
                   </SelectContent>
                 </Select>
+                {effectiveReleaseId && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Tipo determinado por el lanzamiento
+                  </p>
+                )}
               </div>
             </div>
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Datos de la Productora</h3>
