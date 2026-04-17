@@ -64,7 +64,7 @@ export default function Proyectos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, description, artist_id, status, created_at, start_date, end_date_estimada')
+        .select('id, name, description, artist_id, status, created_at, start_date, end_date_estimada, card_display_config')
         .is('parent_folder_id', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
