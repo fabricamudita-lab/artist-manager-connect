@@ -688,7 +688,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
   };
 
   const handleGenerate = async () => {
-    const pdf = generatePDF(formData, ipClauses);
+    const pdf = generatePDF(formData, ipClauses, language, recordingType);
     const blob = pdf.output('blob');
     
     if (onSave) {
