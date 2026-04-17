@@ -2,100 +2,72 @@
 
 ## Análisis
 
-Dos peticiones relacionadas con metadata de publishing:
+El usuario pide que la deduplicación de contactos sea **inteligente** y detecte casos como:
+- "Lecuala" y "Lecuala Films" → misma empresa (uno contiene al otro)
+- "Leyre" y "Leyre Estruch" → misma persona (nombre corto vs nombre completo)
 
-1. **Sociedades de gestión (PRO)** — Lista por defecto según país (SGAE/ES, ASCAP/BMI/SESAC/US, PRS/UK, SACM/MX, SADAIC/AR…) con opción de añadir nuevas que queden registradas para futuro uso.
-2. **Número IPI** — Campo obligatorio (11 dígitos) en perfil de artista y de contacto, ya que sin IPI las regalías no se distribuyen.
+La función actual `deduplicateContacts.ts` solo agrupa por **igualdad exacta** del nombre normalizado (`name.trim().toLowerCase()`), por eso no detecta estos casos.
 
-La captura muestra el input actual "Sociedad (PRO) — ej. SGAE, BMI", que es texto libre. Hay que convertirlo en combobox con sugerencias por país + custom + persistencia.
+## Exploración
 
-## Exploración previa necesaria
-- Buscar dónde está el input "Sociedad (PRO)" → probablemente en `AddCreditWithProfileForm.tsx` o un sub-componente de perfil publishing.
-- `src/lib/` para ver si ya existe constante de PROs o países.
-- Estructura tabla `artists` y `contacts` (o `profiles`) para añadir `ipi_number`.
-- `field_config` JSONB en perfiles (memoria `mem://contacts/profile-system-config`) — puede ser el lugar natural para `ipi_number` si no queremos columna nueva.
+Ya tengo `src/lib/deduplicateContacts.ts` en contexto. Veo que:
+- Agrupa con `Map<string, contacts>` usando key = nombre normalizado.
+- Fusiona automáticamente sin pedir confirmación.
+
+Necesito revisar dónde se invoca esta función (probablemente con un botón "Deduplicar" en `/agenda`) para añadir un paso de confirmación de los casos "sospechosos".
+<lov-tool-use id="toolu_vrtx_012yRrxFHwdyrXAjg57o9Dak" name="code--search_files" integration-id="code" data="{\"query\": \"deduplicateContacts\", \"include_patterns\": \"*.tsx,*.ts\"}">
+</lov-tool-use>
+
+<lov-tool-use id="toolu_vrtx_01R4UKK8vdmjPaNhN3o9EcHL" name="code--search_files" integration-id="code" data="{\"query\": \"deduplicateContacts\", \"include_patterns\": \"*.ts,*.tsx\"}">
+</lov-tool-use>
+<lov-plan>
+
+## Análisis
+
+Hoy `deduplicateContacts.ts` solo agrupa por **nombre exacto normalizado** (`name.trim().toLowerCase()`). Por eso "Lecuala" + "Lecuala Films" o "Leyre" + "Leyre Estruch" no se detectan: son strings distintos.
+
+El usuario quiere que el botón "Deduplicar" **sugiera posibles coincidencias** cuando los nombres son similares (no idénticos), especialmente si son nombres poco comunes.
 
 ## Plan
 
-### 1. Catálogo de PROs (datos seed + tabla custom)
+### 1. Algoritmo de similitud
+Añadir en `src/lib/contactSimilarity.ts`:
+- Normalización (lowercase, sin tildes, sin sufijos comunes: `films`, `music`, `records`, `studio`, `productions`, `mgmt`, `oficial`, `official`).
+- Tres reglas combinables:
+  1. **Subset de tokens**: tokens(A) ⊂ tokens(B) → match (cubre "Leyre" ⊂ "Leyre Estruch", "Lecuala" ⊂ "Lecuala Films").
+  2. **Levenshtein** sobre el primer token con umbral ≤2 para errores tipográficos.
+  3. **Rareza del nombre**: si el primer token aparece <3 veces en la base del usuario, baja el umbral (más permisivo); si es muy común (María, José, Juan…) se exige coincidencia más fuerte. Lista corta de nombres comunes hardcodeada.
+- Devuelve `score` 0-1 + razón legible ("Mismo primer nombre", "Nombre contenido en…", "Tipográfica").
 
-**a) Constante estática** `src/lib/pros.ts`:
-```ts
-export const DEFAULT_PROS: { country: string; code: string; name: string; website?: string }[] = [
-  { country: 'ES', code: 'SGAE', name: 'SGAE', website: 'sgae.es' },
-  { country: 'US', code: 'ASCAP', name: 'ASCAP' },
-  { country: 'US', code: 'BMI', name: 'BMI' },
-  { country: 'US', code: 'SESAC', name: 'SESAC' },
-  { country: 'GB', code: 'PRS', name: 'PRS for Music' },
-  { country: 'MX', code: 'SACM', name: 'SACM' },
-  { country: 'AR', code: 'SADAIC', name: 'SADAIC' },
-  // + otras comunes: SACEM (FR), GEMA (DE), SIAE (IT), SOCAN (CA), APRA (AU), JASRAC (JP)…
-];
-```
+### 2. Cambio de flujo: de auto-merge a sugerencias
+Hoy el botón fusiona directamente todo. Nuevo comportamiento:
+- **Exactos**: se siguen fusionando automáticamente como ahora (sin fricción).
+- **Similares (score ≥ umbral)**: NO se fusionan; se devuelven como `suggestions: { primary, candidate, score, reason }[]`.
 
-**b) Tabla `custom_pros`** (mismo patrón que `custom_instruments`):
-```text
-custom_pros
-  id            uuid PK
-  workspace_id  uuid FK workspaces (NOT NULL)
-  name          text (1-100, único case-insensitive por workspace)
-  country       text (ISO-2, opcional)
-  created_by    uuid
-  created_at    timestamptz
-```
-- RLS: SELECT/INSERT para miembros del workspace; DELETE para OWNER (`user_is_workspace_owner`).
-- Índice único `(workspace_id, lower(name))`.
+### 3. UI: diálogo de revisión `DeduplicationReviewDialog`
+Tras pulsar "Deduplicar":
+- Toast con resultado de los exactos ("X fusionados automáticamente").
+- Si hay sugerencias → abrir diálogo modal mostrando pares lado a lado:
+  - Avatar + nombre + categoría + email + nº de track credits / proyectos asociados (para ayudar a decidir).
+  - Razón de la sugerencia ("Lecuala está contenido en Lecuala Films").
+  - Botones por par: **Fusionar** / **Mantener separados** / **Saltar**.
+  - Selector de cuál es el "principal" (por defecto el más antiguo o con más datos).
+- "Mantener separados" guarda la decisión en una nueva tabla `contact_dedup_dismissals` (`workspace_id`, `contact_id_a`, `contact_id_b`, `dismissed_by`, `created_at`) para no volver a sugerirlo.
 
-### 2. Componente `PROCombobox`
+### 4. Reutilizar lógica de merge existente
+La función actual ya hace merge correcto (track_credits, artist_assignments, group_members, team_categories). Refactor mínimo:
+- Extraer `mergePairOfContacts(primaryId, duplicateId)` reutilizable.
+- `deduplicateContacts()` la usa para exactos y el diálogo la invoca por par tras confirmación.
 
-Reutilizable, recibe `country` opcional para priorizar sugerencias.
+### 5. Cambios resumidos
 
-- Muestra primero PROs del país detectado (fallback al país del workspace o del artista).
-- Después el resto de defaults.
-- Después customs del workspace.
-- Opción "+ Añadir nueva sociedad" → modal mínimo (nombre + país opcional) → inserta en `custom_pros` y la selecciona.
-- Validación Zod (`name` 1-100 chars, `country` ISO-2).
-- Hook `useCustomPros(workspaceId)` con React Query (cache + invalidación).
-
-Sustituye el input libre actual de "Sociedad (PRO)" en el formulario de credit/profile.
-
-### 3. Campo IPI
-
-**a) Esquema:**
-- Añadir columna `ipi_number text` a las tablas `artists` y `contacts` (o `profiles` según donde vivan los autores). 
-- Validación: 9–11 dígitos numéricos (formato CISAC). Almaceno como `text` para preservar ceros a la izquierda.
-- Index opcional para búsquedas.
-
-**b) UI:**
-- En `ArtistInfoDialog` → sección "Identidad profesional / Publishing": añadir campo "Número IPI (CISAC)" + "Sociedad (PRO)" usando el nuevo `PROCombobox`.
-- En el formulario de contacto (perfil colaborador) misma cosa cuando el contacto tenga rol de autoría/compositor.
-- En `AddCreditWithProfileForm.tsx` (sección publishing) mostrar IPI + PRO debajo del split %, y permitir editarlos inline (se guardan en el perfil del autor, no en el split — así se reutilizan en futuros releases).
-
-**c) Validación visual:**
-- Si autor tiene split de publishing > 0 y NO tiene IPI → badge ámbar "Sin IPI – las regalías pueden no distribuirse" (similar al sistema de Health Center existente).
-- Integrar en `Release Health Center` como nueva dimensión.
-
-### 4. PDF de créditos
-
-Extender `exportSplitsPDF.ts` para mostrar "IPI" y "PRO" junto a cada autor en la sección Publishing (formato: `Nombre — IPI 00123456789 — SGAE`).
-
-### 5. Capa de datos / seguridad
-- Validación Zod cliente para IPI (`/^\d{9,11}$/`) y PRO custom name.
-- Sin paginación (volumen mínimo).
-- RLS estricta por workspace en `custom_pros`.
-- Sin tocar auth.
-
-### Cambios resumidos
-
-| Área | Archivo |
+| Archivo | Cambio |
 |---|---|
-| Migración DB | nueva tabla `custom_pros` + columnas `ipi_number` en `artists` y `contacts` |
-| Constantes | `src/lib/pros.ts` |
-| Hook | `src/hooks/useCustomPros.ts` |
-| Componente | `src/components/credits/PROCombobox.tsx` |
-| Form crédito | `src/components/credits/AddCreditWithProfileForm.tsx` (reemplazar input libre + añadir IPI) |
-| Perfil artista | `src/components/artists/ArtistInfoDialog.tsx` (campos IPI + PRO) |
-| Perfil contacto | formulario equivalente de contactos |
-| PDF | `src/utils/exportSplitsPDF.ts` |
-| Health Center | `src/components/releases/...` añadir check IPI |
+| `src/lib/contactSimilarity.ts` | nuevo: normalización + scoring |
+| `src/lib/deduplicateContacts.ts` | refactor: separar merge unitario; devolver `{ merged, deleted, suggestions }` |
+| `src/components/contacts/DeduplicationReviewDialog.tsx` | nuevo: UI revisión por pares |
+| `src/pages/Agenda.tsx` | conectar diálogo tras la llamada |
+| Migración DB | tabla `contact_dedup_dismissals` con RLS por workspace/created_by |
+
+Sin tocar auth. Validación Zod no necesaria (entradas internas). Sin paginación (volumen pequeño).
 
