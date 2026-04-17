@@ -223,15 +223,25 @@ export function usePublicDraft(token: string | undefined) {
     setLoading(false);
   }, [token]);
 
+  const COMMENTS_PAGE_SIZE = 100;
+  const [commentsLoaded, setCommentsLoaded] = useState(COMMENTS_PAGE_SIZE);
+  const [commentsTotal, setCommentsTotal] = useState<number>(0);
+
   const fetchComments = useCallback(async () => {
     if (!draft) return;
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from('contract_draft_comments')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('draft_id', draft.id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .range(0, commentsLoaded - 1);
     if (data) setComments(data as unknown as DraftComment[]);
-  }, [draft?.id]);
+    if (typeof count === 'number') setCommentsTotal(count);
+  }, [draft?.id, commentsLoaded]);
+
+  const loadMoreComments = useCallback(() => {
+    setCommentsLoaded((n) => n + COMMENTS_PAGE_SIZE);
+  }, []);
 
   useEffect(() => { fetchDraft(); }, [fetchDraft]);
   useEffect(() => { fetchComments(); }, [fetchComments]);
