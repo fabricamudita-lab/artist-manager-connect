@@ -2951,7 +2951,9 @@ export type Database = {
           firma_lugar: string | null
           form_data: Json
           id: string
+          language: string
           producer_email: string | null
+          recording_type: string
           release_id: string | null
           share_token: string | null
           signed_pdf_url: string | null
@@ -2971,7 +2973,9 @@ export type Database = {
           firma_lugar?: string | null
           form_data: Json
           id?: string
+          language?: string
           producer_email?: string | null
+          recording_type?: string
           release_id?: string | null
           share_token?: string | null
           signed_pdf_url?: string | null
@@ -2991,7 +2995,9 @@ export type Database = {
           firma_lugar?: string | null
           form_data?: Json
           id?: string
+          language?: string
           producer_email?: string | null
+          recording_type?: string
           release_id?: string | null
           share_token?: string | null
           signed_pdf_url?: string | null
