@@ -3511,6 +3511,17 @@ export default function ProjectDetail() {
             .then(({ data }) => setLinkedEntities(data || []));
         }}
       />
+
+      {/* Project Settings Dialog */}
+      {project && (
+        <ProjectSettingsDialog
+          open={showSettingsDialog}
+          onOpenChange={setShowSettingsDialog}
+          projectId={project.id}
+          projectName={project.name}
+          config={{ ...DEFAULT_CARD_CONFIG, ...((project as any).card_display_config || {}) }}
+        />
+      )}
     </div>
   );
 }
