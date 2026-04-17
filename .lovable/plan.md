@@ -1,50 +1,29 @@
 
 
-## Plan: Añadir edición de nombre y perfil vinculado en ProjectSettingsDialog
+## Plan: Añadir versiones en inglés de las Licencias IP (Single y Álbum)
 
 ### Contexto
 
-El diálogo de configuración (`ProjectSettingsDialog.tsx`) actualmente solo tiene toggles de tarjeta y eliminación. El usuario quiere poder editar el nombre del proyecto y cambiar el artista/perfil vinculado desde ahí.
+El generador de Licencias IP (`mem://contracts/ip-license-generator`) actualmente soporta versiones en castellano para Single y Álbum. El usuario quiere añadir las mismas dos plantillas en inglés, manteniendo la lógica del wizard de 5 pasos, variables, justificación textual y búsqueda de personas intactas.
 
-### Cambios
+### Pasos
 
-**Archivo: `src/components/ProjectSettingsDialog.tsx`**
+1. **Leer los .pages adjuntos** con `document--parse_document` para extraer el texto exacto en inglés de ambas licencias (Single y Álbum).
+2. **Localizar el generador IP** (probablemente en `src/components/contracts/` o `src/lib/contracts/`) e identificar dónde están las plantillas en castellano y cómo se seleccionan.
+3. **Añadir selector de idioma** (ES / EN) en el paso correspondiente del wizard, por defecto ES para no romper flujos existentes.
+4. **Crear las plantillas EN** como constantes paralelas a las ES, reutilizando exactamente los mismos placeholders (`{{nombre_artista}}`, `{{titulo_obra}}`, etc.) para que la lógica de relleno no cambie.
+5. **Traducir las etiquetas y textos de justificación** al inglés cuando el idioma seleccionado sea EN (cláusulas, encabezados, firmas).
+6. **Verificar exportación PDF**: el componente de generación de PDF debe seguir funcionando idéntico — solo cambia el contenido textual.
 
-1. **Ampliar props** para recibir `artistId`, `artistName`, y la lista de artistas disponibles (o `workspaceId` para cargarlos internamente).
-2. **Sección "Datos generales"** al inicio del diálogo (antes de los toggles):
-   - **Nombre del proyecto**: Input editable, guarda con blur/Enter. Validación: no vacío, máx 100 chars.
-   - **Perfil vinculado (artista)**: Select con los artistas del workspace. Opción "Sin artista" (`__none__`). Guarda al cambiar.
-3. Cada cambio hace `supabase.update()` en `projects` e invalida queries.
-
-**Archivo: `src/pages/ProjectDetail.tsx`**
-
-4. Pasar `artistId` y `workspaceId` como props adicionales al `ProjectSettingsDialog`.
-5. Tras guardar cambios en el diálogo, refrescar el estado local del proyecto (nombre en cabecera, artista en breadcrumb).
-
-### Flujo del diálogo resultante
-
-```text
-┌─ Configuración del proyecto ─────────┐
-│                                       │
-│  Datos generales                      │
-│  ────────────────                     │
-│  Nombre:    [Puro Payés        ]      │
-│  Artista:   [Eudald Payés Roma ▼]    │
-│                                       │
-│  ─────────────────────────────────    │
-│  Vista previa en tarjeta              │
-│  (toggles existentes, máx 3)         │
-│                                       │
-│  ─────────────────────────────────    │
-│  Zona peligrosa                       │
-│  [🗑 Eliminar proyecto]               │
-└───────────────────────────────────────┘
-```
-
-### Archivos afectados
+### Archivos previstos
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/ProjectSettingsDialog.tsx` | Añadir inputs de nombre y selector de artista |
-| `src/pages/ProjectDetail.tsx` | Pasar props adicionales, refrescar estado tras cambios |
+| `src/lib/contracts/ipLicenseTemplates.ts` (o similar) | Añadir `IP_LICENSE_SINGLE_EN` y `IP_LICENSE_ALBUM_EN` |
+| Componente del wizard IP | Añadir Select de idioma; pasar plantilla correcta según ES/EN |
+| Memoria `mem://contracts/ip-license-generator` | Actualizar para reflejar soporte bilingüe |
+
+### Antes de implementar
+
+Necesito leer los dos `.pages` para extraer el texto en inglés y localizar la estructura actual del generador IP en el código.
 
