@@ -163,9 +163,9 @@ function s(val: string | undefined): string {
   return val?.trim() || '___________';
 }
 
-function resolveClause(text: string, d: FormData): string {
+function resolveClause(text: string, d: FormData, language: IPLicenseLanguage = 'es'): string {
   const royaltyNum = parseInt(d.royalty_porcentaje) || 0;
-  const royaltyText = numberToSpanishText(royaltyNum) || s('');
+  const royaltyText = (language === 'en' ? numberToEnglishText(royaltyNum) : numberToSpanishText(royaltyNum)) || s('');
   return text
     .replace(/\{\{calidad_entidad\}\}/g, s(d.calidad_entidad))
     .replace(/\{\{productora_nombre_artistico\}\}/g, s(d.productora_nombre_artistico))
