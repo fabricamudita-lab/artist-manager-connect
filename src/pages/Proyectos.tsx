@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ProjectSettingsDialog, DEFAULT_CARD_CONFIG, type CardDisplayConfig } from '@/components/ProjectSettingsDialog';
 import { 
   FolderOpen, 
   Search, 
@@ -19,7 +20,8 @@ import {
   MessageSquare,
   ChevronRight,
   Plus,
-  ArrowUpDown
+  ArrowUpDown,
+  Settings
 } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,6 +42,7 @@ export default function Proyectos() {
   const [filterArtist, setFilterArtist] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Proyectos | MOODITA";
