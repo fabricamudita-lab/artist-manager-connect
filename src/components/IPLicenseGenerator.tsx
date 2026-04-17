@@ -176,7 +176,8 @@ function resolveClause(text: string, d: FormData, language: IPLicenseLanguage = 
     .replace(/\{\{colaboradora_email\}\}/g, s(d.colaboradora_email));
 }
 
-function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
+function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLanguage = 'es', recordingType: IPLicenseRecordingType = 'single'): jsPDF {
+  const L = getPDFLabels(language);
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pw = pdf.internal.pageSize.getWidth();
   const ph = pdf.internal.pageSize.getHeight();
@@ -211,7 +212,6 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     }
   };
 
-  // Draw a single line with manual word-spacing justification
   const drawJustifiedLine = (text: string, x: number, yPos: number, maxW: number) => {
     const words = text.trim().split(/\s+/);
     if (words.length <= 1) {
@@ -227,7 +227,6 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     }
   };
 
-  // Render justified text
   const renderLines = (text: string, xLeft: number, maxW: number) => {
     pdf.setFontSize(fontSize);
     pdf.setFont('times', 'normal');
@@ -374,85 +373,93 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
   // Resolve all clauses with dynamic data
   const c = {} as IPLegalClauses;
   for (const k of Object.keys(clauses) as Array<keyof IPLegalClauses>) {
-    c[k] = resolveClause(clauses[k], d);
+    c[k] = resolveClause(clauses[k], d, language);
+  }
+
+  // Translate month if EN
+  let monthOut = s(d.fecha_mes);
+  if (language === 'en') {
+    const idx = MONTHS_ES.indexOf(d.fecha_mes?.toLowerCase());
+    if (idx >= 0) monthOut = MONTHS_EN[idx];
   }
 
   // === PAGE 1 ===
   y = 25.3;
-  addCenteredSection('LICENCIA DE CESIÓN DE DERECHOS DE PROPIEDAD INTELECTUAL');
+  addCenteredSection(L.title);
 
   y = 48.5;
   pdf.setFont('times', 'normal');
   pdf.setFontSize(fontSize);
-  pdf.text(`En Barcelona, a ${s(d.fecha_dia)} de ${s(d.fecha_mes)} de ${s(d.fecha_anio)}`, ml, y);
+  pdf.text(L.cityPrefix(s(d.fecha_dia), monthOut, s(d.fecha_anio)), ml, y);
 
   y = 64.0;
-  addCenteredSection('REUNIDOS');
+  addCenteredSection(L.reunidos);
 
   y += sectionSpace;
-  addHangingParagraph('DE UNA PARTE, ',
-    `${s(d.productora_nombre)}, mayor de edad, con ${s(d.productora_doc_tipo)} ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará la PRODUCTORA.`);
+  addHangingParagraph(L.deUnaParte,
+    L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio)));
 
   y += sectionSpace;
-  addHangingParagraph('DE OTRA PARTE, ',
-    `${s(d.colaboradora_nombre)}, mayor de edad, con ${s(d.colaboradora_doc_tipo)} ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará el COLABORADOR o la COLABORADORA indistintamente.`);
+  addHangingParagraph(L.deOtraParte,
+    L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio)));
 
   y += subItemSpace;
-  addParagraph('En adelante, ambas partes, serán denominadas conjuntamente como las Partes.');
+  addParagraph(L.ambasPartes);
 
   y += subItemSpace;
-  addParagraph('Las Partes se reconocen recíprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,');
+  addParagraph(L.capacidadLegal);
 
   y += subItemSpace;
-  addCenteredSection('MANIFIESTAN');
+  addCenteredSection(L.manifiestan);
 
   y += sectionSpace;
-  addNumberedHanging('I)', `Que la PRODUCTORA, es una compositora, intérprete y productora fonográfica que, en su calidad de productora fonográfica, está produciendo un sencillo fonográfico titulado tentativamente "${s(d.grabacion_titulo)}" (el Sencillo) que será explotado comercialmente bajo su nombre artístico "${s(d.productora_nombre_artistico)}", por sí o por terceros.`);
+  const mI = recordingType === 'album' ? L.manifiestoIAlbum : L.manifiestoI;
+  addNumberedHanging('I)', mI(s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('II)', 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en una o más obras musicales (la/s Grabación/es), las cuales se detallarán, o para su explotación en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.');
+  addNumberedHanging('II)', recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
 
   y += sectionSpace;
-  addNumberedHanging('III)', `Que la COLABORADORA, conocida artísticamente como "${s(d.colaboradora_nombre_artistico)}", es una intérprete musical independiente, facultada para aceptar la propuesta de colaboración de la PRODUCTORA, en los términos que se dirán, que no está sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptación y posterior cesión de derechos de propiedad intelectual sobre sus interpretaciones musicales.`);
+  addNumberedHanging('III)', L.manifiestoIII(s(d.colaboradora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('IV)', 'Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en la/s Grabación/es a satisfacción de las Partes.');
+  addNumberedHanging('IV)', L.manifiestoIV);
 
   y += sectionSpace;
-  addParagraph('Con la finalidad de acordar los términos y condiciones de la colaboración entre las Partes y formalizar la cesión de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes', indent1);
+  addParagraph(L.paraAcordar, indent1);
 
   y += sectionSpace;
-  addCenteredSection('CLÁUSULAS');
+  addCenteredSection(L.clausulas);
 
   // 1. OBJETO
   y += subItemSpace;
-  addClauseTitle('1', 'OBJETO');
+  addClauseTitle('1', L.clauseTitles.objeto);
 
   y += sectionSpace;
   addParagraph(c.objeto_1_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', 'Título de la obra Grabación:', s(d.grabacion_titulo));
-  addSubItem('b. ', 'Calidad en que interviene la COLABORADORA:', s(d.grabacion_calidad));
-  addSubItem('c. ', 'Duración de la Grabación:', s(d.grabacion_duracion));
-  addSubItem('d. ', 'Participación (Sí/No) en videoclip de la Grabación:', s(d.grabacion_videoclip));
-  addSubItem('e. ', 'Fecha de la fijación:', s(d.grabacion_fecha_fijacion));
-  addSubItem('f. ', 'Carácter de la intervención:', s(d.grabacion_caracter));
+  addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
+  addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
+  addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
+  addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
+  addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
+  addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
 
   y += sectionSpace;
   addParagraph(c.objeto_1_2, indent1);
 
   // 2. ALCANCE
   y += sectionSpace;
-  addClauseTitle('2', 'ALCANCE DE LA CESIÓN DE DERECHOS');
+  addClauseTitle('2', L.clauseTitles.alcance);
 
   y += sectionSpace;
   addParagraph(c.alcance_2_1, indent1);
 
   y += interline;
-  addBoldInline('a. PERIODO:', 'A perpetuidad.');
-  addBoldInline('b. TERRITORIO:', 'El Universo.');
-  addBoldInline('c. MEDIOS:', 'Todos los medios existentes durante la vigencia de este contrato.');
+  addBoldInline(L.alcanceLetters.a, L.alcancePeriod);
+  addBoldInline(L.alcanceLetters.b, L.alcanceTerritory);
+  addBoldInline(L.alcanceLetters.c, L.alcanceMeans);
 
   y += subItemSpace;
   addParagraph(c.alcance_2_2, indent1);
@@ -461,8 +468,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
   addParagraph(c.alcance_2_3, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', 'Nombre artístico:', s(d.acreditacion_nombre));
-  addSubItem('b. ', 'Carácter de la intervención:', s(d.acreditacion_caracter));
+  addSubItem('a. ', L.acreditacion.a, s(d.acreditacion_nombre));
+  addSubItem('b. ', L.acreditacion.b, s(d.acreditacion_caracter));
 
   y += subItemSpace;
   addParagraph(c.alcance_2_4, indent1);
@@ -472,7 +479,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // 3. CONTRAPRESTACIÓN
   y += sectionSpace;
-  addClauseTitle('3', 'CONTRAPRESTACIÓN');
+  addClauseTitle('3', L.clauseTitles.contraprestacion);
 
   y += sectionSpace;
   addParagraph(c.contraprestacion_3_1, indent1);
@@ -491,18 +498,18 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // 4. NOTIFICACIONES
   y += sectionSpace;
-  addClauseTitle('4', 'NOTIFICACIONES');
+  addClauseTitle('4', L.clauseTitles.notificaciones);
 
   y += sectionSpace;
   addParagraph(c.notificaciones_4_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', 'De la PRODUCTORA:', s(d.productora_email));
-  addSubItem('b. ', 'De la COLABORADORA:', s(d.colaboradora_email));
+  addSubItem('a. ', L.notificacionesParts.a, s(d.productora_email));
+  addSubItem('b. ', L.notificacionesParts.b, s(d.colaboradora_email));
 
   // 5. CONFIDENCIALIDAD
   y += sectionSpace;
-  addClauseTitle('5', 'CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS');
+  addClauseTitle('5', L.clauseTitles.confidencialidad);
 
   y += sectionSpace;
   addParagraph(c.confidencialidad_5_1, indent1);
@@ -515,7 +522,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // 6. LEY APLICABLE
   y += sectionSpace;
-  addClauseTitle('6', 'LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS');
+  addClauseTitle('6', L.clauseTitles.ley);
 
   y += sectionSpace;
   addParagraph(c.ley_6_1, indent1);
@@ -525,7 +532,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // Closing
   y += sectionSpace;
-  addParagraph('Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.');
+  addParagraph(L.signOff);
 
   // Signature block
   checkPage(50);
@@ -534,8 +541,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   pdf.setFont('times', 'bold');
   pdf.setFontSize(fontSize);
-  pdf.text('La PRODUCTORA', ml + colW / 2, y, { align: 'center' });
-  pdf.text('La COLABORADORA', ml + colW + 20 + colW / 2, y, { align: 'center' });
+  pdf.text(L.signProducer, ml + colW / 2, y, { align: 'center' });
+  pdf.text(L.signCollaborator, ml + colW + 20 + colW / 2, y, { align: 'center' });
 
   y += 25;
   pdf.setDrawColor(0);
