@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { saveDraftSchema, updateDraftSchema } from '@/lib/validation/contractDraft';
 
 export type DraftStatus = 'borrador' | 'en_negociacion' | 'listo_para_firma' | 'firmado';
 export type DraftType = 'ip_license' | 'booking';
+export type DraftRecordingType = 'single' | 'album' | 'fullAlbum';
+export type DraftLanguage = 'es' | 'en';
 
 export interface ContractDraft {
   id: string;
@@ -23,6 +26,8 @@ export interface ContractDraft {
   firma_lugar: string | null;
   producer_email: string | null;
   collaborator_email: string | null;
+  recording_type: DraftRecordingType;
+  language: DraftLanguage;
   created_at: string;
   updated_at: string;
 }
@@ -83,18 +88,27 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
     draftType: DraftType; title: string; formData: any; clausesData?: any;
     releaseId?: string; bookingId?: string; artistId?: string;
     producerEmail?: string; collaboratorEmail?: string;
+    recordingType?: DraftRecordingType; language?: DraftLanguage;
   }): Promise<ContractDraft | null> => {
     if (!user) return null;
+    const parsed = saveDraftSchema.safeParse(data);
+    if (!parsed.success) {
+      toast.error('Datos inválidos: ' + parsed.error.issues[0].message);
+      return null;
+    }
+    const v = parsed.data;
     const { data: result, error } = await supabase
       .from('contract_drafts')
       .insert({
-        draft_type: data.draftType, title: data.title, form_data: data.formData,
-        clauses_data: data.clausesData || null, created_by: user.id,
-        release_id: data.releaseId || null, booking_id: data.bookingId || null,
-        artist_id: data.artistId || null,
-        producer_email: data.producerEmail || null,
-        collaborator_email: data.collaboratorEmail || null,
-      })
+        draft_type: v.draftType, title: v.title, form_data: v.formData,
+        clauses_data: v.clausesData || null, created_by: user.id,
+        release_id: v.releaseId || null, booking_id: v.bookingId || null,
+        artist_id: v.artistId || null,
+        producer_email: v.producerEmail || null,
+        collaborator_email: v.collaboratorEmail || null,
+        recording_type: v.recordingType || 'single',
+        language: v.language || 'es',
+      } as any)
       .select().single();
     if (error) { toast.error('Error al guardar borrador: ' + error.message); return null; }
     toast.success('Borrador guardado');
@@ -103,13 +117,22 @@ export function useContractDrafts(filters?: { releaseId?: string; bookingId?: st
 
   const updateDraft = async (draftId: string, updates: {
     formData?: any; clausesData?: any; title?: string; firmaFecha?: string; firmaLugar?: string;
+    recordingType?: DraftRecordingType; language?: DraftLanguage;
   }): Promise<boolean> => {
+    const parsed = updateDraftSchema.safeParse(updates);
+    if (!parsed.success) {
+      toast.error('Datos inválidos: ' + parsed.error.issues[0].message);
+      return false;
+    }
+    const u = parsed.data;
     const updateObj: any = {};
-    if (updates.formData !== undefined) updateObj.form_data = updates.formData;
-    if (updates.clausesData !== undefined) updateObj.clauses_data = updates.clausesData;
-    if (updates.title !== undefined) updateObj.title = updates.title;
-    if (updates.firmaFecha !== undefined) updateObj.firma_fecha = updates.firmaFecha;
-    if (updates.firmaLugar !== undefined) updateObj.firma_lugar = updates.firmaLugar;
+    if (u.formData !== undefined) updateObj.form_data = u.formData;
+    if (u.clausesData !== undefined) updateObj.clauses_data = u.clausesData;
+    if (u.title !== undefined) updateObj.title = u.title;
+    if (u.firmaFecha !== undefined) updateObj.firma_fecha = u.firmaFecha;
+    if (u.firmaLugar !== undefined) updateObj.firma_lugar = u.firmaLugar;
+    if (u.recordingType !== undefined) updateObj.recording_type = u.recordingType;
+    if (u.language !== undefined) updateObj.language = u.language;
 
     const { error } = await supabase.from('contract_drafts').update(updateObj).eq('id', draftId);
     if (error) { toast.error('Error al actualizar: ' + error.message); return false; }
@@ -200,15 +223,25 @@ export function usePublicDraft(token: string | undefined) {
     setLoading(false);
   }, [token]);
 
+  const COMMENTS_PAGE_SIZE = 100;
+  const [commentsLoaded, setCommentsLoaded] = useState(COMMENTS_PAGE_SIZE);
+  const [commentsTotal, setCommentsTotal] = useState<number>(0);
+
   const fetchComments = useCallback(async () => {
     if (!draft) return;
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from('contract_draft_comments')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('draft_id', draft.id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .range(0, commentsLoaded - 1);
     if (data) setComments(data as unknown as DraftComment[]);
-  }, [draft?.id]);
+    if (typeof count === 'number') setCommentsTotal(count);
+  }, [draft?.id, commentsLoaded]);
+
+  const loadMoreComments = useCallback(() => {
+    setCommentsLoaded((n) => n + COMMENTS_PAGE_SIZE);
+  }, []);
 
   useEffect(() => { fetchDraft(); }, [fetchDraft]);
   useEffect(() => { fetchComments(); }, [fetchComments]);
@@ -350,5 +383,6 @@ export function usePublicDraft(token: string | undefined) {
     addComment, addSelectionComment,
     resolveComment, proposeChange, approveChange, rejectChange,
     refetch: fetchDraft,
+    commentsTotal, loadMoreComments,
   };
 }

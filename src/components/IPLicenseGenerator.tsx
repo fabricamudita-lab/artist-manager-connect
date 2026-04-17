@@ -674,6 +674,8 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
           setCurrentDraft(d);
           if (d.form_data) setFormData(d.form_data as FormData);
           if (d.clauses_data) setIpClauses(d.clauses_data as IPLegalClauses);
+          if (d.recording_type) setRecordingType(d.recording_type as IPLicenseRecordingType);
+          if (d.language) setLanguage(d.language as IPLicenseLanguage);
         }
       })();
     }
@@ -714,7 +716,13 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     setSavingDraft(true);
     try {
       if (currentDraft) {
-        await updateDraft(currentDraft.id, { formData, clausesData: ipClauses, title: `Licencia IP - ${formData.colaboradora_nombre_artistico || formData.colaboradora_nombre || 'Sin nombre'}` });
+        await updateDraft(currentDraft.id, {
+          formData,
+          clausesData: ipClauses,
+          title: `Licencia IP - ${formData.colaboradora_nombre_artistico || formData.colaboradora_nombre || 'Sin nombre'}`,
+          recordingType,
+          language,
+        });
       } else {
         const draft = await saveDraft({
           draftType: 'ip_license',
@@ -724,6 +732,8 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
           releaseId: effectiveReleaseId,
           producerEmail: formData.productora_email || undefined,
           collaboratorEmail: formData.colaboradora_email || undefined,
+          recordingType,
+          language,
         });
         if (draft) setCurrentDraft(draft);
       }
