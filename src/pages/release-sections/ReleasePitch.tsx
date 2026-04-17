@@ -204,7 +204,7 @@ export default function ReleasePitch() {
               <CardContent className="flex items-center gap-4 py-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{pitch.name}</h3>
+                    <PitchNameEditor pitch={pitch} releaseId={id!} />
                     <Badge className={PITCH_STATUS_COLORS[pitch.pitch_status] || ''}>
                       {PITCH_STATUS_LABELS[pitch.pitch_status] || pitch.pitch_status}
                     </Badge>
@@ -240,6 +240,65 @@ export default function ReleasePitch() {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Pitch Name Editor (inline) ─────────────────────────────
+function PitchNameEditor({ pitch, releaseId }: { pitch: Pitch; releaseId: string }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(pitch.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const updatePitch = useUpdatePitch({ silent: true });
+
+  useEffect(() => { setValue(pitch.name); }, [pitch.name]);
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const commit = () => {
+    const trimmed = value.trim().slice(0, 100);
+    if (!trimmed) {
+      setValue(pitch.name);
+    } else if (trimmed !== pitch.name) {
+      updatePitch.mutate({ id: pitch.id, release_id: releaseId, name: trimmed });
+    }
+    setEditing(false);
+  };
+
+  const cancel = () => {
+    setValue(pitch.name);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        value={value}
+        maxLength={100}
+        onChange={e => setValue(e.target.value)}
+        onBlur={commit}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        }}
+        className="h-7 font-semibold text-base px-2 py-0 max-w-xs"
+      />
+    );
+  }
+
+  return (
+    <h3
+      className="font-semibold truncate cursor-text hover:bg-muted/50 rounded px-1 -mx-1"
+      onClick={e => { e.stopPropagation(); setEditing(true); }}
+      title="Clic para renombrar"
+    >
+      {pitch.name}
+    </h3>
   );
 }
 
