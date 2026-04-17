@@ -61,6 +61,11 @@ interface IPLicenseGeneratorProps {
   onDraftSaved?: () => void;
 }
 
+interface AlbumTrack {
+  titulo: string;
+  duracion: string;
+}
+
 interface FormData {
   fecha_dia: string;
   fecha_mes: string;
@@ -90,6 +95,13 @@ interface FormData {
   royalty_porcentaje: string;
   firma_productora: string;
   firma_colaboradora: string;
+  // Full album fields
+  album_titulo: string;
+  album_num_grabaciones: string;
+  album_videoclips_si_no: string;
+  album_fecha_fijacion_desde: string;
+  album_fecha_fijacion_hasta: string;
+  album_tracks: AlbumTrack[];
 }
 
 // === Editable clauses (interface + defaults imported from shared templates) ===
@@ -158,6 +170,9 @@ const defaultData: FormData = {
   grabacion_caracter: 'featured artist', acreditacion_nombre: '', acreditacion_caracter: '',
   calidad_entidad: 'músico intérprete', royalty_porcentaje: '20',
   firma_productora: '', firma_colaboradora: '',
+  album_titulo: '', album_num_grabaciones: '', album_videoclips_si_no: 'No',
+  album_fecha_fijacion_desde: '', album_fecha_fijacion_hasta: '',
+  album_tracks: [],
 };
 
 function s(val: string | undefined): string {
