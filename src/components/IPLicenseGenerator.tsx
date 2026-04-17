@@ -429,17 +429,20 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   addCenteredSection(L.manifiestan);
 
   y += sectionSpace;
-  const mI = recordingType === 'album' ? L.manifiestoIAlbum : L.manifiestoI;
-  addNumberedHanging('I)', mI(s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
+  const mI = (recordingType === 'album' || recordingType === 'fullAlbum') ? L.manifiestoIAlbum : L.manifiestoI;
+  addNumberedHanging('I)', mI(recordingType === 'fullAlbum' ? s(d.album_titulo) : s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('II)', recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
+  const mII = recordingType === 'fullAlbum'
+    ? L.manifiestoIIFullAlbum
+    : (recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
+  addNumberedHanging('II)', mII);
 
   y += sectionSpace;
   addNumberedHanging('III)', L.manifiestoIII(s(d.colaboradora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('IV)', L.manifiestoIV);
+  addNumberedHanging('IV)', recordingType === 'fullAlbum' ? L.manifiestoIVFullAlbum : L.manifiestoIV);
 
   y += sectionSpace;
   addParagraph(L.paraAcordar, indent1);
@@ -455,12 +458,25 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   addParagraph(c.objeto_1_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
-  addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
-  addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
-  addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
-  addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
-  addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  if (recordingType === 'fullAlbum') {
+    const sf = L.subItemsObjetoFullAlbum;
+    const fechas = `desde ${s(d.album_fecha_fijacion_desde)} hasta ${s(d.album_fecha_fijacion_hasta)}`;
+    const listadoLabel = language === 'en' ? 'According to attached Annex I' : 'Según Anexo I adjunto';
+    addSubItem('a. ', sf.a, s(d.album_titulo));
+    addSubItem('b. ', sf.b, s(d.album_num_grabaciones || (d.album_tracks.length ? String(d.album_tracks.length) : '')));
+    addSubItem('c. ', sf.c, s(d.grabacion_calidad));
+    addSubItem('d. ', sf.d, s(d.grabacion_caracter));
+    addSubItem('e. ', sf.e, s(d.album_videoclips_si_no));
+    addSubItem('f. ', sf.f, fechas);
+    addSubItem('g. ', sf.g, listadoLabel);
+  } else {
+    addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
+    addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
+    addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
+    addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
+    addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
+    addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
+  }
 
   y += sectionSpace;
   addParagraph(c.objeto_1_2, indent1);
