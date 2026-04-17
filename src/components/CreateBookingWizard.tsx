@@ -587,7 +587,7 @@ export function CreateBookingWizard({
         
         <TabsContent value="existing" className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label>Seleccionar Promotor/Buyer</Label>
+            <Label>Seleccionar Promotor/Buyer <span className="text-destructive">*</span></Label>
             <Select
               value={buyerData.contacto}
               onValueChange={(value) => {
@@ -785,7 +785,7 @@ export function CreateBookingWizard({
 
       {dealData.deal_type === 'flat_fee' ? (
         <div className="space-y-2">
-          <Label htmlFor="fee">Fee (€) <span className="text-destructive">*</span></Label>
+          <Label htmlFor="fee">Fee (€) {isOfferPhaseOrBeyond() && <span className="text-destructive">*</span>}</Label>
           <Input
             id="fee"
             type="number"
@@ -796,7 +796,7 @@ export function CreateBookingWizard({
         </div>
       ) : (
         <div className="space-y-2">
-          <Label htmlFor="door_split">Porcentaje de Taquilla (%) <span className="text-destructive">*</span></Label>
+          <Label htmlFor="door_split">Porcentaje de Taquilla (%) {isOfferPhaseOrBeyond() && <span className="text-destructive">*</span>}</Label>
           <Input
             id="door_split"
             type="number"
