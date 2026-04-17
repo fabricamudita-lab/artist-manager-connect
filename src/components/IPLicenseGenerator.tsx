@@ -704,13 +704,13 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     onOpenChange(false);
     setStep(0);
     setFormData({ ...defaultData });
-    setIpClauses({ ...DEFAULT_IP_CLAUSES });
+    setIpClauses(getDefaultIPClauses(language, recordingType));
     if (!externalReleaseId) setSelectedReleaseId(undefined);
     setManualTrack(false);
   };
 
   const handlePreview = () => {
-    const pdf = generatePDF(formData, ipClauses);
+    const pdf = generatePDF(formData, ipClauses, language, recordingType);
     const blobUrl = URL.createObjectURL(pdf.output('blob'));
     window.open(blobUrl, '_blank');
   };
@@ -723,7 +723,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setIpClauses({ ...DEFAULT_IP_CLAUSES })}
+          onClick={() => setIpClauses(getDefaultIPClauses(language, recordingType))}
           className="text-xs gap-1"
         >
           <RotateCcw className="h-3 w-3" />
