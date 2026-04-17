@@ -772,6 +772,28 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
       case 0:
         return (
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-muted/40">
+              <div>
+                <Label className="text-xs">Idioma / Language</Label>
+                <Select value={language} onValueChange={(v) => setLanguage(v as IPLicenseLanguage)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="es">Español</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Tipo / Type</Label>
+                <Select value={recordingType} onValueChange={(v) => setRecordingType(v as IPLicenseRecordingType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="album">Álbum / Album</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Datos de la Productora</h3>
             <div className="grid grid-cols-3 gap-3">
               <div><Label>Día</Label><Input value={formData.fecha_dia} onChange={e => update('fecha_dia', e.target.value)} placeholder="15" /></div>
