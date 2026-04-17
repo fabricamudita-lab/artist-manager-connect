@@ -102,20 +102,29 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
             {/* Card display toggles */}
             <div className="space-y-3">
               <p className="text-sm font-medium text-muted-foreground">Vista previa en tarjeta</p>
-              <p className="text-xs text-muted-foreground">Elige qué datos se muestran en la tarjeta del proyecto</p>
+              <p className="text-xs text-muted-foreground">Elige qué datos se muestran en la tarjeta del proyecto (máx. 3)</p>
+              {Object.values(localConfig).filter(Boolean).length >= 3 && (
+                <p className="text-xs text-amber-500 font-medium">Máximo 3 opciones seleccionadas</p>
+              )}
               <div className="space-y-3 pt-1">
-                {TOGGLE_OPTIONS.map(({ key, label, icon }) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2 cursor-pointer text-sm">
-                      {icon}
-                      {label}
-                    </Label>
-                    <Switch
-                      checked={localConfig[key]}
-                      onCheckedChange={(v) => handleToggle(key, v)}
-                    />
-                  </div>
-                ))}
+                {TOGGLE_OPTIONS.map(({ key, label, icon }) => {
+                  const activeCount = Object.values(localConfig).filter(Boolean).length;
+                  const isChecked = localConfig[key];
+                  const isDisabled = !isChecked && activeCount >= 3;
+                  return (
+                    <div key={key} className="flex items-center justify-between">
+                      <Label className={`flex items-center gap-2 text-sm ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                        {icon}
+                        {label}
+                      </Label>
+                      <Switch
+                        checked={isChecked}
+                        disabled={isDisabled}
+                        onCheckedChange={(v) => handleToggle(key, v)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
