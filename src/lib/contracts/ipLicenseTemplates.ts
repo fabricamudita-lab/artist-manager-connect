@@ -124,6 +124,7 @@ export interface IPPDFLabels {
   paraAcordar: string;
   clauseTitles: { objeto: string; alcance: string; contraprestacion: string; notificaciones: string; confidencialidad: string; ley: string };
   subItemsObjeto: { a: string; b: string; c: string; d: string; e: string; f: string };
+  subItemsObjetoAlbum: { a: string; b: string; c: string; d: string; e: string; f: string; g: string };
   alcanceLetters: { a: string; b: string; c: string };
   alcancePeriod: string;
   alcanceTerritory: string;
