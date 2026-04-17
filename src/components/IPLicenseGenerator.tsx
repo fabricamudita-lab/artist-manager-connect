@@ -589,6 +589,55 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
 
   addFooter();
 
+  // === ANEXO I (Full Album only) ===
+  if (recordingType === 'fullAlbum') {
+    pdf.addPage();
+    pageNum++;
+    y = 30;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.text(L.annexTitle, pw / 2, y, { align: 'center' });
+    y += 8;
+    pdf.setFontSize(12);
+    pdf.text(L.annexSubtitle, pw / 2, y, { align: 'center' });
+    y += 14;
+
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(fontSize);
+    pdf.text(L.annexIntro, ml, y);
+    y += 10;
+
+    const tracks = d.album_tracks.length > 0 ? d.album_tracks : Array.from({ length: 5 }, () => ({ titulo: '', duracion: '' }));
+    tracks.forEach((t, i) => {
+      checkPage();
+      const titleLabel = language === 'en' ? 'Title' : 'Título';
+      const durLabel = language === 'en' ? 'Duration' : 'Duración';
+      pdf.text(`${i + 1}. ${titleLabel}: ${s(t.titulo)} | ${durLabel}: ${s(t.duracion)}`, ml, y);
+      y += interline + 1;
+    });
+
+    y += 8;
+    checkPage(20);
+    renderLines(L.annexClosing, ml, cw);
+
+    // Signatures on annex
+    checkPage(50);
+    y += 18;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(fontSize);
+    pdf.text(L.signProducer, ml + colW / 2, y, { align: 'center' });
+    pdf.text(L.signCollaborator, ml + colW + 20 + colW / 2, y, { align: 'center' });
+    y += 25;
+    pdf.line(ml, y, ml + colW, y);
+    pdf.line(ml + colW + 20, y, ml + colW + 20 + colW, y);
+    y += 6;
+    pdf.setFont('times', 'normal');
+    pdf.text(s(d.firma_productora), ml + colW / 2, y, { align: 'center' });
+    pdf.text(s(d.firma_colaboradora), ml + colW + 20 + colW / 2, y, { align: 'center' });
+
+    addFooter();
+  }
+
   return pdf;
 }
 
