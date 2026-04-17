@@ -211,18 +211,36 @@ export function CreateBookingWizard({
     setShowNewContactForm(false);
   };
 
-  const canProceed = () => {
-    switch (currentStep) {
-      case 0: // General
-        return generalData.fecha && (generalData.venue || generalData.festival_ciclo);
-      case 1: // Buyer
-        return buyerData.contacto || (showNewContactForm && buyerData.newContact.name);
-      case 2: // Deal
-        return dealData.artist_id && (dealData.fee || dealData.door_split_percentage);
-      default:
-        return true;
+  // Phase requires fee/hora when not in 'pendiente' (Interés)
+  const isOfferPhaseOrBeyond = () => dealData.estado !== 'pendiente';
+
+  const getStepMissingFields = (step: number): string[] => {
+    const missing: string[] = [];
+    if (step === 0) {
+      if (!generalData.fecha) missing.push('Fecha');
+      if (!generalData.venue && !generalData.festival_ciclo) missing.push('Venue o Festival/Ciclo');
+      if (isOfferPhaseOrBeyond() && !generalData.hora) missing.push('Hora');
+    } else if (step === 1) {
+      if (showNewContactForm) {
+        if (!buyerData.newContact.name) missing.push('Nombre del nuevo contacto');
+      } else {
+        if (!buyerData.contacto) missing.push('Contacto / Promotor');
+      }
+    } else if (step === 2) {
+      if (!dealData.artist_id) missing.push('Artista');
+      if (isOfferPhaseOrBeyond()) {
+        if (dealData.deal_type === 'flat_fee' && !dealData.fee) missing.push('Fee (€)');
+        if (dealData.deal_type === 'door_split' && !dealData.door_split_percentage) missing.push('Porcentaje de Taquilla (%)');
+      }
     }
+    return missing;
   };
+
+  const getAllMissingFields = (): string[] => {
+    return [0, 1, 2].flatMap(getStepMissingFields);
+  };
+
+  const canProceed = () => getStepMissingFields(currentStep).length === 0;
 
   const handleNext = () => {
     if (currentStep < WIZARD_STEPS.length - 1) {
