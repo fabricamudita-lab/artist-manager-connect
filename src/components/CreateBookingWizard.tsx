@@ -243,6 +243,15 @@ export function CreateBookingWizard({
   const canProceed = () => getStepMissingFields(currentStep).length === 0;
 
   const handleNext = () => {
+    const missing = getStepMissingFields(currentStep);
+    if (missing.length > 0) {
+      toast({
+        title: 'Faltan campos obligatorios',
+        description: missing.join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
     if (currentStep < WIZARD_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     }
