@@ -460,7 +460,9 @@ function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLa
   y += subItemSpace;
   if (recordingType === 'fullAlbum') {
     const sf = L.subItemsObjetoFullAlbum;
-    const fechas = `desde ${s(d.album_fecha_fijacion_desde)} hasta ${s(d.album_fecha_fijacion_hasta)}`;
+    const fechas = language === 'en'
+      ? `from ${s(d.album_fecha_fijacion_desde)} to ${s(d.album_fecha_fijacion_hasta)}`
+      : `desde ${s(d.album_fecha_fijacion_desde)} hasta ${s(d.album_fecha_fijacion_hasta)}`;
     const listadoLabel = language === 'en' ? 'According to attached Annex I' : 'Según Anexo I adjunto';
     addSubItem('a. ', sf.a, s(d.album_titulo));
     addSubItem('b. ', sf.b, s(d.album_num_grabaciones || (d.album_tracks.length ? String(d.album_tracks.length) : '')));
