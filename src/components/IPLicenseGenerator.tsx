@@ -21,6 +21,16 @@ import { format, parse } from 'date-fns';
 import jsPDF from 'jspdf';
 import { useTracks, useReleases } from '@/hooks/useReleases';
 import { PersonSearchInput, type PersonData } from '@/components/PersonSearchInput';
+import {
+  type IPLegalClauses,
+  type IPLicenseLanguage,
+  type IPLicenseRecordingType,
+  getDefaultIPClauses,
+  getPDFLabels,
+  numberToEnglishText,
+  MONTHS_EN,
+  MONTHS_ES,
+} from '@/lib/contracts/ipLicenseTemplates';
 
 function numberToSpanishText(n: number): string {
   if (n < 0 || n > 100 || !Number.isInteger(n)) return '';
@@ -82,48 +92,7 @@ interface FormData {
   firma_colaboradora: string;
 }
 
-// === Editable clauses interface ===
-interface IPLegalClauses {
-  objeto_1_1: string;
-  objeto_1_2: string;
-  alcance_2_1: string;
-  alcance_2_2: string;
-  alcance_2_3: string;
-  alcance_2_4: string;
-  alcance_2_5: string;
-  contraprestacion_3_1: string;
-  contraprestacion_3_2: string;
-  contraprestacion_3_3: string;
-  contraprestacion_3_4: string;
-  contraprestacion_3_5: string;
-  notificaciones_4_1: string;
-  confidencialidad_5_1: string;
-  confidencialidad_5_2: string;
-  confidencialidad_5_2b: string;
-  ley_6_1: string;
-  ley_6_2: string;
-}
-
-const DEFAULT_IP_CLAUSES: IPLegalClauses = {
-  objeto_1_1: '1.1. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos de propiedad intelectual que recaen sobre su interpretación musical, fijada en la Grabación que se detalla a continuación:',
-  objeto_1_2: '1.2. La COLABORADORA cede a la PRODUCTORA, en exclusiva, con facultad de cesión a terceros todos los derechos que recaen sobre su imagen personal, incluyendo nombre civil o artístico, con propósito de mención e información relacionada con la Grabación, y, en especial los relativos a su imagen personal vinculada a su interpretación en el caso de que exista una grabación audiovisual (en la forma de un videoclip o similar) vinculada a la Grabación.',
-  alcance_2_1: '2.1. El alcance de las cesiones de derechos de la COLABORADORA a favor de la PRODUCTORA que son objeto de este contrato, se conceden con la mayor amplitud y de forma ilimitada con la finalidad de que la PRODUCTORA pueda explotar la Grabación, el Sencillo, el videoclip y/o cualquier material promocional, publicitario y/o informativo que acompañe a los mismos, en todos los formatos y sistemas de explotación de música y audiovisuales, a través de todos los medios de explotación que existan durante la vigencia de la presente cesión de derechos y sin más limitaciones que las establecidas en el presente contrato.',
-  alcance_2_2: '2.2. La COLABORADORA cede a la PRODUCTORA, a título enunciativo, pero sin carácter limitativo, el derecho de reproducción, distribución, comunicación pública y transformación necesarios para la pacífica explotación de la Grabación y, en su caso, de los audiovisuales que la acompañen, quedando facultada la PRODUCTORA para contratar con terceros la explotación de los mismos, transfiriendo a dichos terceros los mismos derechos y obligaciones que adquiere la PRODUCTORA en este contrato.',
-  alcance_2_3: '2.3. La PRODUCTORA se compromete a acreditar a la COLABORADORA de la siguiente forma, siguiendo los usos y costumbres del sector y según las posibilidades de cada uno de los medios y sistemas de explotación de la Grabación, del Sencillo y, en su caso, del videoclip:',
-  alcance_2_4: '2.4. Sin perjuicio de la cesión de derechos otorgada en este documento, la COLABORADORA podrá acreditar su participación en las entidades de gestión de derechos de propiedad intelectual de los artistas intérpretes y ejecutantes, con relación a la Grabación y, en su caso, al videoclip, en calidad de ({{calidad_entidad}}).',
-  alcance_2_5: '2.5. Queda expresamente acordado que la PRODUCTORA, por sí o por terceros, podrá explotar la Grabación en forma de sencillo discográfico o single; en forma de videoclip incluyendo o no la imagen de la COLABORADORA; en forma de fragmentos para su uso en teasers, trailers, piezas promocionales de la Grabación, el videoclip o la carrera profesional de {{productora_nombre_artistico}}, y, con carácter general, de forma amplia siempre y cuando la interpretación de la COLABORADORA forme parte de la Grabación y no se utilice de forma independiente a esta y esté relacionada con la explotación, publicidad, promoción y/o comunicación de la carrera y productos de {{productora_nombre_artistico}} y/o la PRODUCTORA.',
-  contraprestacion_3_1: '3.1. En contraprestación por la cesión de derechos que es objeto de este contrato y como remuneración total por la participación de la COLABORADORA en la Grabación y, en su caso, el videoclip, la PRODUCTORA abonará a la COLABORADORA, por sí o por terceros, un royalty de artista equivalente al {{royalty_texto}} POR CIENTO ({{royalty_porcentaje}}%) de los ingresos que la PRODUCTORA obtenga por la explotación de la Grabación y, en su caso, del videoclip, independientemente de su procedencia. A estos efectos se considerará explotación de la Grabación todo acto de comercialización que sea remunerado, incluyendo, para mayor claridad, los ingresos por venta de la Grabación en formato digital y en formato físico; los ingresos recibidos por el streaming de la Grabación; los ingresos recibidos por el streaming del videoclip si lo hubiera; los ingresos recibidos de la explotación en forma de sincronización de la Grabación y, en general, todo acto de comercialización de la Grabación en el Territorio y durante el Periodo.',
-  contraprestacion_3_2: '3.2. En el caso de que posteriormente la Grabación se incorpore a un álbum u otra compilación, y los ingresos de la PRODUCTORA provengan de la explotación de dicho álbum o compilación, dichos ingresos serán repartidos entre el número de grabaciones integrantes del mismo para calcular los ingresos correspondientes a la Grabación y abonar el royalty de artista en consecuencia. La forma de cálculo del royalty, en este caso, será, por tanto, la de prorrata tituli (o partes iguales para cada uno de los títulos).',
-  contraprestacion_3_3: '3.3. La PRODUCTORA será la responsable del pago del royalty de artista a la COLABORADORA, si bien la PRODUCTORA podrá encargar dicho pago a terceros a los que licencie la comercialización y/o distribución de la Grabación, de forma temporal o permanente.',
-  contraprestacion_3_4: '3.4. La frecuencia del pago del royalty de artista será semestral, coincidiendo con los pagos que reciba la PRODUCTORA por parte de los terceros a quien licencie la comercialización y/o distribución del Sencillo y la Grabación y no se aplicarán descuentos por parte de la PRODUCTORA.',
-  contraprestacion_3_5: '3.5. La PRODUCTORA emitirá una liquidación a favor de la COLABORADORA, que podría incluir importes negativos en el caso de que existieran devoluciones, y solicitará una factura a la COLABORADORA con la periodicidad detallada. Una vez la COLABORADORA haya emitido dicha factura, la PRODUCTORA la abonará en el transcurso de treinta (30) días, a través de transferencia bancaria a la cuenta de titularidad de la COLABORADORA que esta le indique.',
-  notificaciones_4_1: '4.1. Las Partes han establecido como medio válido para el envío de cualquier comunicación relacionada con el contenido de este contrato el envío de correos electrónicos a las siguientes direcciones:',
-  confidencialidad_5_1: '5.1. Las Partes se comprometen a mantener en la más estricta confidencialidad toda la información, tanto oral como escrita, que se haya puesto a disposición de la otra parte, tanto con carácter previo a la firma de esta Licencia como mientras esta esté vigente. Para ello, las Partes se comprometen a no hablar ni de forma directa ni indirecta de la información confidencial en ningún espacio público o abierto al público, ni a través de terceros sin el consentimiento previo de la otra parte. No obstante, las Partes podrán compartir la información confidencial que sea necesaria con asesores externos, abogados o contables, los cuales deberán tener suscrito un deber de confidencialidad que tenga por lo menos el alcance de esta cláusula. La obligación de mantener la información confidencial se establece sin ninguna limitación temporal.',
-  confidencialidad_5_2: '5.2. Asimismo, las Partes se comprometen a cumplir con la normativa vigente en materia de protección de datos, obligándose mutuamente a no utilizar los datos personales de la otra parte para finalidades diferentes o incompatibles con la de dar cumplimiento a lo dispuesto en esta Licencia. Los datos podrán ser conservados durante el tiempo necesario para cumplir con posibles responsabilidades legales y fiscales. En caso de que, por el ámbito territorial de esta Licencia, los datos deban transferirse a Terceros Países, la PRODUCTORA se compromete a adoptar las medidas de seguridad que sean necesarias para impedir, dentro de sus posibilidades, el acceso a los datos personales a terceros no autorizados.',
-  confidencialidad_5_2b: 'Las Partes podrán ejercer sus derechos de acceso, oposición, rectificación, limitación y portabilidad a través del envío de correos electrónicos a la dirección que consta en la Cláusula de Notificaciones, debiendo aportar una fotocopia del DNI para poder verificar la identidad del remitente. Todo ello sin perjuicio del derecho a interponer una reclamación ante la Agencia Española de Protección de Datos.',
-  ley_6_1: '6.1. Esta Licencia se regirá e interpretará de acuerdo con el ordenamiento jurídico español y, en concreto, por lo dispuesto en la Ley de Propiedad Intelectual.',
-  ley_6_2: '6.2. Ante cualquier incumplimiento, discrepancia o conflicto que pueda surgir entre las Partes, ambas se comprometen, en primer lugar, a intentar resolverlo de forma amistosa, otorgando a la otra parte un plazo de al menos diez (10) días a contar desde la fecha en la que la parte perjudicada remita a la otra los motivos en los que se basa el incumplimiento o el conflicto. Una vez agotada la vía amistosa, las Partes, con renuncia expresa a cualquier fuero que pudiere corresponderles, acuerdan someterse al Tribunal Arbitral de Barcelona (TAB).',
-};
+// === Editable clauses (interface + defaults imported from shared templates) ===
 
 const IP_CLAUSE_SECTIONS = [
   {
@@ -195,9 +164,9 @@ function s(val: string | undefined): string {
   return val?.trim() || '___________';
 }
 
-function resolveClause(text: string, d: FormData): string {
+function resolveClause(text: string, d: FormData, language: IPLicenseLanguage = 'es'): string {
   const royaltyNum = parseInt(d.royalty_porcentaje) || 0;
-  const royaltyText = numberToSpanishText(royaltyNum) || s('');
+  const royaltyText = (language === 'en' ? numberToEnglishText(royaltyNum) : numberToSpanishText(royaltyNum)) || s('');
   return text
     .replace(/\{\{calidad_entidad\}\}/g, s(d.calidad_entidad))
     .replace(/\{\{productora_nombre_artistico\}\}/g, s(d.productora_nombre_artistico))
@@ -208,7 +177,8 @@ function resolveClause(text: string, d: FormData): string {
     .replace(/\{\{colaboradora_email\}\}/g, s(d.colaboradora_email));
 }
 
-function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
+function generatePDF(d: FormData, clauses: IPLegalClauses, language: IPLicenseLanguage = 'es', recordingType: IPLicenseRecordingType = 'single'): jsPDF {
+  const L = getPDFLabels(language);
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pw = pdf.internal.pageSize.getWidth();
   const ph = pdf.internal.pageSize.getHeight();
@@ -243,7 +213,6 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     }
   };
 
-  // Draw a single line with manual word-spacing justification
   const drawJustifiedLine = (text: string, x: number, yPos: number, maxW: number) => {
     const words = text.trim().split(/\s+/);
     if (words.length <= 1) {
@@ -259,7 +228,6 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
     }
   };
 
-  // Render justified text
   const renderLines = (text: string, xLeft: number, maxW: number) => {
     pdf.setFontSize(fontSize);
     pdf.setFont('times', 'normal');
@@ -406,85 +374,93 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
   // Resolve all clauses with dynamic data
   const c = {} as IPLegalClauses;
   for (const k of Object.keys(clauses) as Array<keyof IPLegalClauses>) {
-    c[k] = resolveClause(clauses[k], d);
+    c[k] = resolveClause(clauses[k], d, language);
+  }
+
+  // Translate month if EN
+  let monthOut = s(d.fecha_mes);
+  if (language === 'en') {
+    const idx = MONTHS_ES.indexOf(d.fecha_mes?.toLowerCase());
+    if (idx >= 0) monthOut = MONTHS_EN[idx];
   }
 
   // === PAGE 1 ===
   y = 25.3;
-  addCenteredSection('LICENCIA DE CESIÓN DE DERECHOS DE PROPIEDAD INTELECTUAL');
+  addCenteredSection(L.title);
 
   y = 48.5;
   pdf.setFont('times', 'normal');
   pdf.setFontSize(fontSize);
-  pdf.text(`En Barcelona, a ${s(d.fecha_dia)} de ${s(d.fecha_mes)} de ${s(d.fecha_anio)}`, ml, y);
+  pdf.text(L.cityPrefix(s(d.fecha_dia), monthOut, s(d.fecha_anio)), ml, y);
 
   y = 64.0;
-  addCenteredSection('REUNIDOS');
+  addCenteredSection(L.reunidos);
 
   y += sectionSpace;
-  addHangingParagraph('DE UNA PARTE, ',
-    `${s(d.productora_nombre)}, mayor de edad, con ${s(d.productora_doc_tipo)} ${s(d.productora_dni)} y domicilio a estos efectos en ${s(d.productora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará la PRODUCTORA.`);
+  addHangingParagraph(L.deUnaParte,
+    L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio)));
 
   y += sectionSpace;
-  addHangingParagraph('DE OTRA PARTE, ',
-    `${s(d.colaboradora_nombre)}, mayor de edad, con ${s(d.colaboradora_doc_tipo)} ${s(d.colaboradora_dni)} y domicilio a estos efectos en ${s(d.colaboradora_domicilio)}, interviniendo en su propio nombre y representación. En adelante, a esta parte se la denominará el COLABORADOR o la COLABORADORA indistintamente.`);
+  addHangingParagraph(L.deOtraParte,
+    L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio)));
 
   y += subItemSpace;
-  addParagraph('En adelante, ambas partes, serán denominadas conjuntamente como las Partes.');
+  addParagraph(L.ambasPartes);
 
   y += subItemSpace;
-  addParagraph('Las Partes se reconocen recíprocamente la capacidad legal necesaria para contratar y obligarse y, a tal efecto,');
+  addParagraph(L.capacidadLegal);
 
   y += subItemSpace;
-  addCenteredSection('MANIFIESTAN');
+  addCenteredSection(L.manifiestan);
 
   y += sectionSpace;
-  addNumberedHanging('I)', `Que la PRODUCTORA, es una compositora, intérprete y productora fonográfica que, en su calidad de productora fonográfica, está produciendo un sencillo fonográfico titulado tentativamente "${s(d.grabacion_titulo)}" (el Sencillo) que será explotado comercialmente bajo su nombre artístico "${s(d.productora_nombre_artistico)}", por sí o por terceros.`);
+  const mI = recordingType === 'album' ? L.manifiestoIAlbum : L.manifiestoI;
+  addNumberedHanging('I)', mI(s(d.grabacion_titulo), s(d.productora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('II)', 'Que la PRODUCTORA ha solicitado a la COLABORADORA que participe, en calidad de música intérprete y/o ejecutante en una o más obras musicales (la/s Grabación/es), las cuales se detallarán, o para su explotación en forma de sencillo fonográfico, incluyendo o no videoclip y/o materiales audiovisuales promocionales.');
+  addNumberedHanging('II)', recordingType === 'album' ? L.manifiestoIIAlbum : L.manifiestoII);
 
   y += sectionSpace;
-  addNumberedHanging('III)', `Que la COLABORADORA, conocida artísticamente como "${s(d.colaboradora_nombre_artistico)}", es una intérprete musical independiente, facultada para aceptar la propuesta de colaboración de la PRODUCTORA, en los términos que se dirán, que no está sujeta a contratos de exclusiva que se lo impidan o bien habiendo obtenido las autorizaciones pertinentes de terceros para su aceptación y posterior cesión de derechos de propiedad intelectual sobre sus interpretaciones musicales.`);
+  addNumberedHanging('III)', L.manifiestoIII(s(d.colaboradora_nombre_artistico)));
 
   y += sectionSpace;
-  addNumberedHanging('IV)', 'Que la PRODUCTORA ha llevado a cabo la fijación de las interpretaciones de la COLABORADORA en la/s Grabación/es a satisfacción de las Partes.');
+  addNumberedHanging('IV)', L.manifiestoIV);
 
   y += sectionSpace;
-  addParagraph('Con la finalidad de acordar los términos y condiciones de la colaboración entre las Partes y formalizar la cesión de los derechos de propiedad intelectual de la COLABORADORA a favor de la PRODUCTORA, las Partes celebran el presente contrato de Licencia de Derechos de Propiedad Intelectual y acuerdan regirse de conformidad a las siguientes', indent1);
+  addParagraph(L.paraAcordar, indent1);
 
   y += sectionSpace;
-  addCenteredSection('CLÁUSULAS');
+  addCenteredSection(L.clausulas);
 
   // 1. OBJETO
   y += subItemSpace;
-  addClauseTitle('1', 'OBJETO');
+  addClauseTitle('1', L.clauseTitles.objeto);
 
   y += sectionSpace;
   addParagraph(c.objeto_1_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', 'Título de la obra Grabación:', s(d.grabacion_titulo));
-  addSubItem('b. ', 'Calidad en que interviene la COLABORADORA:', s(d.grabacion_calidad));
-  addSubItem('c. ', 'Duración de la Grabación:', s(d.grabacion_duracion));
-  addSubItem('d. ', 'Participación (Sí/No) en videoclip de la Grabación:', s(d.grabacion_videoclip));
-  addSubItem('e. ', 'Fecha de la fijación:', s(d.grabacion_fecha_fijacion));
-  addSubItem('f. ', 'Carácter de la intervención:', s(d.grabacion_caracter));
+  addSubItem('a. ', L.subItemsObjeto.a, s(d.grabacion_titulo));
+  addSubItem('b. ', L.subItemsObjeto.b, s(d.grabacion_calidad));
+  addSubItem('c. ', L.subItemsObjeto.c, s(d.grabacion_duracion));
+  addSubItem('d. ', L.subItemsObjeto.d, s(d.grabacion_videoclip));
+  addSubItem('e. ', L.subItemsObjeto.e, s(d.grabacion_fecha_fijacion));
+  addSubItem('f. ', L.subItemsObjeto.f, s(d.grabacion_caracter));
 
   y += sectionSpace;
   addParagraph(c.objeto_1_2, indent1);
 
   // 2. ALCANCE
   y += sectionSpace;
-  addClauseTitle('2', 'ALCANCE DE LA CESIÓN DE DERECHOS');
+  addClauseTitle('2', L.clauseTitles.alcance);
 
   y += sectionSpace;
   addParagraph(c.alcance_2_1, indent1);
 
   y += interline;
-  addBoldInline('a. PERIODO:', 'A perpetuidad.');
-  addBoldInline('b. TERRITORIO:', 'El Universo.');
-  addBoldInline('c. MEDIOS:', 'Todos los medios existentes durante la vigencia de este contrato.');
+  addBoldInline(L.alcanceLetters.a, L.alcancePeriod);
+  addBoldInline(L.alcanceLetters.b, L.alcanceTerritory);
+  addBoldInline(L.alcanceLetters.c, L.alcanceMeans);
 
   y += subItemSpace;
   addParagraph(c.alcance_2_2, indent1);
@@ -493,8 +469,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
   addParagraph(c.alcance_2_3, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', 'Nombre artístico:', s(d.acreditacion_nombre));
-  addSubItem('b. ', 'Carácter de la intervención:', s(d.acreditacion_caracter));
+  addSubItem('a. ', L.acreditacion.a, s(d.acreditacion_nombre));
+  addSubItem('b. ', L.acreditacion.b, s(d.acreditacion_caracter));
 
   y += subItemSpace;
   addParagraph(c.alcance_2_4, indent1);
@@ -504,7 +480,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // 3. CONTRAPRESTACIÓN
   y += sectionSpace;
-  addClauseTitle('3', 'CONTRAPRESTACIÓN');
+  addClauseTitle('3', L.clauseTitles.contraprestacion);
 
   y += sectionSpace;
   addParagraph(c.contraprestacion_3_1, indent1);
@@ -523,18 +499,18 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // 4. NOTIFICACIONES
   y += sectionSpace;
-  addClauseTitle('4', 'NOTIFICACIONES');
+  addClauseTitle('4', L.clauseTitles.notificaciones);
 
   y += sectionSpace;
   addParagraph(c.notificaciones_4_1, indent1);
 
   y += subItemSpace;
-  addSubItem('a. ', 'De la PRODUCTORA:', s(d.productora_email));
-  addSubItem('b. ', 'De la COLABORADORA:', s(d.colaboradora_email));
+  addSubItem('a. ', L.notificacionesParts.a, s(d.productora_email));
+  addSubItem('b. ', L.notificacionesParts.b, s(d.colaboradora_email));
 
   // 5. CONFIDENCIALIDAD
   y += sectionSpace;
-  addClauseTitle('5', 'CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS');
+  addClauseTitle('5', L.clauseTitles.confidencialidad);
 
   y += sectionSpace;
   addParagraph(c.confidencialidad_5_1, indent1);
@@ -547,7 +523,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // 6. LEY APLICABLE
   y += sectionSpace;
-  addClauseTitle('6', 'LEY APLICABLE Y RESOLUCIÓN DE CONFLICTOS');
+  addClauseTitle('6', L.clauseTitles.ley);
 
   y += sectionSpace;
   addParagraph(c.ley_6_1, indent1);
@@ -557,7 +533,7 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   // Closing
   y += sectionSpace;
-  addParagraph('Y en señal de conformidad con lo previsto en este documento y para hacer efectiva la cesión de derechos que contiene esta Licencia, las Partes la firman por duplicado en el lugar y la fecha que consta en el encabezado de este documento.');
+  addParagraph(L.signOff);
 
   // Signature block
   checkPage(50);
@@ -566,8 +542,8 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
   pdf.setFont('times', 'bold');
   pdf.setFontSize(fontSize);
-  pdf.text('La PRODUCTORA', ml + colW / 2, y, { align: 'center' });
-  pdf.text('La COLABORADORA', ml + colW + 20 + colW / 2, y, { align: 'center' });
+  pdf.text(L.signProducer, ml + colW / 2, y, { align: 'center' });
+  pdf.text(L.signCollaborator, ml + colW + 20 + colW / 2, y, { align: 'center' });
 
   y += 25;
   pdf.setDrawColor(0);
@@ -587,8 +563,10 @@ function generatePDF(d: FormData, clauses: IPLegalClauses): jsPDF {
 
 export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: externalReleaseId, draftId, onDraftSaved }: IPLicenseGeneratorProps) {
   const [step, setStep] = useState(0);
+  const [language, setLanguage] = useState<IPLicenseLanguage>('es');
+  const [recordingType, setRecordingType] = useState<IPLicenseRecordingType>('single');
   const [formData, setFormData] = useState<FormData>({ ...defaultData });
-  const [ipClauses, setIpClauses] = useState<IPLegalClauses>({ ...DEFAULT_IP_CLAUSES });
+  const [ipClauses, setIpClauses] = useState<IPLegalClauses>(getDefaultIPClauses('es', 'single'));
   const [manualTrack, setManualTrack] = useState(false);
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | undefined>(externalReleaseId);
   const effectiveReleaseId = externalReleaseId || selectedReleaseId;
@@ -618,6 +596,18 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
       })();
     }
   }, [draftId, open]);
+
+  // Re-apply default clauses when language or recording type changes (only if user hasn't customized)
+  useEffect(() => {
+    setIpClauses(getDefaultIPClauses(language, recordingType));
+  }, [language, recordingType]);
+
+  // Auto-detect recording type from selected release
+  useEffect(() => {
+    if (!effectiveReleaseId) return;
+    const r = releases.find(x => x.id === effectiveReleaseId);
+    if (r) setRecordingType(r.type === 'album' || r.type === 'ep' ? 'album' : 'single');
+  }, [effectiveReleaseId, releases]);
 
   const handleSaveDraft = async () => {
     setSavingDraft(true);
@@ -710,7 +700,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
   };
 
   const handleGenerate = async () => {
-    const pdf = generatePDF(formData, ipClauses);
+    const pdf = generatePDF(formData, ipClauses, language, recordingType);
     const blob = pdf.output('blob');
     
     if (onSave) {
@@ -726,13 +716,13 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
     onOpenChange(false);
     setStep(0);
     setFormData({ ...defaultData });
-    setIpClauses({ ...DEFAULT_IP_CLAUSES });
+    setIpClauses(getDefaultIPClauses(language, recordingType));
     if (!externalReleaseId) setSelectedReleaseId(undefined);
     setManualTrack(false);
   };
 
   const handlePreview = () => {
-    const pdf = generatePDF(formData, ipClauses);
+    const pdf = generatePDF(formData, ipClauses, language, recordingType);
     const blobUrl = URL.createObjectURL(pdf.output('blob'));
     window.open(blobUrl, '_blank');
   };
@@ -745,7 +735,7 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setIpClauses({ ...DEFAULT_IP_CLAUSES })}
+          onClick={() => setIpClauses(getDefaultIPClauses(language, recordingType))}
           className="text-xs gap-1"
         >
           <RotateCcw className="h-3 w-3" />
@@ -782,6 +772,28 @@ export function IPLicenseGenerator({ open, onOpenChange, onSave, releaseId: exte
       case 0:
         return (
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-muted/40">
+              <div>
+                <Label className="text-xs">Idioma / Language</Label>
+                <Select value={language} onValueChange={(v) => setLanguage(v as IPLicenseLanguage)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="es">Español</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Tipo / Type</Label>
+                <Select value={recordingType} onValueChange={(v) => setRecordingType(v as IPLicenseRecordingType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="album">Álbum / Album</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Datos de la Productora</h3>
             <div className="grid grid-cols-3 gap-3">
               <div><Label>Día</Label><Input value={formData.fecha_dia} onChange={e => update('fecha_dia', e.target.value)} placeholder="15" /></div>
