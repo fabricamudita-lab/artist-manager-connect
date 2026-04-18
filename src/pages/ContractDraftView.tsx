@@ -742,9 +742,9 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.a} </strong>{highlightText(L.alcancePeriod, selectionComments, onCommentClick)}</p>
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.b} </strong>{highlightText(L.alcanceTerritory, selectionComments, onCommentClick)}</p>
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.c} </strong>{highlightText(L.alcanceMeans, selectionComments, onCommentClick)}</p>
+        <p style={{ marginBottom: '4px' }}><LabeledHighlight label={`${L.alcanceLetters.a} `} value={L.alcancePeriod} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={{ marginBottom: '4px' }}><LabeledHighlight label={`${L.alcanceLetters.b} `} value={L.alcanceTerritory} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={{ marginBottom: '4px' }}><LabeledHighlight label={`${L.alcanceLetters.c} `} value={L.alcanceMeans} comments={selectionComments} onCommentClick={onCommentClick} /></p>
       </div>
 
       <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} onCommentClick={onCommentClick} />
