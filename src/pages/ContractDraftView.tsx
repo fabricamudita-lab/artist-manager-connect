@@ -716,22 +716,22 @@ function renderIPLicenseContent(
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
         {isFullAlbum ? (
           <>
-            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjetoFullAlbum.a} </strong>{highlightText(s(d.album_titulo), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjetoFullAlbum.b} </strong>{highlightText(s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : '')), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjetoFullAlbum.c} </strong>{highlightText(s(d.grabacion_calidad), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjetoFullAlbum.d} </strong>{highlightText(s(d.grabacion_caracter), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjetoFullAlbum.e} </strong>{highlightText(s(d.album_videoclips_si_no), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjetoFullAlbum.f} </strong>{highlightText(fechasFijacionFullAlbum, selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>g. </strong><strong>{L.subItemsObjetoFullAlbum.g} </strong>{highlightText(annexRefLabel, selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.a} `} value={s(d.album_titulo)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.b} `} value={s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : ''))} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>c. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.c} `} value={s(d.grabacion_calidad)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>d. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.d} `} value={s(d.grabacion_caracter)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>e. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.e} `} value={s(d.album_videoclips_si_no)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>f. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.f} `} value={fechasFijacionFullAlbum} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>g. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.g} `} value={annexRefLabel} comments={selectionComments} onCommentClick={onCommentClick} /></p>
           </>
         ) : (
           <>
-            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjeto.a} </strong>{highlightText(s(d.grabacion_titulo), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjeto.b} </strong>{highlightText(s(d.grabacion_calidad), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjeto.c} </strong>{highlightText(s(d.grabacion_duracion), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjeto.d} </strong>{highlightText(s(d.grabacion_videoclip), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjeto.e} </strong>{highlightText(s(d.grabacion_fecha_fijacion), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjeto.f} </strong>{highlightText(s(d.grabacion_caracter), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.subItemsObjeto.a} `} value={s(d.grabacion_titulo)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.subItemsObjeto.b} `} value={s(d.grabacion_calidad)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>c. </strong><LabeledHighlight label={`${L.subItemsObjeto.c} `} value={s(d.grabacion_duracion)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>d. </strong><LabeledHighlight label={`${L.subItemsObjeto.d} `} value={s(d.grabacion_videoclip)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>e. </strong><LabeledHighlight label={`${L.subItemsObjeto.e} `} value={s(d.grabacion_fecha_fijacion)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>f. </strong><LabeledHighlight label={`${L.subItemsObjeto.f} `} value={s(d.grabacion_caracter)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
           </>
         )}
       </div>
