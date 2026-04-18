@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, X, Calendar, DollarSign } from 'lucide-react';
+import { Search, Filter, X, Calendar, DollarSign, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,18 @@ export interface ReleasesFiltersState {
   startDate: Date | undefined;
   endDate: Date | undefined;
   hasBudget: string;
+  sortBy: string;
 }
+
+export const SORT_OPTIONS = [
+  { value: 'release_date_desc', label: 'Publicación (más reciente)' },
+  { value: 'release_date_asc', label: 'Publicación (más antigua)' },
+  { value: 'created_at_desc', label: 'Creación (más reciente)' },
+  { value: 'created_at_asc', label: 'Creación (más antigua)' },
+  { value: 'title_asc', label: 'Alfabético (A–Z)' },
+  { value: 'title_desc', label: 'Alfabético (Z–A)' },
+  { value: 'status', label: 'Estado' },
+];
 
 interface Artist {
   id: string;
@@ -94,6 +105,7 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
       startDate: undefined,
       endDate: undefined,
       hasBudget: 'all',
+      sortBy: 'release_date_desc',
     });
   };
 
@@ -167,6 +179,24 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
             {artists.map((artist) => (
               <SelectItem key={artist.id} value={artist.id}>
                 {artist.stage_name || artist.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Sort */}
+        <Select
+          value={filters.sortBy}
+          onValueChange={(value) => updateFilter('sortBy', value)}
+        >
+          <SelectTrigger className="w-[220px]">
+            <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue placeholder="Ordenar por" />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>

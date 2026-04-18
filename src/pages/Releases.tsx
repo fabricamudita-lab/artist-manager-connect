@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -49,6 +49,7 @@ export default function Releases() {
     startDate: undefined,
     endDate: undefined,
     hasBudget: 'all',
+    sortBy: 'release_date_desc',
   });
 
   // Update filter when URL changes
@@ -59,6 +60,34 @@ export default function Releases() {
   }, [artistIdFromUrl]);
 
   const { data: releases, isLoading } = useReleasesWithSearch(filters);
+
+  const sortedReleases = useMemo(() => {
+    if (!releases) return releases;
+    const arr = [...releases];
+    const cmpDate = (a: string | null | undefined, b: string | null | undefined, dir: 1 | -1) => {
+      if (!a && !b) return 0;
+      if (!a) return 1; // nulls last
+      if (!b) return -1;
+      return (new Date(a).getTime() - new Date(b).getTime()) * dir;
+    };
+    switch (filters.sortBy) {
+      case 'release_date_asc':
+        arr.sort((a, b) => cmpDate(a.release_date, b.release_date, 1)); break;
+      case 'release_date_desc':
+        arr.sort((a, b) => cmpDate(a.release_date, b.release_date, -1)); break;
+      case 'created_at_asc':
+        arr.sort((a, b) => cmpDate(a.created_at, b.created_at, 1)); break;
+      case 'created_at_desc':
+        arr.sort((a, b) => cmpDate(a.created_at, b.created_at, -1)); break;
+      case 'title_asc':
+        arr.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es')); break;
+      case 'title_desc':
+        arr.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'es')); break;
+      case 'status':
+        arr.sort((a, b) => (a.status || '').localeCompare(b.status || '')); break;
+    }
+    return arr;
+  }, [releases, filters.sortBy]);
 
   return (
     <div className="space-y-6">
@@ -93,17 +122,17 @@ export default function Releases() {
 
       <ReleasesFiltersToolbar filters={filters} onFiltersChange={setFilters} />
 
-      {viewMode === 'cronogramas' && releases ? (
-        <AllCronogramasView releases={releases} />
+      {viewMode === 'cronogramas' && sortedReleases ? (
+        <AllCronogramasView releases={sortedReleases} />
       ) : isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))}
         </div>
-      ) : releases && releases.length > 0 ? (
+      ) : sortedReleases && sortedReleases.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {releases.map((release) => {
+          {sortedReleases.map((release) => {
             const TypeIcon = TYPE_ICONS[release.type] || Disc3;
             return (
               <Card
