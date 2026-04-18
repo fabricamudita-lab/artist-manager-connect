@@ -769,8 +769,8 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
-        <p style={subItem}><strong>a. </strong><strong>{L.notificacionesParts.a} </strong>{highlightText(s(d.productora_email), selectionComments, onCommentClick)}</p>
-        <p style={subItem}><strong>b. </strong><strong>{L.notificacionesParts.b} </strong>{highlightText(s(d.colaboradora_email), selectionComments, onCommentClick)}</p>
+        <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.notificacionesParts.a} `} value={s(d.productora_email)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.notificacionesParts.b} `} value={s(d.colaboradora_email)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
       </div>
 
       <p style={clauseTitle}>5. {L.clauseTitles.confidencialidad}</p>
