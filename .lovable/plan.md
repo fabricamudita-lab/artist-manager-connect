@@ -1,41 +1,28 @@
 
 
-## Plan: Resaltar texto comentado en amarillo en el link público del contrato
+## Diagnóstico
 
-### Diagnóstico
-En `/contract-draft/:token` los comentarios se crean con `selection_start`, `selection_end` y `clause_number` (vía `TextSelectionHandler`). El panel lateral muestra el snippet, pero el texto en el documento NO se resalta. Necesitamos pintar un `<mark>` amarillo sobre los rangos de comentarios activos (no resueltos).
+En el screenshot se ve que el comentario "Comentario de prueba" está sobre el texto de la cláusula **1.1** ("a. Título de la obra Grabación: fruityloopin..."), pero NO aparece el resaltado amarillo en el documento.
 
-### Exploración necesaria al implementar
-- `src/pages/ContractDraftView.tsx`: ver cómo se renderizan las cláusulas y el contenido (clauses_data + manifiestos), y dónde se cargan los comentarios.
-- Confirmar estructura de `contract_comments` (campos: `clause_number`, `selection_start`, `selection_end`, `status`).
-- Reutilizar lógica de offsets ya empleada en `TextSelectionHandler` (offset relativo al `textContent` del contenedor de la cláusula, identificado por `data-clause`).
+La implementación actual solo aplicó `highlightText` a los bloques **"Reunidos"** y **"Manifiestan"**, pero NO a las **cláusulas numeradas** (1.1, 1.2, etc.) que es donde el usuario está comentando.
 
-### Cambios
+Necesito explorar `ContractDraftView.tsx` para confirmar dónde se renderizan las cláusulas y aplicar la misma función `highlightText` ahí.
 
-**1. Nuevo helper `src/components/contract-drafts/HighlightedText.tsx`**
-- Recibe `text: string`, `ranges: Array<{ start: number; end: number; commentId: string; status: string }>`.
-- Fusiona/ordena rangos solapados y devuelve fragmentos `<span>` planos + `<mark data-comment-id="...">` con clase `bg-yellow-200/70 dark:bg-yellow-500/30 rounded-sm cursor-pointer`.
-- Al hacer click sobre un `<mark>`, dispara callback `onCommentClick(commentId)` para abrir/scrollear ese comentario en el panel.
-- Solo resaltamos comentarios con `status !== 'resolved'` (o configurable).
+## Plan
 
-**2. `ContractDraftView.tsx`**
-- Agrupar `comments` por `clause_number` en un `useMemo`.
-- En el render de cada cláusula/sección que tiene `data-clause="X"`, envolver su texto plano con `<HighlightedText text={...} ranges={byClause[X] ?? []} onCommentClick={...} />` en lugar de imprimir el string directamente.
-- Para el bloque "Reunidos" (clause `reunidos` en el screenshot), aplicar lo mismo.
-- `onCommentClick` → setState `activeCommentId` y scroll al item del panel lateral (con la clase ring ya existente del sistema de highlight).
+### Cambio único en `src/pages/ContractDraftView.tsx`
 
-**3. Estilo**
-- Tailwind: `bg-yellow-200/70 hover:bg-yellow-300/80 dark:bg-yellow-500/30 px-0.5 rounded-sm transition-colors`.
-- Comentarios resueltos: sin marca (o marca tenue gris si el usuario lo prefiere — por ahora ocultar).
+1. Localizar el render de las cláusulas numeradas (probablemente un `.map()` sobre `clauses_data` que pinta el contenido de cada cláusula).
+2. Envolver el texto de cada cláusula con `highlightText(clause.content, comments, onCommentClick)` igual que ya se hace con "Reunidos" y "Manifiestan".
+3. Asegurar que el filtro de comentarios por `clause_number` (o por contenido, según cómo esté implementada la función actual) coincida con el identificador de cada cláusula renderizada.
+4. Si las cláusulas contienen sub-elementos (a, b, c, d...) renderizados como lista, aplicar el highlight a cada item de texto individualmente.
 
-### Edge cases
-- Rangos solapados de varios comentarios → fusionar y aplicar `data-comment-ids` múltiples; click abre el primero.
-- Offsets fuera de rango (texto cambió) → ignorar silenciosamente con `clamp(0, text.length)`.
-- Cláusulas que ya contienen markup (negritas, etc.): aplicar el highlight sobre los nodos de texto preservando los `<strong>` existentes — primera versión asumimos texto plano por cláusula; si encontramos JSX más complejo, ampliamos el helper para recorrer hijos.
+### Verificación
+- Confirmar que el `selected_text` guardado en el comentario existe textualmente en el contenido de la cláusula renderizada (sin diferencias de espacios/saltos).
+- Si hay desajuste por whitespace, normalizar ambos lados antes del `indexOf`.
 
 ### Archivos
 | Archivo | Cambio |
 |---|---|
-| `src/components/contract-drafts/HighlightedText.tsx` (nuevo) | Helper que envuelve rangos en `<mark>` amarillo |
-| `src/pages/ContractDraftView.tsx` | Agrupar comentarios por cláusula y aplicar `HighlightedText` en cada bloque renderizado |
+| `src/pages/ContractDraftView.tsx` | Aplicar `highlightText` también al render de cláusulas numeradas (no solo Reunidos/Manifiestan) |
 
