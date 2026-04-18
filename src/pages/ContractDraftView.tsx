@@ -439,6 +439,85 @@ function highlightText(
   return parts;
 }
 
+// Renders "<strong>label</strong> value" with yellow highlights applied to the
+// FULL combined string so selections crossing the label/value boundary still match.
+// We split the rendered output: characters within the bold-label range stay bold,
+// but the highlight <mark> can wrap any substring (label-only, value-only, or crossing).
+function LabeledHighlight({ label, value, comments, onCommentClick }: {
+  label: string;
+  value: string;
+  comments?: Array<{ selected_text: string | null; id: string }>;
+  onCommentClick?: (commentId: string) => void;
+}) {
+  const combined = `${label}${value}`;
+  const labelLen = label.length;
+
+  if (!comments || comments.length === 0) {
+    return <><strong>{label}</strong>{value}</>;
+  }
+
+  const normalize = (str: string) => str.replace(/\s+/g, ' ').replace(/\u00A0/g, ' ');
+  // Find all highlight ranges in combined
+  type Range = { start: number; end: number; id: string };
+  const ranges: Range[] = [];
+  for (const c of comments) {
+    if (!c.selected_text) continue;
+    let pos = combined.indexOf(c.selected_text);
+    let selLen = c.selected_text.length;
+    if (pos === -1) {
+      const nCombined = normalize(combined);
+      const nSel = normalize(c.selected_text);
+      pos = nCombined.indexOf(nSel);
+      selLen = nSel.length;
+    }
+    if (pos !== -1) ranges.push({ start: pos, end: pos + selLen, id: c.id });
+  }
+  ranges.sort((a, b) => a.start - b.start);
+
+  // Build segments: each segment has text + isBold + optional highlightId
+  const out: React.ReactNode[] = [];
+  let cursor = 0;
+  let key = 0;
+
+  const pushSegment = (from: number, to: number, highlightId?: string) => {
+    if (from >= to) return;
+    // Split into bold/non-bold sub-segments at labelLen
+    const subs: { text: string; bold: boolean }[] = [];
+    if (to <= labelLen) {
+      subs.push({ text: combined.slice(from, to), bold: true });
+    } else if (from >= labelLen) {
+      subs.push({ text: combined.slice(from, to), bold: false });
+    } else {
+      subs.push({ text: combined.slice(from, labelLen), bold: true });
+      subs.push({ text: combined.slice(labelLen, to), bold: false });
+    }
+    const inner = subs.map((s, i) => s.bold ? <strong key={i}>{s.text}</strong> : <span key={i}>{s.text}</span>);
+    if (highlightId) {
+      out.push(
+        <span
+          key={`h-${key++}`}
+          style={{ backgroundColor: '#FFF9C4', borderBottom: '2px solid #F59E0B', cursor: 'pointer', borderRadius: '2px', padding: '0 1px' }}
+          onClick={(e) => { e.stopPropagation(); onCommentClick?.(highlightId); }}
+          title="💬 Ver comentario"
+        >
+          {inner}
+        </span>
+      );
+    } else {
+      out.push(<span key={`p-${key++}`}>{inner}</span>);
+    }
+  };
+
+  for (const r of ranges) {
+    if (r.start > cursor) pushSegment(cursor, r.start);
+    pushSegment(Math.max(r.start, cursor), r.end, r.id);
+    cursor = Math.max(cursor, r.end);
+  }
+  if (cursor < combined.length) pushSegment(cursor, combined.length);
+
+  return <>{out}</>;
+}
+
 // Helper to render a highlighted clause paragraph with inline yellow highlights
 function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   clauseKey: string; text: string; style?: React.CSSProperties;
@@ -637,22 +716,22 @@ function renderIPLicenseContent(
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
         {isFullAlbum ? (
           <>
-            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjetoFullAlbum.a} </strong>{highlightText(s(d.album_titulo), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjetoFullAlbum.b} </strong>{highlightText(s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : '')), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjetoFullAlbum.c} </strong>{highlightText(s(d.grabacion_calidad), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjetoFullAlbum.d} </strong>{highlightText(s(d.grabacion_caracter), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjetoFullAlbum.e} </strong>{highlightText(s(d.album_videoclips_si_no), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjetoFullAlbum.f} </strong>{highlightText(fechasFijacionFullAlbum, selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>g. </strong><strong>{L.subItemsObjetoFullAlbum.g} </strong>{highlightText(annexRefLabel, selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.a} `} value={s(d.album_titulo)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.b} `} value={s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : ''))} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>c. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.c} `} value={s(d.grabacion_calidad)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>d. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.d} `} value={s(d.grabacion_caracter)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>e. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.e} `} value={s(d.album_videoclips_si_no)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>f. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.f} `} value={fechasFijacionFullAlbum} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>g. </strong><LabeledHighlight label={`${L.subItemsObjetoFullAlbum.g} `} value={annexRefLabel} comments={selectionComments} onCommentClick={onCommentClick} /></p>
           </>
         ) : (
           <>
-            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjeto.a} </strong>{highlightText(s(d.grabacion_titulo), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjeto.b} </strong>{highlightText(s(d.grabacion_calidad), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjeto.c} </strong>{highlightText(s(d.grabacion_duracion), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjeto.d} </strong>{highlightText(s(d.grabacion_videoclip), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjeto.e} </strong>{highlightText(s(d.grabacion_fecha_fijacion), selectionComments, onCommentClick)}</p>
-            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjeto.f} </strong>{highlightText(s(d.grabacion_caracter), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.subItemsObjeto.a} `} value={s(d.grabacion_titulo)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.subItemsObjeto.b} `} value={s(d.grabacion_calidad)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>c. </strong><LabeledHighlight label={`${L.subItemsObjeto.c} `} value={s(d.grabacion_duracion)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>d. </strong><LabeledHighlight label={`${L.subItemsObjeto.d} `} value={s(d.grabacion_videoclip)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>e. </strong><LabeledHighlight label={`${L.subItemsObjeto.e} `} value={s(d.grabacion_fecha_fijacion)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+            <p style={subItem}><strong>f. </strong><LabeledHighlight label={`${L.subItemsObjeto.f} `} value={s(d.grabacion_caracter)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
           </>
         )}
       </div>
@@ -663,17 +742,17 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.a} </strong>{highlightText(L.alcancePeriod, selectionComments, onCommentClick)}</p>
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.b} </strong>{highlightText(L.alcanceTerritory, selectionComments, onCommentClick)}</p>
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.c} </strong>{highlightText(L.alcanceMeans, selectionComments, onCommentClick)}</p>
+        <p style={{ marginBottom: '4px' }}><LabeledHighlight label={`${L.alcanceLetters.a} `} value={L.alcancePeriod} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={{ marginBottom: '4px' }}><LabeledHighlight label={`${L.alcanceLetters.b} `} value={L.alcanceTerritory} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={{ marginBottom: '4px' }}><LabeledHighlight label={`${L.alcanceLetters.c} `} value={L.alcanceMeans} comments={selectionComments} onCommentClick={onCommentClick} /></p>
       </div>
 
       <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
-        <p style={subItem}><strong>a. </strong><strong>{L.acreditacion.a} </strong>{highlightText(s(d.acreditacion_nombre), selectionComments, onCommentClick)}</p>
-        <p style={subItem}><strong>b. </strong><strong>{L.acreditacion.b} </strong>{highlightText(s(d.acreditacion_caracter), selectionComments, onCommentClick)}</p>
+        <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.acreditacion.a} `} value={s(d.acreditacion_nombre)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.acreditacion.b} `} value={s(d.acreditacion_caracter)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
       </div>
 
       <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} onCommentClick={onCommentClick} />
@@ -690,8 +769,8 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
-        <p style={subItem}><strong>a. </strong><strong>{L.notificacionesParts.a} </strong>{highlightText(s(d.productora_email), selectionComments, onCommentClick)}</p>
-        <p style={subItem}><strong>b. </strong><strong>{L.notificacionesParts.b} </strong>{highlightText(s(d.colaboradora_email), selectionComments, onCommentClick)}</p>
+        <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.notificacionesParts.a} `} value={s(d.productora_email)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.notificacionesParts.b} `} value={s(d.colaboradora_email)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
       </div>
 
       <p style={clauseTitle}>5. {L.clauseTitles.confidencialidad}</p>
