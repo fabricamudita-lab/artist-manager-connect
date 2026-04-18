@@ -603,25 +603,31 @@ function renderIPLicenseContent(
 
       <p data-clause="reunidos" style={paragraph}>
         <strong>{L.deUnaParte}</strong>
-        {L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio))}
+        {highlightText(
+          L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio)),
+          selectionComments, onCommentClick,
+        )}
       </p>
 
       <p data-clause="reunidos" style={paragraph}>
         <strong>{L.deOtraParte}</strong>
-        {L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio))}
+        {highlightText(
+          L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio)),
+          selectionComments, onCommentClick,
+        )}
       </p>
 
-      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{L.ambasPartes}</p>
-      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{ambasFinal}</p>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{highlightText(L.ambasPartes, selectionComments, onCommentClick)}</p>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{highlightText(ambasFinal, selectionComments, onCommentClick)}</p>
 
       <p style={sectionTitle}>{L.manifiestan}</p>
 
-      <p data-clause="manifiestan-I" style={romanItem}><strong>I) </strong>{recitalI}</p>
-      <p data-clause="manifiestan-II" style={romanItem}><strong>II) </strong>{recitalII}</p>
-      <p data-clause="manifiestan-III" style={romanItem}><strong>III) </strong>{recitalIII}</p>
-      <p data-clause="manifiestan-IV" style={romanItem}><strong>IV) </strong>{recitalIV}</p>
+      <p data-clause="manifiestan-I" style={romanItem}><strong>I) </strong>{highlightText(recitalI, selectionComments, onCommentClick)}</p>
+      <p data-clause="manifiestan-II" style={romanItem}><strong>II) </strong>{highlightText(recitalII, selectionComments, onCommentClick)}</p>
+      <p data-clause="manifiestan-III" style={romanItem}><strong>III) </strong>{highlightText(recitalIII, selectionComments, onCommentClick)}</p>
+      <p data-clause="manifiestan-IV" style={romanItem}><strong>IV) </strong>{highlightText(recitalIV, selectionComments, onCommentClick)}</p>
 
-      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>{L.paraAcordar}</p>
+      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>{highlightText(L.paraAcordar, selectionComments, onCommentClick)}</p>
 
       <p style={sectionTitle}>{L.clausulas}</p>
 
