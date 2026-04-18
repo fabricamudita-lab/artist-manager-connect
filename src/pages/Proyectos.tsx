@@ -377,6 +377,8 @@ export default function Proyectos() {
               onOpenChange={(open) => { if (!open) setSettingsProjectId(null); }}
               projectId={proj.id}
               projectName={proj.name}
+              artistId={(proj as any).artist_id ?? null}
+              description={(proj as any).description ?? null}
               config={cfg}
             />
           );
