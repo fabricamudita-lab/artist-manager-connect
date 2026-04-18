@@ -1,31 +1,41 @@
 
 
-## Plan: Botón "Guardar cambios" + visualización de Descripción vacía
+## Plan: Resaltar texto comentado en amarillo en el link público del contrato
 
 ### Diagnóstico
+En `/contract-draft/:token` los comentarios se crean con `selection_start`, `selection_end` y `clause_number` (vía `TextSelectionHandler`). El panel lateral muestra el snippet, pero el texto en el documento NO se resalta. Necesitamos pintar un `<mark>` amarillo sobre los rangos de comentarios activos (no resueltos).
 
-1. **Falta botón Guardar**: El diálogo `ProjectSettingsDialog` autoguarda en `onBlur` (nombre), `onValueChange` (artista) y `onCheckedChange` (toggles). El usuario espera un botón explícito de confirmación.
-2. **Descripción no visible**: En `Proyectos.tsx` línea 311, la tarjeta solo renderiza la descripción si `cfg.show_description && project.description`. Si el proyecto **no tiene descripción guardada**, el toggle no produce ningún cambio visible. Además, no hay forma de editar la descripción desde el diálogo de configuración.
+### Exploración necesaria al implementar
+- `src/pages/ContractDraftView.tsx`: ver cómo se renderizan las cláusulas y el contenido (clauses_data + manifiestos), y dónde se cargan los comentarios.
+- Confirmar estructura de `contract_comments` (campos: `clause_number`, `selection_start`, `selection_end`, `status`).
+- Reutilizar lógica de offsets ya empleada en `TextSelectionHandler` (offset relativo al `textContent` del contenedor de la cláusula, identificado por `data-clause`).
 
 ### Cambios
 
-**1. `src/components/ProjectSettingsDialog.tsx`**
-- Añadir campo `Textarea` "Descripción" en la sección "Datos generales" (debajo de Perfil vinculado), con estado local `localDescription`.
-- Cargar la descripción actual del proyecto al abrir el diálogo (extender props con `description?: string | null` o fetch interno).
-- Cambiar el modelo a **buffer + guardado explícito**:
-  - Quitar autosave de `onBlur` (nombre), `onValueChange` (artista) y `onCheckedChange` (toggles). Solo actualizar estado local.
-  - Añadir botón **"Guardar cambios"** al final (encima de "Zona peligrosa") que hace un único `update` con `name`, `artist_id`, `description`, `card_display_config`.
-  - Botón secundario "Cancelar" que cierra sin guardar.
-  - Mostrar estado `saving` y toast de confirmación.
-- Validación con Zod (nombre 1–100, descripción opcional max ~2000).
+**1. Nuevo helper `src/components/contract-drafts/HighlightedText.tsx`**
+- Recibe `text: string`, `ranges: Array<{ start: number; end: number; commentId: string; status: string }>`.
+- Fusiona/ordena rangos solapados y devuelve fragmentos `<span>` planos + `<mark data-comment-id="...">` con clase `bg-yellow-200/70 dark:bg-yellow-500/30 rounded-sm cursor-pointer`.
+- Al hacer click sobre un `<mark>`, dispara callback `onCommentClick(commentId)` para abrir/scrollear ese comentario en el panel.
+- Solo resaltamos comentarios con `status !== 'resolved'` (o configurable).
 
-**2. `src/pages/Proyectos.tsx`**
-- Pasar `description={project.description}` al `ProjectSettingsDialog`.
-- Línea 311: cambiar la condición a mostrar también un placeholder cuando `show_description` está activo pero no hay descripción → `<p className="italic text-muted-foreground/60">Sin descripción</p>`. Alternativa más limpia: solo cambiar la condición a `cfg.show_description &&` mostrando la descripción real o el placeholder.
+**2. `ContractDraftView.tsx`**
+- Agrupar `comments` por `clause_number` en un `useMemo`.
+- En el render de cada cláusula/sección que tiene `data-clause="X"`, envolver su texto plano con `<HighlightedText text={...} ranges={byClause[X] ?? []} onCommentClick={...} />` en lugar de imprimir el string directamente.
+- Para el bloque "Reunidos" (clause `reunidos` en el screenshot), aplicar lo mismo.
+- `onCommentClick` → setState `activeCommentId` y scroll al item del panel lateral (con la clase ring ya existente del sistema de highlight).
+
+**3. Estilo**
+- Tailwind: `bg-yellow-200/70 hover:bg-yellow-300/80 dark:bg-yellow-500/30 px-0.5 rounded-sm transition-colors`.
+- Comentarios resueltos: sin marca (o marca tenue gris si el usuario lo prefiere — por ahora ocultar).
+
+### Edge cases
+- Rangos solapados de varios comentarios → fusionar y aplicar `data-comment-ids` múltiples; click abre el primero.
+- Offsets fuera de rango (texto cambió) → ignorar silenciosamente con `clamp(0, text.length)`.
+- Cláusulas que ya contienen markup (negritas, etc.): aplicar el highlight sobre los nodos de texto preservando los `<strong>` existentes — primera versión asumimos texto plano por cláusula; si encontramos JSX más complejo, ampliamos el helper para recorrer hijos.
 
 ### Archivos
 | Archivo | Cambio |
 |---|---|
-| `src/components/ProjectSettingsDialog.tsx` | Añadir Textarea descripción, botones Guardar/Cancelar, eliminar autosave |
-| `src/pages/Proyectos.tsx` | Pasar `description` al diálogo + render placeholder cuando vacía |
+| `src/components/contract-drafts/HighlightedText.tsx` (nuevo) | Helper que envuelve rangos en `<mark>` amarillo |
+| `src/pages/ContractDraftView.tsx` | Agrupar comentarios por cláusula y aplicar `HighlightedText` en cada bloque renderizado |
 
