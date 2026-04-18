@@ -439,10 +439,10 @@ function highlightText(
   return parts;
 }
 
-// Renders "<strong>label</strong> value" but applies highlightText to the
-// FULL combined string so selections that cross the label/value boundary
-// (which the browser flattens into a single string when copied) still match.
-// The bold styling for the label is reapplied via a CSS class on the wrapping span.
+// Renders "<strong>label</strong> value" with yellow highlights applied to the
+// FULL combined string so selections crossing the label/value boundary still match.
+// We split the rendered output: characters within the bold-label range stay bold,
+// but the highlight <mark> can wrap any substring (label-only, value-only, or crossing).
 function LabeledHighlight({ label, value, comments, onCommentClick }: {
   label: string;
   value: string;
@@ -450,15 +450,72 @@ function LabeledHighlight({ label, value, comments, onCommentClick }: {
   onCommentClick?: (commentId: string) => void;
 }) {
   const combined = `${label}${value}`;
-  // We want the label visually bold. Render label bold + value, but for highlighting
-  // purposes use the combined string. Trick: render highlightText output, but wrap
-  // in a span where the first `label.length` characters are bolded via a leading <strong>.
-  // Since highlightText returns segmented nodes, simplest is: render label bold OUTSIDE
-  // and pass ONLY value to highlightText AS WELL AS pass combined to catch cross-boundary.
-  // We render two layers conceptually: text content = combined (for matching), display = bold label + value.
-  // Easiest correct approach: render the combined string through highlightText, then the label
-  // portion appears as plain text — acceptable trade-off for correct highlighting.
-  return <>{highlightText(combined, comments, onCommentClick)}</>;
+  const labelLen = label.length;
+
+  if (!comments || comments.length === 0) {
+    return <><strong>{label}</strong>{value}</>;
+  }
+
+  const normalize = (str: string) => str.replace(/\s+/g, ' ').replace(/\u00A0/g, ' ');
+  // Find all highlight ranges in combined
+  type Range = { start: number; end: number; id: string };
+  const ranges: Range[] = [];
+  for (const c of comments) {
+    if (!c.selected_text) continue;
+    let pos = combined.indexOf(c.selected_text);
+    let selLen = c.selected_text.length;
+    if (pos === -1) {
+      const nCombined = normalize(combined);
+      const nSel = normalize(c.selected_text);
+      pos = nCombined.indexOf(nSel);
+      selLen = nSel.length;
+    }
+    if (pos !== -1) ranges.push({ start: pos, end: pos + selLen, id: c.id });
+  }
+  ranges.sort((a, b) => a.start - b.start);
+
+  // Build segments: each segment has text + isBold + optional highlightId
+  const out: React.ReactNode[] = [];
+  let cursor = 0;
+  let key = 0;
+
+  const pushSegment = (from: number, to: number, highlightId?: string) => {
+    if (from >= to) return;
+    // Split into bold/non-bold sub-segments at labelLen
+    const subs: { text: string; bold: boolean }[] = [];
+    if (to <= labelLen) {
+      subs.push({ text: combined.slice(from, to), bold: true });
+    } else if (from >= labelLen) {
+      subs.push({ text: combined.slice(from, to), bold: false });
+    } else {
+      subs.push({ text: combined.slice(from, labelLen), bold: true });
+      subs.push({ text: combined.slice(labelLen, to), bold: false });
+    }
+    const inner = subs.map((s, i) => s.bold ? <strong key={i}>{s.text}</strong> : <span key={i}>{s.text}</span>);
+    if (highlightId) {
+      out.push(
+        <span
+          key={`h-${key++}`}
+          style={{ backgroundColor: '#FFF9C4', borderBottom: '2px solid #F59E0B', cursor: 'pointer', borderRadius: '2px', padding: '0 1px' }}
+          onClick={(e) => { e.stopPropagation(); onCommentClick?.(highlightId); }}
+          title="💬 Ver comentario"
+        >
+          {inner}
+        </span>
+      );
+    } else {
+      out.push(<span key={`p-${key++}`}>{inner}</span>);
+    }
+  };
+
+  for (const r of ranges) {
+    if (r.start > cursor) pushSegment(cursor, r.start);
+    pushSegment(Math.max(r.start, cursor), r.end, r.id);
+    cursor = Math.max(cursor, r.end);
+  }
+  if (cursor < combined.length) pushSegment(cursor, combined.length);
+
+  return <>{out}</>;
 }
 
 // Helper to render a highlighted clause paragraph with inline yellow highlights
