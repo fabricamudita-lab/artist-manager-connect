@@ -751,8 +751,8 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
-        <p style={subItem}><strong>a. </strong><strong>{L.acreditacion.a} </strong>{highlightText(s(d.acreditacion_nombre), selectionComments, onCommentClick)}</p>
-        <p style={subItem}><strong>b. </strong><strong>{L.acreditacion.b} </strong>{highlightText(s(d.acreditacion_caracter), selectionComments, onCommentClick)}</p>
+        <p style={subItem}><strong>a. </strong><LabeledHighlight label={`${L.acreditacion.a} `} value={s(d.acreditacion_nombre)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
+        <p style={subItem}><strong>b. </strong><LabeledHighlight label={`${L.acreditacion.b} `} value={s(d.acreditacion_caracter)} comments={selectionComments} onCommentClick={onCommentClick} /></p>
       </div>
 
       <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} onCommentClick={onCommentClick} />
