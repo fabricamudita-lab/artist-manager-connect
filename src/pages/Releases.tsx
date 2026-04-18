@@ -122,17 +122,17 @@ export default function Releases() {
 
       <ReleasesFiltersToolbar filters={filters} onFiltersChange={setFilters} />
 
-      {viewMode === 'cronogramas' && releases ? (
-        <AllCronogramasView releases={releases} />
+      {viewMode === 'cronogramas' && sortedReleases ? (
+        <AllCronogramasView releases={sortedReleases} />
       ) : isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))}
         </div>
-      ) : releases && releases.length > 0 ? (
+      ) : sortedReleases && sortedReleases.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {releases.map((release) => {
+          {sortedReleases.map((release) => {
             const TypeIcon = TYPE_ICONS[release.type] || Disc3;
             return (
               <Card
