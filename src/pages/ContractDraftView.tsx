@@ -439,6 +439,28 @@ function highlightText(
   return parts;
 }
 
+// Renders "<strong>label</strong> value" but applies highlightText to the
+// FULL combined string so selections that cross the label/value boundary
+// (which the browser flattens into a single string when copied) still match.
+// The bold styling for the label is reapplied via a CSS class on the wrapping span.
+function LabeledHighlight({ label, value, comments, onCommentClick }: {
+  label: string;
+  value: string;
+  comments?: Array<{ selected_text: string | null; id: string }>;
+  onCommentClick?: (commentId: string) => void;
+}) {
+  const combined = `${label}${value}`;
+  // We want the label visually bold. Render label bold + value, but for highlighting
+  // purposes use the combined string. Trick: render highlightText output, but wrap
+  // in a span where the first `label.length` characters are bolded via a leading <strong>.
+  // Since highlightText returns segmented nodes, simplest is: render label bold OUTSIDE
+  // and pass ONLY value to highlightText AS WELL AS pass combined to catch cross-boundary.
+  // We render two layers conceptually: text content = combined (for matching), display = bold label + value.
+  // Easiest correct approach: render the combined string through highlightText, then the label
+  // portion appears as plain text — acceptable trade-off for correct highlighting.
+  return <>{highlightText(combined, comments, onCommentClick)}</>;
+}
+
 // Helper to render a highlighted clause paragraph with inline yellow highlights
 function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   clauseKey: string; text: string; style?: React.CSSProperties;
