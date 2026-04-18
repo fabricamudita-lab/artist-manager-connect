@@ -637,22 +637,22 @@ function renderIPLicenseContent(
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="1.1">
         {isFullAlbum ? (
           <>
-            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjetoFullAlbum.a} </strong>{s(d.album_titulo)}</p>
-            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjetoFullAlbum.b} </strong>{s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : ''))}</p>
-            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjetoFullAlbum.c} </strong>{s(d.grabacion_calidad)}</p>
-            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjetoFullAlbum.d} </strong>{s(d.grabacion_caracter)}</p>
-            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjetoFullAlbum.e} </strong>{s(d.album_videoclips_si_no)}</p>
-            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjetoFullAlbum.f} </strong>{fechasFijacionFullAlbum}</p>
-            <p style={subItem}><strong>g. </strong><strong>{L.subItemsObjetoFullAlbum.g} </strong>{annexRefLabel}</p>
+            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjetoFullAlbum.a} </strong>{highlightText(s(d.album_titulo), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjetoFullAlbum.b} </strong>{highlightText(s(d.album_num_grabaciones || (Array.isArray(d.album_tracks) && d.album_tracks.length ? String(d.album_tracks.length) : '')), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjetoFullAlbum.c} </strong>{highlightText(s(d.grabacion_calidad), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjetoFullAlbum.d} </strong>{highlightText(s(d.grabacion_caracter), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjetoFullAlbum.e} </strong>{highlightText(s(d.album_videoclips_si_no), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjetoFullAlbum.f} </strong>{highlightText(fechasFijacionFullAlbum, selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>g. </strong><strong>{L.subItemsObjetoFullAlbum.g} </strong>{highlightText(annexRefLabel, selectionComments, onCommentClick)}</p>
           </>
         ) : (
           <>
-            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjeto.a} </strong>{s(d.grabacion_titulo)}</p>
-            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjeto.b} </strong>{s(d.grabacion_calidad)}</p>
-            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjeto.c} </strong>{s(d.grabacion_duracion)}</p>
-            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjeto.d} </strong>{s(d.grabacion_videoclip)}</p>
-            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjeto.e} </strong>{s(d.grabacion_fecha_fijacion)}</p>
-            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjeto.f} </strong>{s(d.grabacion_caracter)}</p>
+            <p style={subItem}><strong>a. </strong><strong>{L.subItemsObjeto.a} </strong>{highlightText(s(d.grabacion_titulo), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>b. </strong><strong>{L.subItemsObjeto.b} </strong>{highlightText(s(d.grabacion_calidad), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>c. </strong><strong>{L.subItemsObjeto.c} </strong>{highlightText(s(d.grabacion_duracion), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>d. </strong><strong>{L.subItemsObjeto.d} </strong>{highlightText(s(d.grabacion_videoclip), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>e. </strong><strong>{L.subItemsObjeto.e} </strong>{highlightText(s(d.grabacion_fecha_fijacion), selectionComments, onCommentClick)}</p>
+            <p style={subItem}><strong>f. </strong><strong>{L.subItemsObjeto.f} </strong>{highlightText(s(d.grabacion_caracter), selectionComments, onCommentClick)}</p>
           </>
         )}
       </div>
@@ -663,17 +663,17 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="2.1" text={c.alcance_2_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '48px', marginBottom: '16px' }} data-clause="2.1">
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.a} </strong>{L.alcancePeriod}</p>
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.b} </strong>{L.alcanceTerritory}</p>
-        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.c} </strong>{L.alcanceMeans}</p>
+        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.a} </strong>{highlightText(L.alcancePeriod, selectionComments, onCommentClick)}</p>
+        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.b} </strong>{highlightText(L.alcanceTerritory, selectionComments, onCommentClick)}</p>
+        <p style={{ marginBottom: '4px' }}><strong>{L.alcanceLetters.c} </strong>{highlightText(L.alcanceMeans, selectionComments, onCommentClick)}</p>
       </div>
 
       <ClauseParagraph clauseKey="2.2" text={c.alcance_2_2} comments={selectionComments} onCommentClick={onCommentClick} />
       <ClauseParagraph clauseKey="2.3" text={c.alcance_2_3} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="2.3">
-        <p style={subItem}><strong>a. </strong><strong>{L.acreditacion.a} </strong>{s(d.acreditacion_nombre)}</p>
-        <p style={subItem}><strong>b. </strong><strong>{L.acreditacion.b} </strong>{s(d.acreditacion_caracter)}</p>
+        <p style={subItem}><strong>a. </strong><strong>{L.acreditacion.a} </strong>{highlightText(s(d.acreditacion_nombre), selectionComments, onCommentClick)}</p>
+        <p style={subItem}><strong>b. </strong><strong>{L.acreditacion.b} </strong>{highlightText(s(d.acreditacion_caracter), selectionComments, onCommentClick)}</p>
       </div>
 
       <ClauseParagraph clauseKey="2.4" text={c.alcance_2_4} comments={selectionComments} onCommentClick={onCommentClick} />
@@ -690,8 +690,8 @@ function renderIPLicenseContent(
       <ClauseParagraph clauseKey="4.1" text={c.notificaciones_4_1} comments={selectionComments} onCommentClick={onCommentClick} />
 
       <div style={{ marginLeft: '40px', marginBottom: '16px' }} data-clause="4.1">
-        <p style={subItem}><strong>a. </strong><strong>{L.notificacionesParts.a} </strong>{s(d.productora_email)}</p>
-        <p style={subItem}><strong>b. </strong><strong>{L.notificacionesParts.b} </strong>{s(d.colaboradora_email)}</p>
+        <p style={subItem}><strong>a. </strong><strong>{L.notificacionesParts.a} </strong>{highlightText(s(d.productora_email), selectionComments, onCommentClick)}</p>
+        <p style={subItem}><strong>b. </strong><strong>{L.notificacionesParts.b} </strong>{highlightText(s(d.colaboradora_email), selectionComments, onCommentClick)}</p>
       </div>
 
       <p style={clauseTitle}>5. {L.clauseTitles.confidencialidad}</p>
