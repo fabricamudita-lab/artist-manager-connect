@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { Disc3, DollarSign, Music, CalendarDays, FileText, AlignLeft, Trash2 } from 'lucide-react';
@@ -34,12 +35,18 @@ export const DEFAULT_CARD_CONFIG: CardDisplayConfig = {
   show_description: false,
 };
 
+const formSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio').max(100, 'Máximo 100 caracteres'),
+  description: z.string().trim().max(2000, 'Máximo 2000 caracteres').optional(),
+});
+
 interface ProjectSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
   projectName: string;
   artistId?: string | null;
+  description?: string | null;
   config: CardDisplayConfig;
 }
 
@@ -52,81 +59,64 @@ const TOGGLE_OPTIONS: { key: keyof CardDisplayConfig; label: string; icon: React
   { key: 'show_description', label: 'Descripción', icon: <AlignLeft className="h-4 w-4 text-muted-foreground" /> },
 ];
 
-export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectName, artistId, config }: ProjectSettingsDialogProps) {
+export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectName, artistId, description, config }: ProjectSettingsDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [localConfig, setLocalConfig] = useState<CardDisplayConfig>(config);
   const [localName, setLocalName] = useState(projectName);
   const [localArtistId, setLocalArtistId] = useState<string | null>(artistId ?? null);
+  const [localDescription, setLocalDescription] = useState<string>(description ?? '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Sync state when dialog opens with new props
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) {
+  // Sync state when dialog opens
+  useEffect(() => {
+    if (open) {
       setLocalName(projectName);
       setLocalArtistId(artistId ?? null);
+      setLocalDescription(description ?? '');
       setLocalConfig(config);
     }
-    onOpenChange(newOpen);
-  };
+  }, [open, projectName, artistId, description, config]);
 
-  const handleNameSave = async () => {
-    const trimmed = localName.trim();
-    if (!trimmed || trimmed.length > 100) {
-      toast({ title: 'Error', description: 'El nombre debe tener entre 1 y 100 caracteres', variant: 'destructive' });
-      setLocalName(projectName);
+  const handleSave = async () => {
+    const parsed = formSchema.safeParse({ name: localName, description: localDescription });
+    if (!parsed.success) {
+      toast({ title: 'Error', description: parsed.error.errors[0]?.message ?? 'Datos inválidos', variant: 'destructive' });
       return;
     }
-    if (trimmed === projectName) return;
+    const cfgParsed = cardDisplayConfigSchema.safeParse(localConfig);
+    if (!cfgParsed.success) {
+      toast({ title: 'Error', description: 'Configuración inválida', variant: 'destructive' });
+      return;
+    }
 
+    setSaving(true);
     const { error } = await supabase
       .from('projects')
-      .update({ name: trimmed })
+      .update({
+        name: parsed.data.name,
+        artist_id: localArtistId,
+        description: parsed.data.description?.length ? parsed.data.description : null,
+        card_display_config: localConfig as any,
+      })
       .eq('id', projectId);
+    setSaving(false);
 
     if (error) {
-      toast({ title: 'Error', description: 'No se pudo guardar el nombre', variant: 'destructive' });
-      setLocalName(projectName);
-    } else {
-      queryClient.invalidateQueries({ queryKey: ['proyectos-projects'] });
-      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+      toast({ title: 'Error', description: 'No se pudieron guardar los cambios', variant: 'destructive' });
+      return;
     }
+
+    toast({ title: 'Cambios guardados' });
+    queryClient.invalidateQueries({ queryKey: ['proyectos-projects'] });
+    queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+    onOpenChange(false);
   };
 
-  const handleArtistChange = async (newArtistId: string | null) => {
-    setLocalArtistId(newArtistId);
-    const { error } = await supabase
-      .from('projects')
-      .update({ artist_id: newArtistId })
-      .eq('id', projectId);
-
-    if (error) {
-      toast({ title: 'Error', description: 'No se pudo cambiar el artista', variant: 'destructive' });
-      setLocalArtistId(artistId ?? null);
-    } else {
-      queryClient.invalidateQueries({ queryKey: ['proyectos-projects'] });
-      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
-    }
-  };
-
-  const handleToggle = async (key: keyof CardDisplayConfig, value: boolean) => {
-    const updated = { ...localConfig, [key]: value };
-    const parsed = cardDisplayConfigSchema.safeParse(updated);
-    if (!parsed.success) return;
-
-    setLocalConfig(updated);
-    const { error } = await supabase
-      .from('projects')
-      .update({ card_display_config: updated as any })
-      .eq('id', projectId);
-
-    if (error) {
-      toast({ title: 'Error', description: 'No se pudo guardar la configuración', variant: 'destructive' });
-      setLocalConfig(localConfig);
-    } else {
-      queryClient.invalidateQueries({ queryKey: ['proyectos-projects'] });
-    }
+  const handleToggle = (key: keyof CardDisplayConfig, value: boolean) => {
+    setLocalConfig((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleDelete = async () => {
@@ -144,10 +134,12 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
     }
   };
 
+  const activeCount = Object.values(localConfig).filter(Boolean).length;
+
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configuración del proyecto</DialogTitle>
           </DialogHeader>
@@ -162,8 +154,6 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
                   <Input
                     value={localName}
                     onChange={(e) => setLocalName(e.target.value)}
-                    onBlur={handleNameSave}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleNameSave(); }}
                     maxLength={100}
                     placeholder="Nombre del proyecto"
                   />
@@ -172,8 +162,18 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
                   <Label className="text-sm">Perfil vinculado</Label>
                   <SingleArtistSelector
                     value={localArtistId}
-                    onValueChange={handleArtistChange}
+                    onValueChange={setLocalArtistId}
                     placeholder="Sin artista vinculado"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Descripción</Label>
+                  <Textarea
+                    value={localDescription}
+                    onChange={(e) => setLocalDescription(e.target.value)}
+                    maxLength={2000}
+                    placeholder="Breve descripción del proyecto"
+                    rows={3}
                   />
                 </div>
               </div>
@@ -185,12 +185,11 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
             <div className="space-y-3">
               <p className="text-sm font-medium text-muted-foreground">Vista previa en tarjeta</p>
               <p className="text-xs text-muted-foreground">Elige qué datos se muestran en la tarjeta del proyecto (máx. 3)</p>
-              {Object.values(localConfig).filter(Boolean).length >= 3 && (
+              {activeCount >= 3 && (
                 <p className="text-xs text-amber-500 font-medium">Máximo 3 opciones seleccionadas</p>
               )}
               <div className="space-y-3 pt-1">
                 {TOGGLE_OPTIONS.map(({ key, label, icon }) => {
-                  const activeCount = Object.values(localConfig).filter(Boolean).length;
                   const isChecked = localConfig[key];
                   const isDisabled = !isChecked && activeCount >= 3;
                   return (
@@ -225,6 +224,15 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId, projectNa
               </Button>
             </div>
           </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

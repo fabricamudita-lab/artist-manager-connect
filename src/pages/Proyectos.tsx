@@ -308,10 +308,16 @@ export default function Proyectos() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {cfg.show_description && project.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {project.description}
-                      </p>
+                    {cfg.show_description && (
+                      project.description ? (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {project.description}
+                        </p>
+                      ) : (
+                        <p className="text-sm italic text-muted-foreground/60">
+                          Sin descripción
+                        </p>
+                      )
                     )}
 
                     {/* Stats Grid — only visible items */}
@@ -371,6 +377,8 @@ export default function Proyectos() {
               onOpenChange={(open) => { if (!open) setSettingsProjectId(null); }}
               projectId={proj.id}
               projectName={proj.name}
+              artistId={(proj as any).artist_id ?? null}
+              description={(proj as any).description ?? null}
               config={cfg}
             />
           );
