@@ -380,6 +380,65 @@ const romanItem: React.CSSProperties = {
   marginBottom: '12px', textAlign: 'justify', paddingLeft: '32px', textIndent: '-32px',
 };
 
+// Inline helper: returns a ReactNode array with yellow <mark>s wrapping any
+// occurrences of comment.selected_text inside `text`.
+function highlightText(
+  text: string,
+  comments?: Array<{ selected_text: string | null; id: string }>,
+  onCommentClick?: (commentId: string) => void,
+): React.ReactNode {
+  if (!comments || comments.length === 0 || !text) return text;
+  const normalize = (str: string) => str.replace(/\s+/g, ' ').replace(/\u00A0/g, ' ');
+  let remaining = text;
+  const parts: React.ReactNode[] = [];
+  let idx = 0;
+
+  // Sort by position in remaining text
+  const findPos = (sel: string, hay: string) => {
+    const direct = hay.indexOf(sel);
+    if (direct !== -1) return direct;
+    return normalize(hay).indexOf(normalize(sel));
+  };
+
+  // Iterate while we still find a match
+  let safety = 0;
+  while (safety++ < 50) {
+    let nextPos = -1;
+    let nextComment: { selected_text: string | null; id: string } | null = null;
+    for (const c of comments) {
+      if (!c.selected_text) continue;
+      const p = findPos(c.selected_text, remaining);
+      if (p !== -1 && (nextPos === -1 || p < nextPos)) {
+        nextPos = p;
+        nextComment = c;
+      }
+    }
+    if (nextPos === -1 || !nextComment || !nextComment.selected_text) break;
+    if (nextPos > 0) parts.push(<span key={`t-${idx++}`}>{remaining.slice(0, nextPos)}</span>);
+    const sel = nextComment.selected_text;
+    const cid = nextComment.id;
+    parts.push(
+      <span
+        key={`h-${cid}-${idx++}`}
+        style={{
+          backgroundColor: '#FFF9C4',
+          borderBottom: '2px solid #F59E0B',
+          cursor: 'pointer',
+          borderRadius: '2px',
+          padding: '0 1px',
+        }}
+        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+        title="💬 Ver comentario"
+      >
+        {sel}
+      </span>
+    );
+    remaining = remaining.slice(nextPos + sel.length);
+  }
+  if (remaining) parts.push(<span key={`t-${idx++}`}>{remaining}</span>);
+  return parts;
+}
+
 // Helper to render a highlighted clause paragraph with inline yellow highlights
 function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
   clauseKey: string; text: string; style?: React.CSSProperties;
@@ -544,25 +603,31 @@ function renderIPLicenseContent(
 
       <p data-clause="reunidos" style={paragraph}>
         <strong>{L.deUnaParte}</strong>
-        {L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio))}
+        {highlightText(
+          L.parteIntervencionProductora(s(d.productora_nombre), s(d.productora_doc_tipo), s(d.productora_dni), s(d.productora_domicilio)),
+          selectionComments, onCommentClick,
+        )}
       </p>
 
       <p data-clause="reunidos" style={paragraph}>
         <strong>{L.deOtraParte}</strong>
-        {L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio))}
+        {highlightText(
+          L.parteIntervencionColaboradora(s(d.colaboradora_nombre), s(d.colaboradora_doc_tipo), s(d.colaboradora_dni), s(d.colaboradora_domicilio)),
+          selectionComments, onCommentClick,
+        )}
       </p>
 
-      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{L.ambasPartes}</p>
-      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{ambasFinal}</p>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{highlightText(L.ambasPartes, selectionComments, onCommentClick)}</p>
+      <p data-clause="reunidos" style={{ ...paragraph, textIndent: '24px' }}>{highlightText(ambasFinal, selectionComments, onCommentClick)}</p>
 
       <p style={sectionTitle}>{L.manifiestan}</p>
 
-      <p data-clause="manifiestan-I" style={romanItem}><strong>I) </strong>{recitalI}</p>
-      <p data-clause="manifiestan-II" style={romanItem}><strong>II) </strong>{recitalII}</p>
-      <p data-clause="manifiestan-III" style={romanItem}><strong>III) </strong>{recitalIII}</p>
-      <p data-clause="manifiestan-IV" style={romanItem}><strong>IV) </strong>{recitalIV}</p>
+      <p data-clause="manifiestan-I" style={romanItem}><strong>I) </strong>{highlightText(recitalI, selectionComments, onCommentClick)}</p>
+      <p data-clause="manifiestan-II" style={romanItem}><strong>II) </strong>{highlightText(recitalII, selectionComments, onCommentClick)}</p>
+      <p data-clause="manifiestan-III" style={romanItem}><strong>III) </strong>{highlightText(recitalIII, selectionComments, onCommentClick)}</p>
+      <p data-clause="manifiestan-IV" style={romanItem}><strong>IV) </strong>{highlightText(recitalIV, selectionComments, onCommentClick)}</p>
 
-      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>{L.paraAcordar}</p>
+      <p data-clause="manifiestan" style={{ ...paragraph, textIndent: '24px' }}>{highlightText(L.paraAcordar, selectionComments, onCommentClick)}</p>
 
       <p style={sectionTitle}>{L.clausulas}</p>
 
