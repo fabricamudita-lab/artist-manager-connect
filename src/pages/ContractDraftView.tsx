@@ -159,6 +159,23 @@ export default function ContractDraftView() {
     }, 100);
   }, []);
 
+  const scrollToHighlight = useCallback((commentId: string) => {
+    const el = contractRef.current?.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const original = el.style.boxShadow;
+      el.style.boxShadow = '0 0 0 3px hsl(38 92% 50%), 0 0 0 6px hsl(38 92% 50% / 0.3)';
+      setTimeout(() => { el.style.boxShadow = original; }, 2200);
+      return;
+    }
+    // Fallback: scroll to clause
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.clause_number) {
+      handleScrollToClause(comment.clause_number);
+    }
+  }, [comments, handleScrollToClause]);
+
+
   const handleMarkReady = async () => {
     if (!draft) return;
     if (hasPendingNegotiations) {
@@ -305,6 +322,7 @@ export default function ContractDraftView() {
           pendingSelection={pendingSelection}
           onClearSelection={() => setPendingSelection(null)}
           onScrollToClause={handleScrollToClause}
+          onScrollToHighlight={scrollToHighlight}
           activeCommentId={activeCommentId}
         />
       </div>
@@ -420,12 +438,14 @@ function highlightText(
     parts.push(
       <span
         key={`h-${cid}-${idx++}`}
+        data-comment-id={cid}
         style={{
           backgroundColor: '#FFF9C4',
           borderBottom: '2px solid #F59E0B',
           cursor: 'pointer',
           borderRadius: '2px',
           padding: '0 1px',
+          transition: 'box-shadow 0.3s ease',
         }}
         onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
         title="💬 Ver comentario"
@@ -496,7 +516,8 @@ function LabeledHighlight({ label, value, comments, onCommentClick }: {
       out.push(
         <span
           key={`h-${key++}`}
-          style={{ backgroundColor: '#FFF9C4', borderBottom: '2px solid #F59E0B', cursor: 'pointer', borderRadius: '2px', padding: '0 1px' }}
+          data-comment-id={highlightId}
+          style={{ backgroundColor: '#FFF9C4', borderBottom: '2px solid #F59E0B', cursor: 'pointer', borderRadius: '2px', padding: '0 1px', transition: 'box-shadow 0.3s ease' }}
           onClick={(e) => { e.stopPropagation(); onCommentClick?.(highlightId); }}
           title="💬 Ver comentario"
         >
@@ -589,12 +610,14 @@ function ClauseParagraph({ clauseKey, text, style, comments, onCommentClick }: {
       parts.push(
         <span
           key={`h-${comment.id}`}
+          data-comment-id={comment.id}
           style={{
             backgroundColor: '#FFF9C4',
             borderBottom: '2px solid #F59E0B',
             cursor: 'pointer',
             borderRadius: '2px',
             padding: '0 1px',
+            transition: 'box-shadow 0.3s ease',
           }}
           onClick={(e) => {
             e.stopPropagation();

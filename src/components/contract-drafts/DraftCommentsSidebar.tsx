@@ -31,6 +31,7 @@ interface DraftCommentsSidebarProps {
   pendingSelection?: TextSelection | null;
   onClearSelection?: () => void;
   onScrollToClause?: (clauseNumber: string) => void;
+  onScrollToHighlight?: (commentId: string) => void;
   activeCommentId?: string | null;
 }
 
@@ -48,6 +49,7 @@ export function DraftCommentsSidebar({
   pendingSelection,
   onClearSelection,
   onScrollToClause,
+  onScrollToHighlight,
   activeCommentId,
 }: DraftCommentsSidebarProps) {
   const [newMessage, setNewMessage] = useState('');
@@ -163,7 +165,8 @@ export function DraftCommentsSidebar({
           <div
             key={comment.id}
             id={`comment-${comment.id}`}
-            className={`rounded-lg border p-3 text-sm space-y-2 transition-all ${
+            onClick={() => onScrollToHighlight?.(comment.id)}
+            className={`rounded-lg border p-3 text-sm space-y-2 transition-all cursor-pointer hover:bg-muted/50 hover:border-primary/40 ${
               comment.resolved || comment.comment_status === 'resolved' || comment.comment_status === 'approved' ? 'opacity-50' : ''
             } ${activeCommentId === comment.id ? 'ring-2 ring-primary animate-pulse' : ''}`}
           >
@@ -173,7 +176,7 @@ export function DraftCommentsSidebar({
                 <Badge
                   variant="outline"
                   className="text-[10px] cursor-pointer hover:bg-accent"
-                  onClick={() => onScrollToClause?.(comment.clause_number!)}
+                  onClick={(e) => { e.stopPropagation(); onScrollToClause?.(comment.clause_number!); }}
                 >
                   § {comment.clause_number}
                 </Badge>
@@ -199,7 +202,7 @@ export function DraftCommentsSidebar({
 
             {/* Proposed change view */}
             {comment.proposed_change && (comment.comment_status === 'pending_approval' || comment.comment_status === 'proposing_change') && (
-              <div className="space-y-2 border rounded p-2 bg-muted/30">
+              <div className="space-y-2 border rounded p-2 bg-muted/30" onClick={(e) => e.stopPropagation()}>
                 <p className="text-[10px] font-semibold flex items-center gap-1"><Edit3 className="h-3 w-3" /> Propuesta de cambio:</p>
                 <div className="text-xs space-y-1">
                   <div>
@@ -241,7 +244,7 @@ export function DraftCommentsSidebar({
             )}
 
             {/* Actions */}
-            <div className="flex gap-1 pt-1 flex-wrap">
+            <div className="flex gap-1 pt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
               {!comment.resolved && comment.comment_status !== 'resolved' && comment.comment_status !== 'approved' && (
                 <>
                   <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => { setReplyTo(comment.id); }}>
@@ -266,7 +269,7 @@ export function DraftCommentsSidebar({
 
             {/* Propose change inline form */}
             {proposingFor === comment.id && (
-              <div className="space-y-1.5 border-t pt-2">
+              <div className="space-y-1.5 border-t pt-2" onClick={(e) => e.stopPropagation()}>
                 <p className="text-[10px] font-semibold">Texto propuesto:</p>
                 <Textarea
                   value={proposedText}
