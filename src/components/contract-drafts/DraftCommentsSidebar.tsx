@@ -31,6 +31,7 @@ interface DraftCommentsSidebarProps {
   pendingSelection?: TextSelection | null;
   onClearSelection?: () => void;
   onScrollToClause?: (clauseNumber: string) => void;
+  onScrollToHighlight?: (commentId: string) => void;
   activeCommentId?: string | null;
 }
 
