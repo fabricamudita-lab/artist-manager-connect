@@ -159,6 +159,23 @@ export default function ContractDraftView() {
     }, 100);
   }, []);
 
+  const scrollToHighlight = useCallback((commentId: string) => {
+    const el = contractRef.current?.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const original = el.style.boxShadow;
+      el.style.boxShadow = '0 0 0 3px hsl(38 92% 50%), 0 0 0 6px hsl(38 92% 50% / 0.3)';
+      setTimeout(() => { el.style.boxShadow = original; }, 2200);
+      return;
+    }
+    // Fallback: scroll to clause
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.clause_number) {
+      handleScrollToClause(comment.clause_number);
+    }
+  }, [comments, handleScrollToClause]);
+
+
   const handleMarkReady = async () => {
     if (!draft) return;
     if (hasPendingNegotiations) {
