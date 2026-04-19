@@ -49,6 +49,7 @@ export function DraftCommentsSidebar({
   pendingSelection,
   onClearSelection,
   onScrollToClause,
+  onScrollToHighlight,
   activeCommentId,
 }: DraftCommentsSidebarProps) {
   const [newMessage, setNewMessage] = useState('');
@@ -164,7 +165,8 @@ export function DraftCommentsSidebar({
           <div
             key={comment.id}
             id={`comment-${comment.id}`}
-            className={`rounded-lg border p-3 text-sm space-y-2 transition-all ${
+            onClick={() => onScrollToHighlight?.(comment.id)}
+            className={`rounded-lg border p-3 text-sm space-y-2 transition-all cursor-pointer hover:bg-muted/50 hover:border-primary/40 ${
               comment.resolved || comment.comment_status === 'resolved' || comment.comment_status === 'approved' ? 'opacity-50' : ''
             } ${activeCommentId === comment.id ? 'ring-2 ring-primary animate-pulse' : ''}`}
           >
