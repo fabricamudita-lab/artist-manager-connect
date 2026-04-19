@@ -1,33 +1,40 @@
 
 
-## Diagnóstico
+## Plan: Click en comentario → scroll al texto resaltado en el documento
 
-En el screenshot:
-- ✅ Comentario §1.2 "test" → resaltado (es texto largo, está en el bloque principal de la cláusula 1.2).
-- ❌ Comentario §2.1 "test 2" sobre `": El Universo."` → NO resaltado. El texto está en el sub-item `b. TERRITORIO: El Universo.` que NO pasa por `highlightText`.
-- ❌ Otro comentario también sin resaltar, probablemente sobre otro sub-item (a. PERIODO / c. MEDIOS) de la sección 2.1.
+### Diagnóstico
+Hoy el flujo inverso ya funciona: click en `<mark>` amarillo → scroll al comentario en el panel. Falta el flujo directo: click en una tarjeta de comentario del panel lateral → scroll al `<mark>` correspondiente en el documento + pulso visual.
 
-**Causa raíz**: En la última iteración apliqué `highlightText` a algunos sub-items dinámicos de 1.1, 2.1, 2.3 y 4.1, pero la sección **2.1 tiene sub-items estáticos** (`a. PERIODO: A perpetuidad`, `b. TERRITORIO: El Universo`, `c. MEDIOS: ...`) cuyo texto plano NO está envuelto en `highlightText`. Lo mismo puede pasar en otras secciones con texto fijo (3, 5, 6, 7, etc.).
+### Exploración necesaria al implementar
+- `src/pages/ContractDraftView.tsx`: localizar el panel lateral de comentarios (tarjetas "§ 2.1 / Abierto / test 2") y la función `highlightText` / `LabeledHighlight` para añadir un atributo `data-comment-id={cid}` al `<mark>` (si aún no lo tiene de forma consistente).
+- Verificar si el componente del panel es inline o vive en `src/components/contract-drafts/*`.
 
-La solución parcial actual no escala. Hay que aplicar `highlightText` de forma **sistemática** a TODO el contenido textual del documento, no caso por caso.
+### Cambios
 
-## Plan
+**1. Marcar cada highlight con `data-comment-id`**
+- En `highlightText` y `LabeledHighlight`, añadir `data-comment-id={comment.id}` al `<span>`/`<mark>` resaltado (además del `onClick` ya existente).
 
-### Cambio en `src/pages/ContractDraftView.tsx`
+**2. Handler `scrollToHighlight(commentId)` en `ContractDraftView`**
+```ts
+const scrollToHighlight = (commentId: string) => {
+  const el = document.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all');
+  setTimeout(() => el.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all'), 2500);
+};
+```
 
-1. **Auditar el render completo** del contrato (todas las cláusulas 1–14, sub-items a/b/c/d, párrafos de cierre, firmas, anexos).
-2. Para cada nodo de texto plano renderizado dentro del documento, envolverlo con `highlightText(texto, selectionComments, onCommentClick)`.
-   - Incluye: `L.subItemsAlcance.a/b/c`, textos largos de cláusulas 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, secciones de "Y para que conste...", lugar/fecha, etiquetas de firmantes.
-   - También valores dinámicos sueltos (`s(d.xxx)`) que aún se imprimen directamente.
-3. Para evitar repetir el patrón, considerar una mini-función local `H(text)` = `highlightText(text, selectionComments, onCommentClick)` y usarla en todos los puntos. Reduce ruido visual en el JSX.
-4. Mantener intactos los `<strong>` de etiquetas (ej. `a. PERIODO:`) renderizándolos fuera de `H()`, y aplicar `H()` solo al valor/texto que sigue.
+**3. Hacer clickable la tarjeta de comentario**
+- En el render de cada tarjeta del panel lateral (la que muestra `§ 2.1`, snippet, autor, "test 2"), añadir `onClick={() => scrollToHighlight(comment.id)}` y `cursor-pointer` + `hover:bg-muted/50`.
+- Evitar que botones internos (`Responder`, `Proponer cambio`, `Resolver`) propaguen el click: añadir `e.stopPropagation()` en sus handlers.
 
-### Verificación
-- Crear un comentario sobre cualquier sub-item estático (ej. "El Universo") y confirmar que se resalta.
-- Repetir en cláusulas 3 y 5 para validar cobertura completa.
+### Edge cases
+- Comentario sin `<mark>` correspondiente (texto cambió y no se encontró match) → fallback: scroll a la cláusula `data-clause={clause_number}` si existe; si no, no hacer nada.
+- Múltiples `<mark>` del mismo comentario → `querySelector` toma el primero, suficiente.
 
 ### Archivos
 | Archivo | Cambio |
 |---|---|
-| `src/pages/ContractDraftView.tsx` | Aplicar `highlightText` (vía helper local `H`) a TODO el texto renderizado del contrato, no solo bloques seleccionados |
+| `src/pages/ContractDraftView.tsx` | Añadir `data-comment-id` en highlights, función `scrollToHighlight`, y `onClick` en tarjetas del panel de comentarios |
 
