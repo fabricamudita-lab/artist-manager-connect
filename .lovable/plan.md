@@ -1,40 +1,104 @@
 
 
-## Plan: Click en comentario → scroll al texto resaltado en el documento
+## Plan: Mejoras integrales del panel de comentarios + tracking de participantes
 
-### Diagnóstico
-Hoy el flujo inverso ya funciona: click en `<mark>` amarillo → scroll al comentario en el panel. Falta el flujo directo: click en una tarjeta de comentario del panel lateral → scroll al `<mark>` correspondiente en el documento + pulso visual.
+### 1. Panel lateral redimensionable y expandible
+**Archivos**: `src/pages/ContractDraftView.tsx`
 
-### Exploración necesaria al implementar
-- `src/pages/ContractDraftView.tsx`: localizar el panel lateral de comentarios (tarjetas "§ 2.1 / Abierto / test 2") y la función `highlightText` / `LabeledHighlight` para añadir un atributo `data-comment-id={cid}` al `<mark>` (si aún no lo tiene de forma consistente).
-- Verificar si el componente del panel es inline o vive en `src/components/contract-drafts/*`.
+- Reemplazar el ancho fijo `w-80` por un panel con resize handle:
+  - Estado `sidebarWidth` (default 360px, min 280px, max 720px), persistido en `localStorage`.
+  - Drag-handle vertical en el borde izquierdo del sidebar (`onMouseDown` → listeners en `window`).
+  - Botón "expandir/colapsar" con dos modos rápidos: estrecho (360px) ↔ ancho (640px).
+- En móvil mantener `showSidebar` toggle a pantalla completa.
 
-### Cambios
+### 2. Propuestas en rojo dentro del documento
+**Archivos**: `src/pages/ContractDraftView.tsx` (helpers `highlightText` / `LabeledHighlight`)
 
-**1. Marcar cada highlight con `data-comment-id`**
-- En `highlightText` y `LabeledHighlight`, añadir `data-comment-id={comment.id}` al `<span>`/`<mark>` resaltado (además del `onClick` ya existente).
+- Pasar también `proposalComments` (comentarios con `proposed_change` activo) a los helpers.
+- Cuando un fragmento coincida con una propuesta, renderizar:
+  - Texto original tachado en rojo (`text-decoration: line-through; color: #DC2626`).
+  - A continuación, el `proposed_change` insertado en rojo subrayado (`color: #DC2626; text-decoration: underline; font-weight: 500`).
+  - Tooltip "Propuesta de cambio – click para ver".
+- Si la propuesta está aprobada por ambas partes, mostrar el texto nuevo en verde sin tachado (cambio aceptado).
 
-**2. Handler `scrollToHighlight(commentId)` en `ContractDraftView`**
-```ts
-const scrollToHighlight = (commentId: string) => {
-  const el = document.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`);
-  if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all');
-  setTimeout(() => el.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all'), 2500);
-};
+### 3. Vista "todos los comentarios juntos" mejorada
+**Archivos**: `src/components/contract-drafts/DraftCommentsSidebar.tsx`
+
+- Añadir contador por filtro en los pills (`Todos (5) · Abiertos (3) · Pendientes (1) · Resueltos (1)`).
+- Agrupar visualmente por cláusula (`§ reunidos`, `§ 1.1`, `§ 2.1`...) con headers sticky cuando filtro = "Todos".
+- Densificar tarjetas en modo ancho: cuando `sidebarWidth > 480px`, mostrar 2 columnas tipo masonry.
+- Añadir buscador rápido (input arriba) que filtra por texto del comentario o autor.
+
+### 4. Tracking de participantes que han entrado al documento
+**Nueva tabla** `contract_draft_participants`:
+```
+id uuid PK
+draft_id uuid FK contract_drafts
+name text
+email text (lowercase)
+profile_id uuid FK profiles NULLABLE  -- vinculado si email coincide con un perfil
+contact_id uuid FK contacts NULLABLE  -- vinculado si email coincide con un contacto
+role text  -- 'producer' | 'collaborator' | 'viewer'
+first_seen_at timestamptz default now()
+last_seen_at timestamptz default now()
+view_count int default 1
+UNIQUE (draft_id, email)
 ```
 
-**3. Hacer clickable la tarjeta de comentario**
-- En el render de cada tarjeta del panel lateral (la que muestra `§ 2.1`, snippet, autor, "test 2"), añadir `onClick={() => scrollToHighlight(comment.id)}` y `cursor-pointer` + `hover:bg-muted/50`.
-- Evitar que botones internos (`Responder`, `Proponer cambio`, `Resolver`) propaguen el click: añadir `e.stopPropagation()` en sus handlers.
+- RLS: select público para token holders (igual que `contract_drafts`), insert/update vía función `track_draft_participant(token, name, email)` (security definer).
+- Al hacer `handleIdentitySubmit` en `ContractDraftView.tsx`, llamar al RPC para registrar/actualizar.
+- Al cargar el draft también, refrescar `last_seen_at` (debounce 5min).
 
-### Edge cases
-- Comentario sin `<mark>` correspondiente (texto cambió y no se encontró match) → fallback: scroll a la cláusula `data-clause={clause_number}` si existe; si no, no hacer nada.
-- Múltiples `<mark>` del mismo comentario → `querySelector` toma el primero, suficiente.
+### 5. Vinculación con perfiles de la app
+**Lógica de linking automático en el RPC**:
+
+1. Buscar en `profiles` por email → si match, guardar `profile_id`.
+2. Si no, buscar en `contacts` (campo email/emails JSONB) → guardar `contact_id`.
+3. Devolver el participante enriquecido con avatar/nombre real del perfil.
+
+**Resultado en UI**: cada participante muestra:
+- Avatar (de profile/contact si existe, iniciales si no)
+- Nombre + email
+- Badge de rol detectado (Productora / Colaborador / Invitado)
+- Badge "👤 Perfil de la app" si está vinculado, click → abre perfil en nueva pestaña
+
+### 6. Nueva sección "Participantes" en el sidebar
+**Archivo**: `src/components/contract-drafts/DraftParticipantsList.tsx` (nuevo)
+
+- Pestaña/sección colapsable arriba del sidebar:
+  ```
+  👥 Participantes (3)
+   ├ 🟢 Eudald Payés Roma · Productora · perfil app · ahora
+   ├ 🟢 Davis Dolans · Colaborador · contacto app · hace 2h
+   └ ⚪ David · Invitado · sin vincular · hace 1d
+  ```
+- Verde = activo en últimos 5min.
+- Reactivo en tiempo real vía Supabase `realtime` sobre `contract_draft_participants`.
+
+### Diagrama del layout final
+
+```text
+┌─────────────────────────────────────────┬──────────────────┐
+│                                         │ 👥 Participantes │
+│                                         │  (colapsable)    │
+│         DOCUMENTO A4                    ├──────────────────┤
+│  - Highlights amarillos (comentarios)   │ 💬 Comentarios   │
+│  - Texto tachado rojo + nuevo rojo      │  Filtros + count │
+│    (propuestas pendientes)              │  Buscador        │
+│  - Texto verde (cambios aprobados)      │  Lista agrupada  │
+│                                         │  por § cláusula  │
+│                                         │  ─────────────   │
+│                                         │  Nuevo comentario│
+└─────────────────────────────────────────┴──────────────────┘
+                                          ↑↔ resize handle
+```
 
 ### Archivos
 | Archivo | Cambio |
 |---|---|
-| `src/pages/ContractDraftView.tsx` | Añadir `data-comment-id` en highlights, función `scrollToHighlight`, y `onClick` en tarjetas del panel de comentarios |
+| `supabase/migrations/*` (nuevo) | Tabla `contract_draft_participants` + RPC `track_draft_participant` + RLS |
+| `src/hooks/useDraftParticipants.ts` (nuevo) | Hook para listar/registrar participantes con realtime |
+| `src/components/contract-drafts/DraftParticipantsList.tsx` (nuevo) | UI de participantes con avatares y vínculos |
+| `src/components/contract-drafts/DraftCommentsSidebar.tsx` | Contadores por filtro, agrupación por cláusula, buscador, layout multi-columna |
+| `src/pages/ContractDraftView.tsx` | Sidebar redimensionable, integración participantes, tracking en identity submit, render de propuestas en rojo |
 
