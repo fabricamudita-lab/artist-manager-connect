@@ -322,6 +322,7 @@ export default function ContractDraftView() {
           pendingSelection={pendingSelection}
           onClearSelection={() => setPendingSelection(null)}
           onScrollToClause={handleScrollToClause}
+          onScrollToHighlight={scrollToHighlight}
           activeCommentId={activeCommentId}
         />
       </div>
