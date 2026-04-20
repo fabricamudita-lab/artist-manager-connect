@@ -721,7 +721,11 @@ export default function BookingDetail() {
               </TabsContent>
 
               <TabsContent value="solicitudes">
-                <LinkedSolicitudesCard bookingId={booking.id} />
+                <LinkedSolicitudesCard
+                  bookingId={booking.id}
+                  artistId={booking.artist_id}
+                  projectId={booking.project_id}
+                />
               </TabsContent>
             </Tabs>
           </div>
