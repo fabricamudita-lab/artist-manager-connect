@@ -502,11 +502,100 @@ const romanItem: React.CSSProperties = {
   marginBottom: '12px', textAlign: 'justify', paddingLeft: '32px', textIndent: '-32px',
 };
 
+// Type for highlight comments (with optional proposal data)
+type HLComment = {
+  id: string;
+  selected_text: string | null;
+  proposed_change?: string | null;
+  is_approved?: boolean;
+  approved_by_producer?: boolean;
+  approved_by_collaborator?: boolean;
+};
+
+// Renders the visual span for a matched text fragment.
+// - Plain comment (no proposal): yellow highlight.
+// - Proposal pending: original text in red strike-through + proposed text in red underline.
+// - Proposal approved by both: proposed text in green (no strike).
+function renderHighlightSpan(
+  comment: HLComment,
+  matchedText: string,
+  innerNode: React.ReactNode,
+  keyStr: string,
+  onCommentClick?: (commentId: string) => void,
+): React.ReactNode {
+  const cid = comment.id;
+  const proposed = comment.proposed_change?.trim();
+  const isApproved = !!comment.is_approved;
+
+  if (proposed && isApproved) {
+    // Accepted change: show proposed text in green
+    return (
+      <span
+        key={keyStr}
+        data-comment-id={cid}
+        style={{
+          color: '#15803d',
+          backgroundColor: '#dcfce7',
+          borderBottom: '2px solid #16a34a',
+          cursor: 'pointer',
+          borderRadius: '2px',
+          padding: '0 2px',
+          fontWeight: 500,
+        }}
+        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+        title="✅ Cambio aprobado por ambas partes"
+      >
+        {proposed}
+      </span>
+    );
+  }
+
+  if (proposed) {
+    // Pending proposal: strike original, show proposed in red
+    return (
+      <span
+        key={keyStr}
+        data-comment-id={cid}
+        style={{ cursor: 'pointer' }}
+        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+        title="✏️ Propuesta de cambio pendiente — click para ver"
+      >
+        <span style={{ color: '#dc2626', textDecoration: 'line-through', backgroundColor: '#fee2e2', padding: '0 2px', borderRadius: '2px' }}>
+          {innerNode}
+        </span>
+        <span style={{ color: '#dc2626', textDecoration: 'underline', fontWeight: 500, backgroundColor: '#fee2e2', padding: '0 2px', borderRadius: '2px', marginLeft: 4 }}>
+          {proposed}
+        </span>
+      </span>
+    );
+  }
+
+  // Plain comment highlight
+  return (
+    <span
+      key={keyStr}
+      data-comment-id={cid}
+      style={{
+        backgroundColor: '#FFF9C4',
+        borderBottom: '2px solid #F59E0B',
+        cursor: 'pointer',
+        borderRadius: '2px',
+        padding: '0 1px',
+        transition: 'box-shadow 0.3s ease',
+      }}
+      onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+      title="💬 Ver comentario"
+    >
+      {innerNode}
+    </span>
+  );
+}
+
 // Inline helper: returns a ReactNode array with yellow <mark>s wrapping any
 // occurrences of comment.selected_text inside `text`.
 function highlightText(
   text: string,
-  comments?: Array<{ selected_text: string | null; id: string }>,
+  comments?: Array<HLComment>,
   onCommentClick?: (commentId: string) => void,
 ): React.ReactNode {
   if (!comments || comments.length === 0 || !text) return text;
