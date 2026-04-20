@@ -253,14 +253,28 @@ export default function ContractDraftView() {
     else toast.success('Marcado como listo para firma');
   };
 
-  // Get comments with selection for highlighting (active = not resolved/approved)
-  // Includes the pending (in-progress) selection so it stays highlighted while composing.
+  // Get comments with selection for highlighting (active = not resolved).
+  // Also passes proposed_change + approval flags so the document can render proposals inline.
   const selectionComments = useMemo(() => {
     const active = comments
-      .filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved')
-      .map(c => ({ id: c.id, selected_text: c.selected_text }));
+      .filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved')
+      .map(c => ({
+        id: c.id,
+        selected_text: c.selected_text,
+        proposed_change: (c as any).proposed_change || null,
+        approved_by_producer: !!(c as any).approved_by_producer,
+        approved_by_collaborator: !!(c as any).approved_by_collaborator,
+        is_approved: c.comment_status === 'approved' || (!!(c as any).approved_by_producer && !!(c as any).approved_by_collaborator),
+      }));
     if (pendingSelection?.selectedText) {
-      active.push({ id: '__pending__', selected_text: pendingSelection.selectedText });
+      active.push({
+        id: '__pending__',
+        selected_text: pendingSelection.selectedText,
+        proposed_change: null,
+        approved_by_producer: false,
+        approved_by_collaborator: false,
+        is_approved: false,
+      });
     }
     return active;
   }, [comments, pendingSelection]);
