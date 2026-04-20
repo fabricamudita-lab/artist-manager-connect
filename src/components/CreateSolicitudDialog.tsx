@@ -20,9 +20,12 @@ interface CreateSolicitudDialogProps {
   onOpenChange: (open: boolean) => void;
   onSolicitudCreated: () => void;
   projectId?: string;
+  bookingId?: string;
+  artistId?: string;
+  defaultTipo?: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
 }
 
-export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, projectId }: CreateSolicitudDialogProps) {
+export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, projectId, bookingId, artistId, defaultTipo }: CreateSolicitudDialogProps) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
   const [artistFormats, setArtistFormats] = useState<{ id: string; name: string }[]>([]);
