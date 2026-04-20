@@ -2938,6 +2938,67 @@ export type Database = {
           },
         ]
       }
+      contract_draft_participants: {
+        Row: {
+          contact_id: string | null
+          draft_id: string
+          email: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          name: string
+          profile_id: string | null
+          role: string
+          view_count: number
+        }
+        Insert: {
+          contact_id?: string | null
+          draft_id: string
+          email: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          name: string
+          profile_id?: string | null
+          role?: string
+          view_count?: number
+        }
+        Update: {
+          contact_id?: string | null
+          draft_id?: string
+          email?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          name?: string
+          profile_id?: string | null
+          role?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_draft_participants_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_draft_participants_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "contract_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_draft_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_drafts: {
         Row: {
           artist_id: string | null
@@ -8359,6 +8420,19 @@ export type Database = {
       sync_booking_document_to_drive: {
         Args: { p_document_id: string }
         Returns: undefined
+      }
+      touch_draft_participant: {
+        Args: { p_email: string; p_token: string }
+        Returns: undefined
+      }
+      track_draft_participant: {
+        Args: {
+          p_email: string
+          p_name: string
+          p_role?: string
+          p_token: string
+        }
+        Returns: Json
       }
       user_has_workspace_permission: {
         Args: {

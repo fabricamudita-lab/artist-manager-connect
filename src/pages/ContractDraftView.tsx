@@ -2,15 +2,17 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePublicDraft } from '@/hooks/useContractDrafts';
 import { useAuth } from '@/hooks/useAuth';
+import { useDraftParticipants } from '@/hooks/useDraftParticipants';
 import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
 import { DraftCommentsSidebar } from '@/components/contract-drafts/DraftCommentsSidebar';
+import { DraftParticipantsList } from '@/components/contract-drafts/DraftParticipantsList';
 import { TextSelectionHandler, type TextSelection } from '@/components/contract-drafts/TextSelectionHandler';
 import { NegotiationBanner } from '@/components/contract-drafts/NegotiationBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 // Pure HTML modal used instead of Dialog to avoid auth redirect issues
-import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -93,6 +95,49 @@ export default function ContractDraftView() {
   const [identityName, setIdentityName] = useState('');
   const [identityEmail, setIdentityEmail] = useState('');
 
+  // Resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const stored = localStorage.getItem('draft_sidebar_width');
+    const parsed = stored ? parseInt(stored, 10) : NaN;
+    return Number.isFinite(parsed) ? Math.min(720, Math.max(280, parsed)) : 360;
+  });
+  const isResizingRef = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('draft_sidebar_width', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const newWidth = window.innerWidth - e.clientX;
+      setSidebarWidth(Math.min(720, Math.max(280, newWidth)));
+    };
+    const onUp = () => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  const toggleWideSidebar = () => {
+    setSidebarWidth(prev => (prev < 480 ? 640 : 360));
+  };
+
   // Load identity from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('contract_user_identity');
@@ -103,12 +148,17 @@ export default function ContractDraftView() {
     }
   }, []);
 
-  const handleIdentitySubmit = () => {
+  // Participants tracking
+  const { participants, trackParticipant, touchParticipant } = useDraftParticipants(draft?.id, token);
+
+  const handleIdentitySubmit = async () => {
     if (!identityName.trim() || !identityEmail.trim()) return;
     const identity = { name: identityName.trim(), email: identityEmail.trim().toLowerCase() };
     localStorage.setItem('contract_user_identity', JSON.stringify(identity));
     setUserIdentity(identity);
     setShowIdentityModal(false);
+    // Track participant immediately
+    try { await trackParticipant(identity.name, identity.email, 'viewer'); } catch (e) { console.error(e); }
   };
 
   // Determine role from email
@@ -129,6 +179,19 @@ export default function ContractDraftView() {
     console.log('🎭 Role: viewer (no match)');
     return 'viewer';
   }, [userIdentity, draft]);
+
+  // Re-track participant once role is known (to enrich role) + heartbeat
+  useEffect(() => {
+    if (!userIdentity || !draft) return;
+    trackParticipant(userIdentity.name, userIdentity.email, userRole).catch(console.error);
+  }, [userIdentity, draft, userRole, trackParticipant]);
+
+  // Heartbeat every 5 min while page is open
+  useEffect(() => {
+    if (!userIdentity) return;
+    const id = setInterval(() => { touchParticipant(userIdentity.email); }, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [userIdentity, touchParticipant]);
 
   const isOwner = !!(user && draft && draft.created_by === user.id);
 
@@ -190,14 +253,28 @@ export default function ContractDraftView() {
     else toast.success('Marcado como listo para firma');
   };
 
-  // Get comments with selection for highlighting (active = not resolved/approved)
-  // Includes the pending (in-progress) selection so it stays highlighted while composing.
+  // Get comments with selection for highlighting (active = not resolved).
+  // Also passes proposed_change + approval flags so the document can render proposals inline.
   const selectionComments = useMemo(() => {
     const active = comments
-      .filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved' && c.comment_status !== 'approved')
-      .map(c => ({ id: c.id, selected_text: c.selected_text }));
+      .filter(c => c.selected_text && !c.resolved && c.comment_status !== 'resolved')
+      .map(c => ({
+        id: c.id,
+        selected_text: c.selected_text,
+        proposed_change: (c as any).proposed_change || null,
+        approved_by_producer: !!(c as any).approved_by_producer,
+        approved_by_collaborator: !!(c as any).approved_by_collaborator,
+        is_approved: c.comment_status === 'approved' || (!!(c as any).approved_by_producer && !!(c as any).approved_by_collaborator),
+      }));
     if (pendingSelection?.selectedText) {
-      active.push({ id: '__pending__', selected_text: pendingSelection.selectedText });
+      active.push({
+        id: '__pending__',
+        selected_text: pendingSelection.selectedText,
+        proposed_change: null,
+        approved_by_producer: false,
+        approved_by_collaborator: false,
+        is_approved: false,
+      });
     }
     return active;
   }, [comments, pendingSelection]);
@@ -306,25 +383,52 @@ export default function ContractDraftView() {
         </TextSelectionHandler>
       </div>
 
-      {/* Comments sidebar */}
-      <div className={`${showSidebar ? 'block' : 'hidden'} lg:block w-80 border-l bg-muted/30 sticky top-0 h-screen overflow-hidden flex-shrink-0`}>
-        <DraftCommentsSidebar
-          comments={comments}
-          onAddComment={addComment}
-          onAddSelectionComment={addSelectionComment}
-          onResolve={resolveComment}
-          onProposeChange={proposeChange}
-          onApproveChange={approveChange}
-          onRejectChange={rejectChange}
-          isOwner={isOwner}
-          userRole={userRole}
-          defaultAuthorName={userIdentity?.name || (isOwner ? 'Equipo' : '')}
-          pendingSelection={pendingSelection}
-          onClearSelection={() => setPendingSelection(null)}
-          onScrollToClause={handleScrollToClause}
-          onScrollToHighlight={scrollToHighlight}
-          activeCommentId={activeCommentId}
-        />
+      {/* Comments sidebar with resize handle */}
+      <div
+        className={`${showSidebar ? 'block' : 'hidden'} lg:block border-l bg-muted/30 sticky top-0 h-screen overflow-hidden flex-shrink-0 relative`}
+        style={{ width: typeof window !== 'undefined' && window.innerWidth < 1024 ? '100%' : sidebarWidth }}
+      >
+        {/* Resize handle (desktop only) */}
+        <div
+          onMouseDown={startResize}
+          className="hidden lg:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/30 z-20 group"
+          title="Arrastra para redimensionar"
+        >
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 w-1 h-12 rounded-r bg-border group-hover:bg-primary transition-colors" />
+        </div>
+
+        {/* Quick expand/collapse */}
+        <button
+          onClick={toggleWideSidebar}
+          className="hidden lg:flex absolute left-2 top-2 z-20 h-6 w-6 items-center justify-center rounded bg-background border hover:bg-muted text-muted-foreground hover:text-foreground"
+          title={sidebarWidth < 480 ? 'Ampliar panel' : 'Reducir panel'}
+        >
+          {sidebarWidth < 480 ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+        </button>
+
+        <div className="flex flex-col h-full pl-1.5">
+          <DraftParticipantsList participants={participants} />
+          <div className="flex-1 overflow-hidden">
+            <DraftCommentsSidebar
+              comments={comments}
+              onAddComment={addComment}
+              onAddSelectionComment={addSelectionComment}
+              onResolve={resolveComment}
+              onProposeChange={proposeChange}
+              onApproveChange={approveChange}
+              onRejectChange={rejectChange}
+              isOwner={isOwner}
+              userRole={userRole}
+              defaultAuthorName={userIdentity?.name || (isOwner ? 'Equipo' : '')}
+              pendingSelection={pendingSelection}
+              onClearSelection={() => setPendingSelection(null)}
+              onScrollToClause={handleScrollToClause}
+              onScrollToHighlight={scrollToHighlight}
+              activeCommentId={activeCommentId}
+              sidebarWidth={sidebarWidth}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Identity modal – pure HTML/CSS to avoid auth redirect */}
@@ -398,11 +502,100 @@ const romanItem: React.CSSProperties = {
   marginBottom: '12px', textAlign: 'justify', paddingLeft: '32px', textIndent: '-32px',
 };
 
+// Type for highlight comments (with optional proposal data)
+type HLComment = {
+  id: string;
+  selected_text: string | null;
+  proposed_change?: string | null;
+  is_approved?: boolean;
+  approved_by_producer?: boolean;
+  approved_by_collaborator?: boolean;
+};
+
+// Renders the visual span for a matched text fragment.
+// - Plain comment (no proposal): yellow highlight.
+// - Proposal pending: original text in red strike-through + proposed text in red underline.
+// - Proposal approved by both: proposed text in green (no strike).
+function renderHighlightSpan(
+  comment: HLComment,
+  matchedText: string,
+  innerNode: React.ReactNode,
+  keyStr: string,
+  onCommentClick?: (commentId: string) => void,
+): React.ReactNode {
+  const cid = comment.id;
+  const proposed = comment.proposed_change?.trim();
+  const isApproved = !!comment.is_approved;
+
+  if (proposed && isApproved) {
+    // Accepted change: show proposed text in green
+    return (
+      <span
+        key={keyStr}
+        data-comment-id={cid}
+        style={{
+          color: '#15803d',
+          backgroundColor: '#dcfce7',
+          borderBottom: '2px solid #16a34a',
+          cursor: 'pointer',
+          borderRadius: '2px',
+          padding: '0 2px',
+          fontWeight: 500,
+        }}
+        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+        title="✅ Cambio aprobado por ambas partes"
+      >
+        {proposed}
+      </span>
+    );
+  }
+
+  if (proposed) {
+    // Pending proposal: strike original, show proposed in red
+    return (
+      <span
+        key={keyStr}
+        data-comment-id={cid}
+        style={{ cursor: 'pointer' }}
+        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+        title="✏️ Propuesta de cambio pendiente — click para ver"
+      >
+        <span style={{ color: '#dc2626', textDecoration: 'line-through', backgroundColor: '#fee2e2', padding: '0 2px', borderRadius: '2px' }}>
+          {innerNode}
+        </span>
+        <span style={{ color: '#dc2626', textDecoration: 'underline', fontWeight: 500, backgroundColor: '#fee2e2', padding: '0 2px', borderRadius: '2px', marginLeft: 4 }}>
+          {proposed}
+        </span>
+      </span>
+    );
+  }
+
+  // Plain comment highlight
+  return (
+    <span
+      key={keyStr}
+      data-comment-id={cid}
+      style={{
+        backgroundColor: '#FFF9C4',
+        borderBottom: '2px solid #F59E0B',
+        cursor: 'pointer',
+        borderRadius: '2px',
+        padding: '0 1px',
+        transition: 'box-shadow 0.3s ease',
+      }}
+      onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
+      title="💬 Ver comentario"
+    >
+      {innerNode}
+    </span>
+  );
+}
+
 // Inline helper: returns a ReactNode array with yellow <mark>s wrapping any
 // occurrences of comment.selected_text inside `text`.
 function highlightText(
   text: string,
-  comments?: Array<{ selected_text: string | null; id: string }>,
+  comments?: Array<HLComment>,
   onCommentClick?: (commentId: string) => void,
 ): React.ReactNode {
   if (!comments || comments.length === 0 || !text) return text;
@@ -422,7 +615,7 @@ function highlightText(
   let safety = 0;
   while (safety++ < 50) {
     let nextPos = -1;
-    let nextComment: { selected_text: string | null; id: string } | null = null;
+    let nextComment: HLComment | null = null;
     for (const c of comments) {
       if (!c.selected_text) continue;
       const p = findPos(c.selected_text, remaining);
@@ -434,25 +627,7 @@ function highlightText(
     if (nextPos === -1 || !nextComment || !nextComment.selected_text) break;
     if (nextPos > 0) parts.push(<span key={`t-${idx++}`}>{remaining.slice(0, nextPos)}</span>);
     const sel = nextComment.selected_text;
-    const cid = nextComment.id;
-    parts.push(
-      <span
-        key={`h-${cid}-${idx++}`}
-        data-comment-id={cid}
-        style={{
-          backgroundColor: '#FFF9C4',
-          borderBottom: '2px solid #F59E0B',
-          cursor: 'pointer',
-          borderRadius: '2px',
-          padding: '0 1px',
-          transition: 'box-shadow 0.3s ease',
-        }}
-        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
-        title="💬 Ver comentario"
-      >
-        {sel}
-      </span>
-    );
+    parts.push(renderHighlightSpan(nextComment, sel, sel, `h-${nextComment.id}-${idx++}`, onCommentClick));
     remaining = remaining.slice(nextPos + sel.length);
   }
   if (remaining) parts.push(<span key={`t-${idx++}`}>{remaining}</span>);
