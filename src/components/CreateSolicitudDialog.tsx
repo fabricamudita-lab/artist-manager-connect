@@ -20,20 +20,23 @@ interface CreateSolicitudDialogProps {
   onOpenChange: (open: boolean) => void;
   onSolicitudCreated: () => void;
   projectId?: string;
+  bookingId?: string;
+  artistId?: string;
+  defaultTipo?: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
 }
 
-export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, projectId }: CreateSolicitudDialogProps) {
+export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, projectId, bookingId, artistId, defaultTipo }: CreateSolicitudDialogProps) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
   const [artistFormats, setArtistFormats] = useState<{ id: string; name: string }[]>([]);
   const [formData, setFormData] = useState({
-    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro' | '',
+    tipo: (defaultTipo ?? '') as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro' | '',
     nombre_solicitante: '',
     email: '',
     telefono: '',
     observaciones: '',
     notas_internas: '',
-    artist_id: '',
+    artist_id: artistId ?? '',
     fecha_limite_respuesta: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
     prioridad: 'normal' as 'baja' | 'normal' | 'alta' | 'urgente',
     
@@ -330,9 +333,10 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         observaciones: formData.observaciones || null,
         notas_internas: formData.notas_internas || null,
         created_by: profile.user_id,
-        artist_id: formData.artist_id || null,
+        artist_id: formData.artist_id || artistId || null,
         fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
         project_id: projectId || null,
+        booking_id: bookingId || null,
         prioridad: formData.prioridad,
         
         // Campos específicos según el tipo
