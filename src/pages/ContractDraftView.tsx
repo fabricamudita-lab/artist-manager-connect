@@ -615,7 +615,7 @@ function highlightText(
   let safety = 0;
   while (safety++ < 50) {
     let nextPos = -1;
-    let nextComment: { selected_text: string | null; id: string } | null = null;
+    let nextComment: HLComment | null = null;
     for (const c of comments) {
       if (!c.selected_text) continue;
       const p = findPos(c.selected_text, remaining);
@@ -627,25 +627,7 @@ function highlightText(
     if (nextPos === -1 || !nextComment || !nextComment.selected_text) break;
     if (nextPos > 0) parts.push(<span key={`t-${idx++}`}>{remaining.slice(0, nextPos)}</span>);
     const sel = nextComment.selected_text;
-    const cid = nextComment.id;
-    parts.push(
-      <span
-        key={`h-${cid}-${idx++}`}
-        data-comment-id={cid}
-        style={{
-          backgroundColor: '#FFF9C4',
-          borderBottom: '2px solid #F59E0B',
-          cursor: 'pointer',
-          borderRadius: '2px',
-          padding: '0 1px',
-          transition: 'box-shadow 0.3s ease',
-        }}
-        onClick={(e) => { e.stopPropagation(); onCommentClick?.(cid); }}
-        title="💬 Ver comentario"
-      >
-        {sel}
-      </span>
-    );
+    parts.push(renderHighlightSpan(nextComment, sel, sel, `h-${nextComment.id}-${idx++}`, onCommentClick));
     remaining = remaining.slice(nextPos + sel.length);
   }
   if (remaining) parts.push(<span key={`t-${idx++}`}>{remaining}</span>);
