@@ -95,6 +95,49 @@ export default function ContractDraftView() {
   const [identityName, setIdentityName] = useState('');
   const [identityEmail, setIdentityEmail] = useState('');
 
+  // Resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const stored = localStorage.getItem('draft_sidebar_width');
+    const parsed = stored ? parseInt(stored, 10) : NaN;
+    return Number.isFinite(parsed) ? Math.min(720, Math.max(280, parsed)) : 360;
+  });
+  const isResizingRef = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('draft_sidebar_width', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const newWidth = window.innerWidth - e.clientX;
+      setSidebarWidth(Math.min(720, Math.max(280, newWidth)));
+    };
+    const onUp = () => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  const toggleWideSidebar = () => {
+    setSidebarWidth(prev => (prev < 480 ? 640 : 360));
+  };
+
   // Load identity from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('contract_user_identity');
@@ -105,12 +148,17 @@ export default function ContractDraftView() {
     }
   }, []);
 
-  const handleIdentitySubmit = () => {
+  // Participants tracking
+  const { participants, trackParticipant, touchParticipant } = useDraftParticipants(draft?.id, token);
+
+  const handleIdentitySubmit = async () => {
     if (!identityName.trim() || !identityEmail.trim()) return;
     const identity = { name: identityName.trim(), email: identityEmail.trim().toLowerCase() };
     localStorage.setItem('contract_user_identity', JSON.stringify(identity));
     setUserIdentity(identity);
     setShowIdentityModal(false);
+    // Track participant immediately
+    try { await trackParticipant(identity.name, identity.email, 'viewer'); } catch (e) { console.error(e); }
   };
 
   // Determine role from email
