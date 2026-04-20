@@ -2,15 +2,17 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePublicDraft } from '@/hooks/useContractDrafts';
 import { useAuth } from '@/hooks/useAuth';
+import { useDraftParticipants } from '@/hooks/useDraftParticipants';
 import { DraftStatusBanner } from '@/components/contract-drafts/DraftStatusBanner';
 import { DraftCommentsSidebar } from '@/components/contract-drafts/DraftCommentsSidebar';
+import { DraftParticipantsList } from '@/components/contract-drafts/DraftParticipantsList';
 import { TextSelectionHandler, type TextSelection } from '@/components/contract-drafts/TextSelectionHandler';
 import { NegotiationBanner } from '@/components/contract-drafts/NegotiationBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 // Pure HTML modal used instead of Dialog to avoid auth redirect issues
-import { CheckCircle2, Clock, FileText, MessageSquare } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
