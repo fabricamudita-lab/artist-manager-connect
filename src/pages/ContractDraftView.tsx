@@ -369,25 +369,52 @@ export default function ContractDraftView() {
         </TextSelectionHandler>
       </div>
 
-      {/* Comments sidebar */}
-      <div className={`${showSidebar ? 'block' : 'hidden'} lg:block w-80 border-l bg-muted/30 sticky top-0 h-screen overflow-hidden flex-shrink-0`}>
-        <DraftCommentsSidebar
-          comments={comments}
-          onAddComment={addComment}
-          onAddSelectionComment={addSelectionComment}
-          onResolve={resolveComment}
-          onProposeChange={proposeChange}
-          onApproveChange={approveChange}
-          onRejectChange={rejectChange}
-          isOwner={isOwner}
-          userRole={userRole}
-          defaultAuthorName={userIdentity?.name || (isOwner ? 'Equipo' : '')}
-          pendingSelection={pendingSelection}
-          onClearSelection={() => setPendingSelection(null)}
-          onScrollToClause={handleScrollToClause}
-          onScrollToHighlight={scrollToHighlight}
-          activeCommentId={activeCommentId}
-        />
+      {/* Comments sidebar with resize handle */}
+      <div
+        className={`${showSidebar ? 'block' : 'hidden'} lg:block border-l bg-muted/30 sticky top-0 h-screen overflow-hidden flex-shrink-0 relative`}
+        style={{ width: typeof window !== 'undefined' && window.innerWidth < 1024 ? '100%' : sidebarWidth }}
+      >
+        {/* Resize handle (desktop only) */}
+        <div
+          onMouseDown={startResize}
+          className="hidden lg:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/30 z-20 group"
+          title="Arrastra para redimensionar"
+        >
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 w-1 h-12 rounded-r bg-border group-hover:bg-primary transition-colors" />
+        </div>
+
+        {/* Quick expand/collapse */}
+        <button
+          onClick={toggleWideSidebar}
+          className="hidden lg:flex absolute left-2 top-2 z-20 h-6 w-6 items-center justify-center rounded bg-background border hover:bg-muted text-muted-foreground hover:text-foreground"
+          title={sidebarWidth < 480 ? 'Ampliar panel' : 'Reducir panel'}
+        >
+          {sidebarWidth < 480 ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+        </button>
+
+        <div className="flex flex-col h-full pl-1.5">
+          <DraftParticipantsList participants={participants} />
+          <div className="flex-1 overflow-hidden">
+            <DraftCommentsSidebar
+              comments={comments}
+              onAddComment={addComment}
+              onAddSelectionComment={addSelectionComment}
+              onResolve={resolveComment}
+              onProposeChange={proposeChange}
+              onApproveChange={approveChange}
+              onRejectChange={rejectChange}
+              isOwner={isOwner}
+              userRole={userRole}
+              defaultAuthorName={userIdentity?.name || (isOwner ? 'Equipo' : '')}
+              pendingSelection={pendingSelection}
+              onClearSelection={() => setPendingSelection(null)}
+              onScrollToClause={handleScrollToClause}
+              onScrollToHighlight={scrollToHighlight}
+              activeCommentId={activeCommentId}
+              sidebarWidth={sidebarWidth}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Identity modal – pure HTML/CSS to avoid auth redirect */}
