@@ -180,6 +180,19 @@ export default function ContractDraftView() {
     return 'viewer';
   }, [userIdentity, draft]);
 
+  // Re-track participant once role is known (to enrich role) + heartbeat
+  useEffect(() => {
+    if (!userIdentity || !draft) return;
+    trackParticipant(userIdentity.name, userIdentity.email, userRole).catch(console.error);
+  }, [userIdentity, draft, userRole, trackParticipant]);
+
+  // Heartbeat every 5 min while page is open
+  useEffect(() => {
+    if (!userIdentity) return;
+    const id = setInterval(() => { touchParticipant(userIdentity.email); }, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [userIdentity, touchParticipant]);
+
   const isOwner = !!(user && draft && draft.created_by === user.id);
 
   const hasPendingNegotiations = comments.some(c =>
