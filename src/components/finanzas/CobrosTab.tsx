@@ -111,33 +111,41 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     queryFn: async () => {
       let q = supabase
         .from('booking_offers')
-        .select('id, fee, estado, estado_facturacion, fecha, festival_ciclo, ciudad, venue, artist_id, project_id, comision_porcentaje, anticipo_porcentaje, anticipo_importe, anticipo_estado, anticipo_fecha_esperada, anticipo_fecha_cobro, anticipo_referencia, liquidacion_importe, liquidacion_estado, liquidacion_fecha_esperada, liquidacion_fecha_cobro, liquidacion_referencia, cobro_estado, cobro_fecha, cobro_importe, cobro_referencia, artists!booking_offers_artist_id_fkey(name, stage_name)')
+        .select('id, fee, estado, estado_facturacion, fecha, festival_ciclo, ciudad, venue, artist_id, project_id, phase, comision_porcentaje, anticipo_porcentaje, anticipo_importe, anticipo_estado, anticipo_fecha_esperada, anticipo_fecha_cobro, anticipo_referencia, liquidacion_importe, liquidacion_estado, liquidacion_fecha_esperada, liquidacion_fecha_cobro, liquidacion_referencia, cobro_estado, cobro_fecha, cobro_importe, cobro_referencia, artists!booking_offers_artist_id_fkey(name, stage_name)')
         .not('fee', 'is', null)
         .gt('fee', 0);
       if (artistId !== 'all') q = q.eq('artist_id', artistId);
       const { data } = await q;
-      return (data || []).map(b => ({
-        id: `booking-${b.id}`,
-        type: 'booking' as const,
-        concept: b.festival_ciclo || `${b.ciudad || ''} ${b.venue || ''}`.trim() || 'Concierto',
-        amount_gross: b.fee || 0,
-        irpf_pct: 0,
-        amount_net: b.fee || 0,
-        expected_date: b.fecha,
-        received_date: b.estado_facturacion === 'cobrado' ? b.fecha : null,
-        status: b.cobro_estado === 'cobrado_completo' ? 'cobrado'
-          : b.estado_facturacion === 'cobrado' ? 'cobrado'
-          : b.anticipo_estado === 'cobrado' ? 'parcial'
-          : b.estado_facturacion === 'parcial' ? 'parcial'
-          : (b.fecha && new Date(b.fecha) < addDays(new Date(), -7) ? 'vencido' : 'pendiente'),
-        notes: null,
-        artist_id: b.artist_id,
-        project_id: b.project_id,
-        booking_id: b.id,
-        artists: b.artists as any,
-        projects: null,
-        _raw: b,
-      })) as CobroRow[];
+      const closedPhases = ['cancelado', 'rechazado'];
+      return (data || [])
+        .filter(b => !closedPhases.includes(b.phase || ''))
+        .map(b => {
+          const isPipeline = PIPELINE_PHASES.includes(b.phase || '');
+          return {
+            id: `booking-${b.id}`,
+            type: 'booking' as const,
+            concept: b.festival_ciclo || `${b.ciudad || ''} ${b.venue || ''}`.trim() || 'Concierto',
+            amount_gross: b.fee || 0,
+            irpf_pct: 0,
+            amount_net: b.fee || 0,
+            expected_date: b.fecha,
+            received_date: b.estado_facturacion === 'cobrado' ? b.fecha : null,
+            status: b.cobro_estado === 'cobrado_completo' ? 'cobrado'
+              : b.estado_facturacion === 'cobrado' ? 'cobrado'
+              : b.anticipo_estado === 'cobrado' ? 'parcial'
+              : b.estado_facturacion === 'parcial' ? 'parcial'
+              : (b.fecha && new Date(b.fecha) < addDays(new Date(), -7) && !isPipeline ? 'vencido' : 'pendiente'),
+            notes: null,
+            artist_id: b.artist_id,
+            project_id: b.project_id,
+            booking_id: b.id,
+            phase: b.phase,
+            isPipeline,
+            artists: b.artists as any,
+            projects: null,
+            _raw: b,
+          };
+        }) as CobroRow[];
     },
   });
 
@@ -152,15 +160,24 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
 
   // Merge and deduplicate (cobros table entries override booking-derived ones if booking_id matches)
   const cobroBookingIds = new Set(cobros.filter(c => c.booking_id).map(c => c.booking_id));
-  const mergedCobros = [
-    ...cobros,
+  const mergedCobros: CobroRow[] = [
+    ...cobros.map(c => ({ ...c, isPipeline: false })),
     ...bookingCobros.filter(bc => !cobroBookingIds.has(bc.booking_id)),
   ];
 
+  // Comprometidos = manual cobros + bookings in CONFIRMED phases
+  const comprometidos = mergedCobros.filter(c => !c.isPipeline);
+  const pipeline = mergedCobros.filter(c => c.isPipeline);
+
+  // Apply scope filter (visible rows)
+  const scoped = scopeFilter === 'comprometidos' ? comprometidos
+    : scopeFilter === 'pipeline' ? pipeline
+    : mergedCobros;
+
   // Apply source filter
   const filtered = sourceFilter === 'todos'
-    ? mergedCobros
-    : mergedCobros.filter(c => c.type === sourceFilter);
+    ? scoped
+    : scoped.filter(c => c.type === sourceFilter);
 
   // Sort: vencido first, then pendiente by date, then cobrado desc
   const sorted = [...filtered].sort((a, b) => {
@@ -173,14 +190,17 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     return a.status === 'cobrado' ? db.localeCompare(da) : da.localeCompare(db);
   });
 
-  // Summary calculations
-  const totalCobrado = mergedCobros.filter(c => c.status === 'cobrado').reduce((s, c) => s + c.amount_net, 0);
-  const totalPendiente = mergedCobros.filter(c => c.status === 'pendiente' || c.status === 'parcial').reduce((s, c) => s + c.amount_net, 0);
-  const totalVencido = mergedCobros.filter(c => c.status === 'vencido').reduce((s, c) => s + c.amount_net, 0);
+  // Summary cards SIEMPRE solo cuentan comprometidos (contabilidad real)
+  const totalCobrado = comprometidos.filter(c => c.status === 'cobrado').reduce((s, c) => s + c.amount_net, 0);
+  const totalPendiente = comprometidos.filter(c => c.status === 'pendiente' || c.status === 'parcial').reduce((s, c) => s + c.amount_net, 0);
+  const totalVencido = comprometidos.filter(c => c.status === 'vencido').reduce((s, c) => s + c.amount_net, 0);
   const in30Days = addDays(new Date(), 30);
-  const totalProximo = mergedCobros.filter(c =>
+  const totalProximo = comprometidos.filter(c =>
     c.status !== 'cobrado' && c.expected_date && new Date(c.expected_date) <= in30Days && new Date(c.expected_date) >= new Date()
   ).reduce((s, c) => s + c.amount_net, 0);
+  // Pipeline (informativo, no contabilizado)
+  const totalPipeline = pipeline.reduce((s, c) => s + c.amount_gross, 0);
+  const pipelineCount = pipeline.length;
 
   // Add cobro mutation
   const addMutation = useMutation({
