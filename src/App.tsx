@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, ForbiddenPage } from "@/components/ProtectedRoute";
 import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
 import Budgets from "./pages/Budgets";
@@ -97,6 +98,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<AuthRedirect />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/403" element={<ForbiddenPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
