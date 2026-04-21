@@ -530,9 +530,15 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
                     <p className="text-[10px] text-muted-foreground tabular-nums">-{fmt(irpfAmount)} IRPF</p>
                   )}
                 </div>
-                <Badge variant={statusCfg.variant} className="text-[10px] flex-shrink-0">
-                  {statusCfg.label}
-                </Badge>
+                {cobro.isPipeline ? (
+                  <Badge variant="warning" className="text-[10px] flex-shrink-0">
+                    Pipeline · {cobro.phase}
+                  </Badge>
+                ) : (
+                  <Badge variant={statusCfg.variant} className="text-[10px] flex-shrink-0">
+                    {statusCfg.label}
+                  </Badge>
+                )}
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {cobro.status !== 'cobrado' && (
                     <Button
