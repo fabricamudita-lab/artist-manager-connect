@@ -23,6 +23,7 @@ interface LinkedSolicitudesCardProps {
   bookingId: string;
   artistId?: string | null;
   projectId?: string | null;
+  booking?: any;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Clock }> = {
@@ -31,7 +32,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   denegada: { label: 'Denegada', variant: 'destructive', icon: XCircle },
 };
 
-export function LinkedSolicitudesCard({ bookingId, artistId, projectId }: LinkedSolicitudesCardProps) {
+export function LinkedSolicitudesCard({ bookingId, artistId, projectId, booking }: LinkedSolicitudesCardProps) {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -162,6 +163,7 @@ export function LinkedSolicitudesCard({ bookingId, artistId, projectId }: Linked
         artistId={artistId ?? undefined}
         projectId={projectId ?? undefined}
         defaultTipo="booking"
+        bookingData={booking}
       />
     </>
   );

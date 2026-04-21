@@ -725,6 +725,7 @@ export default function BookingDetail() {
                   bookingId={booking.id}
                   artistId={booking.artist_id}
                   projectId={booking.project_id}
+                  booking={booking}
                 />
               </TabsContent>
             </Tabs>
