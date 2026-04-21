@@ -124,14 +124,56 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
   // Fetch contacts for promotor selector
   useEffect(() => {
     const fetchContacts = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('contacts')
         .select('id, name, company, email, phone')
-        .order('name');
+        .order('name')
+        .limit(500);
+      if (error) {
+        console.error('Error loading contacts:', error);
+        return;
+      }
       setContacts(data || []);
     };
     fetchContacts();
   }, []);
+
+  // Pre-fill from booking data when opening from a booking context
+  useEffect(() => {
+    if (!open || !bookingData) return;
+
+    // Try to find matching contact for promotor
+    const promotorText = (bookingData.promotor || '').trim().toLowerCase();
+    const matchedContact = promotorText
+      ? contacts.find(c =>
+          (c.name || '').toLowerCase().includes(promotorText) ||
+          (c.company || '').toLowerCase().includes(promotorText)
+        )
+      : null;
+
+    setFormData(prev => ({
+      ...prev,
+      tipo: 'booking',
+      artist_id: bookingData.artist_id || prev.artist_id,
+      nombre_festival: bookingData.festival_ciclo || '',
+      lugar_concierto: bookingData.venue || bookingData.lugar || '',
+      ciudad: bookingData.ciudad || '',
+      pais: bookingData.pais || '',
+      hora_show: bookingData.hora || '',
+      capacidad: bookingData.capacidad ? String(bookingData.capacidad) : '',
+      formato: bookingData.formato || '',
+      fee: bookingData.fee != null ? String(bookingData.fee) : '',
+      deal_type: 'flat_fee',
+      condiciones: bookingData.condiciones || '',
+      observaciones: bookingData.info_comentarios || bookingData.notas || '',
+      fechas_opcionales: bookingData.fecha ? [bookingData.fecha] : [],
+      promotor_contact_id: matchedContact?.id || '',
+      promotor_tab: matchedContact ? 'existing' : (bookingData.promotor ? 'new' : 'existing'),
+      new_promotor: matchedContact || !bookingData.promotor
+        ? prev.new_promotor
+        : { name: bookingData.promotor, company: '', email: '', phone: '' },
+    }));
+  }, [open, bookingData, contacts]);
 
   // Fetch artist formats when artist changes
   useEffect(() => {
