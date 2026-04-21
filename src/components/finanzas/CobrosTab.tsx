@@ -58,10 +58,16 @@ interface CobrosTabProps {
   artistId: string;
 }
 
+const CONFIRMED_PHASES = ['confirmado', 'realizado', 'facturado'];
+const PIPELINE_PHASES = ['interes', 'interés', 'oferta', 'negociacion', 'negociación', 'propuesta'];
+
+type ScopeFilter = 'comprometidos' | 'pipeline' | 'todos';
+
 export function CobrosTab({ artistId }: CobrosTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [sourceFilter, setSourceFilter] = useState('todos');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('comprometidos');
   const [addOpen, setAddOpen] = useState(false);
   const [editCobro, setEditCobro] = useState<CobroRow | null>(null);
   const [deleteCobro, setDeleteCobro] = useState<{ id: string; concept: string } | null>(null);
