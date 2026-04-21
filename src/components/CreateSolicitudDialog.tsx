@@ -469,7 +469,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
             }
           }}
         >
-          <SelectTrigger className={fieldErrors.tipo ? "border-destructive ring-destructive" : ""}>
+          <SelectTrigger className={fieldErrors.tipo ? "border-destructive ring-destructive" : ""} disabled={!!bookingData}>
             <SelectValue placeholder="Selecciona el tipo de solicitud" />
           </SelectTrigger>
           <SelectContent>
