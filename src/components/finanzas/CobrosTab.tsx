@@ -49,6 +49,8 @@ interface CobroRow {
   artist_id: string | null;
   project_id: string | null;
   booking_id: string | null;
+  phase?: string | null;
+  isPipeline?: boolean;
   artists?: { name: string; stage_name?: string | null } | null;
   projects?: { name: string } | null;
   _raw?: any;
