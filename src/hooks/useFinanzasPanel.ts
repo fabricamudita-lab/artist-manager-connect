@@ -418,6 +418,44 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
       .slice(0, 5);
   })();
 
+  // ══ Artist concept breakdown (single artist mode) ══
+  const artistConceptBreakdown: SourceBreakdown[] = (() => {
+    if (artistId === 'all') return [];
+    const totals: Record<string, number> = {};
+    periodCobros.forEach(c => {
+      const type = c.type || 'otro';
+      const normalized = type === 'beca' ? 'subvencion' : type;
+      totals[normalized] = (totals[normalized] || 0) + (c.amount_gross || 0);
+    });
+    if (additionalBookingIncome > 0) {
+      totals['booking'] = (totals['booking'] || 0) + additionalBookingIncome;
+    }
+    return Object.entries(SOURCE_CONFIG)
+      .filter(([key]) => key !== 'beca')
+      .map(([key, cfg]) => ({
+        name: key,
+        label: cfg.label,
+        value: totals[key] || 0,
+        color: cfg.color,
+        emoji: cfg.emoji,
+      }))
+      .filter(s => s.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  })();
+
+  // Selected artist name (single artist mode)
+  const selectedArtistName: string | null = (() => {
+    if (artistId === 'all') return null;
+    const fromCobros = (allCobros.find(c => c.artist_id === artistId)?.artists as any);
+    if (fromCobros) return fromCobros.stage_name || fromCobros.name || null;
+    const fromBookings = (allBookings.find(b => b.artist_id === artistId)?.artists as any);
+    if (fromBookings) return fromBookings.stage_name || fromBookings.name || null;
+    const fromBudgets = (allBudgets.find(b => b.artist_id === artistId)?.artists as any);
+    if (fromBudgets) return fromBudgets.stage_name || fromBudgets.name || null;
+    return null;
+  })();
+
   // ══ Recent Activity ══
   const recentActivity: RecentEvent[] = (() => {
     const events: RecentEvent[] = [];
@@ -525,7 +563,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
     // Chart
     chartData, bestMonth, worstMonth,
     // Breakdowns
-    sourceBreakdown, topArtists,
+    sourceBreakdown, topArtists, artistConceptBreakdown, selectedArtistName,
     // Activity
     recentActivity,
   };
