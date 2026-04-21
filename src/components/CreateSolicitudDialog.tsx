@@ -1135,6 +1135,15 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
           </DialogDescription>
         </DialogHeader>
 
+        {bookingData && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
+            📋 Datos pre-rellenados desde el booking
+            {bookingData.festival_ciclo ? ` "${bookingData.festival_ciclo}"` : ''}
+            {bookingData.venue ? ` — ${bookingData.venue}` : ''}.
+            <span className="text-muted-foreground"> Puedes editarlos antes de crear la solicitud.</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           {step === 1 ? renderStep1() : renderStep2()}
         </form>
