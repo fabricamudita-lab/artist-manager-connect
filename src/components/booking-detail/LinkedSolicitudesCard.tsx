@@ -32,7 +32,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   denegada: { label: 'Denegada', variant: 'destructive', icon: XCircle },
 };
 
-export function LinkedSolicitudesCard({ bookingId, artistId, projectId }: LinkedSolicitudesCardProps) {
+export function LinkedSolicitudesCard({ bookingId, artistId, projectId, booking }: LinkedSolicitudesCardProps) {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
