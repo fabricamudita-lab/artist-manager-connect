@@ -49,6 +49,8 @@ interface CobroRow {
   artist_id: string | null;
   project_id: string | null;
   booking_id: string | null;
+  phase?: string | null;
+  isPipeline?: boolean;
   artists?: { name: string; stage_name?: string | null } | null;
   projects?: { name: string } | null;
   _raw?: any;
@@ -58,10 +60,16 @@ interface CobrosTabProps {
   artistId: string;
 }
 
+const CONFIRMED_PHASES = ['confirmado', 'realizado', 'facturado'];
+const PIPELINE_PHASES = ['interes', 'interés', 'oferta', 'negociacion', 'negociación', 'propuesta'];
+
+type ScopeFilter = 'comprometidos' | 'pipeline' | 'todos';
+
 export function CobrosTab({ artistId }: CobrosTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [sourceFilter, setSourceFilter] = useState('todos');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('comprometidos');
   const [addOpen, setAddOpen] = useState(false);
   const [editCobro, setEditCobro] = useState<CobroRow | null>(null);
   const [deleteCobro, setDeleteCobro] = useState<{ id: string; concept: string } | null>(null);
@@ -103,33 +111,41 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     queryFn: async () => {
       let q = supabase
         .from('booking_offers')
-        .select('id, fee, estado, estado_facturacion, fecha, festival_ciclo, ciudad, venue, artist_id, project_id, comision_porcentaje, anticipo_porcentaje, anticipo_importe, anticipo_estado, anticipo_fecha_esperada, anticipo_fecha_cobro, anticipo_referencia, liquidacion_importe, liquidacion_estado, liquidacion_fecha_esperada, liquidacion_fecha_cobro, liquidacion_referencia, cobro_estado, cobro_fecha, cobro_importe, cobro_referencia, artists!booking_offers_artist_id_fkey(name, stage_name)')
+        .select('id, fee, estado, estado_facturacion, fecha, festival_ciclo, ciudad, venue, artist_id, project_id, phase, comision_porcentaje, anticipo_porcentaje, anticipo_importe, anticipo_estado, anticipo_fecha_esperada, anticipo_fecha_cobro, anticipo_referencia, liquidacion_importe, liquidacion_estado, liquidacion_fecha_esperada, liquidacion_fecha_cobro, liquidacion_referencia, cobro_estado, cobro_fecha, cobro_importe, cobro_referencia, artists!booking_offers_artist_id_fkey(name, stage_name)')
         .not('fee', 'is', null)
         .gt('fee', 0);
       if (artistId !== 'all') q = q.eq('artist_id', artistId);
       const { data } = await q;
-      return (data || []).map(b => ({
-        id: `booking-${b.id}`,
-        type: 'booking' as const,
-        concept: b.festival_ciclo || `${b.ciudad || ''} ${b.venue || ''}`.trim() || 'Concierto',
-        amount_gross: b.fee || 0,
-        irpf_pct: 0,
-        amount_net: b.fee || 0,
-        expected_date: b.fecha,
-        received_date: b.estado_facturacion === 'cobrado' ? b.fecha : null,
-        status: b.cobro_estado === 'cobrado_completo' ? 'cobrado'
-          : b.estado_facturacion === 'cobrado' ? 'cobrado'
-          : b.anticipo_estado === 'cobrado' ? 'parcial'
-          : b.estado_facturacion === 'parcial' ? 'parcial'
-          : (b.fecha && new Date(b.fecha) < addDays(new Date(), -7) ? 'vencido' : 'pendiente'),
-        notes: null,
-        artist_id: b.artist_id,
-        project_id: b.project_id,
-        booking_id: b.id,
-        artists: b.artists as any,
-        projects: null,
-        _raw: b,
-      })) as CobroRow[];
+      const closedPhases = ['cancelado', 'rechazado'];
+      return (data || [])
+        .filter(b => !closedPhases.includes(b.phase || ''))
+        .map(b => {
+          const isPipeline = PIPELINE_PHASES.includes(b.phase || '');
+          return {
+            id: `booking-${b.id}`,
+            type: 'booking' as const,
+            concept: b.festival_ciclo || `${b.ciudad || ''} ${b.venue || ''}`.trim() || 'Concierto',
+            amount_gross: b.fee || 0,
+            irpf_pct: 0,
+            amount_net: b.fee || 0,
+            expected_date: b.fecha,
+            received_date: b.estado_facturacion === 'cobrado' ? b.fecha : null,
+            status: b.cobro_estado === 'cobrado_completo' ? 'cobrado'
+              : b.estado_facturacion === 'cobrado' ? 'cobrado'
+              : b.anticipo_estado === 'cobrado' ? 'parcial'
+              : b.estado_facturacion === 'parcial' ? 'parcial'
+              : (b.fecha && new Date(b.fecha) < addDays(new Date(), -7) && !isPipeline ? 'vencido' : 'pendiente'),
+            notes: null,
+            artist_id: b.artist_id,
+            project_id: b.project_id,
+            booking_id: b.id,
+            phase: b.phase,
+            isPipeline,
+            artists: b.artists as any,
+            projects: null,
+            _raw: b,
+          };
+        }) as CobroRow[];
     },
   });
 
@@ -144,15 +160,24 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
 
   // Merge and deduplicate (cobros table entries override booking-derived ones if booking_id matches)
   const cobroBookingIds = new Set(cobros.filter(c => c.booking_id).map(c => c.booking_id));
-  const mergedCobros = [
-    ...cobros,
+  const mergedCobros: CobroRow[] = [
+    ...cobros.map(c => ({ ...c, isPipeline: false })),
     ...bookingCobros.filter(bc => !cobroBookingIds.has(bc.booking_id)),
   ];
 
+  // Comprometidos = manual cobros + bookings in CONFIRMED phases
+  const comprometidos = mergedCobros.filter(c => !c.isPipeline);
+  const pipeline = mergedCobros.filter(c => c.isPipeline);
+
+  // Apply scope filter (visible rows)
+  const scoped = scopeFilter === 'comprometidos' ? comprometidos
+    : scopeFilter === 'pipeline' ? pipeline
+    : mergedCobros;
+
   // Apply source filter
   const filtered = sourceFilter === 'todos'
-    ? mergedCobros
-    : mergedCobros.filter(c => c.type === sourceFilter);
+    ? scoped
+    : scoped.filter(c => c.type === sourceFilter);
 
   // Sort: vencido first, then pendiente by date, then cobrado desc
   const sorted = [...filtered].sort((a, b) => {
@@ -165,14 +190,17 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     return a.status === 'cobrado' ? db.localeCompare(da) : da.localeCompare(db);
   });
 
-  // Summary calculations
-  const totalCobrado = mergedCobros.filter(c => c.status === 'cobrado').reduce((s, c) => s + c.amount_net, 0);
-  const totalPendiente = mergedCobros.filter(c => c.status === 'pendiente' || c.status === 'parcial').reduce((s, c) => s + c.amount_net, 0);
-  const totalVencido = mergedCobros.filter(c => c.status === 'vencido').reduce((s, c) => s + c.amount_net, 0);
+  // Summary cards SIEMPRE solo cuentan comprometidos (contabilidad real)
+  const totalCobrado = comprometidos.filter(c => c.status === 'cobrado').reduce((s, c) => s + c.amount_net, 0);
+  const totalPendiente = comprometidos.filter(c => c.status === 'pendiente' || c.status === 'parcial').reduce((s, c) => s + c.amount_net, 0);
+  const totalVencido = comprometidos.filter(c => c.status === 'vencido').reduce((s, c) => s + c.amount_net, 0);
   const in30Days = addDays(new Date(), 30);
-  const totalProximo = mergedCobros.filter(c =>
+  const totalProximo = comprometidos.filter(c =>
     c.status !== 'cobrado' && c.expected_date && new Date(c.expected_date) <= in30Days && new Date(c.expected_date) >= new Date()
   ).reduce((s, c) => s + c.amount_net, 0);
+  // Pipeline (informativo, no contabilizado)
+  const totalPipeline = pipeline.reduce((s, c) => s + c.amount_gross, 0);
+  const pipelineCount = pipeline.length;
 
   // Add cobro mutation
   const addMutation = useMutation({
@@ -355,7 +383,7 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
+      {/* Summary cards (solo COMPROMETIDOS = contabilidad real) */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="card-moodita border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -398,9 +426,49 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
         </Card>
       </div>
 
+      {/* Pipeline informativo (no contabilizado) */}
+      {pipelineCount > 0 && (
+        <button
+          onClick={() => setScopeFilter('pipeline')}
+          className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2 text-sm">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="font-medium text-amber-700 dark:text-amber-400">
+              Pipeline (no contabilizado)
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {fmt(totalPipeline)} en {pipelineCount} oferta{pipelineCount !== 1 ? 's' : ''} en negociación
+            </span>
+          </div>
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">Ver →</span>
+        </button>
+      )}
+
+      {/* Scope toggle: Comprometidos / Pipeline / Todos */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+          {([
+            { value: 'comprometidos', label: '🟢 Comprometidos' },
+            { value: 'pipeline', label: `🟡 Pipeline${pipelineCount > 0 ? ` (${pipelineCount})` : ''}` },
+            { value: 'todos', label: 'Todos' },
+          ] as { value: ScopeFilter; label: string }[]).map(s => (
+            <button
+              key={s.value}
+              onClick={() => setScopeFilter(s.value)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                scopeFilter === s.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Source tabs + Add button */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+        <div className="inline-flex items-center gap-1 bg-muted/50 rounded-lg p-1 flex-wrap">
           <button
             onClick={() => setSourceFilter('todos')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
@@ -462,9 +530,15 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
                     <p className="text-[10px] text-muted-foreground tabular-nums">-{fmt(irpfAmount)} IRPF</p>
                   )}
                 </div>
-                <Badge variant={statusCfg.variant} className="text-[10px] flex-shrink-0">
-                  {statusCfg.label}
-                </Badge>
+                {cobro.isPipeline ? (
+                  <Badge variant="warning" className="text-[10px] flex-shrink-0">
+                    Pipeline · {cobro.phase}
+                  </Badge>
+                ) : (
+                  <Badge variant={statusCfg.variant} className="text-[10px] flex-shrink-0">
+                    {statusCfg.label}
+                  </Badge>
+                )}
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {cobro.status !== 'cobrado' && (
                     <Button

@@ -156,16 +156,21 @@ export function CashflowView({ artistId }: CashflowViewProps) {
     setLoading(false);
   };
 
-  // Summary calculations
+  // Summary calculations — separate committed (confirmed) vs estimated (provisional)
   const now = new Date();
   const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  const thisWeekTotal = items.filter(i => i.dueDate && new Date(i.dueDate) >= now && new Date(i.dueDate) <= in7Days).reduce((s, i) => s + i.transferAmount, 0);
-  const thisMonthTotal = items.filter(i => i.dueDate && new Date(i.dueDate) >= now && new Date(i.dueDate) <= in30Days).reduce((s, i) => s + i.transferAmount, 0);
-  const noDateTotal = items.filter(i => !i.dueDate).reduce((s, i) => s + i.transferAmount, 0);
-  const noDateCount = items.filter(i => !i.dueDate).length;
-  const overdueCount = items.filter(i => getTimeGroup(i.dueDate) === 'vencido').length;
+  const committed = items.filter(i => !i.isProvisional);
+  const provisionales = items.filter(i => i.isProvisional);
+
+  const thisWeekTotal = committed.filter(i => i.dueDate && new Date(i.dueDate) >= now && new Date(i.dueDate) <= in7Days).reduce((s, i) => s + i.transferAmount, 0);
+  const thisMonthTotal = committed.filter(i => i.dueDate && new Date(i.dueDate) >= now && new Date(i.dueDate) <= in30Days).reduce((s, i) => s + i.transferAmount, 0);
+  const noDateTotal = committed.filter(i => !i.dueDate).reduce((s, i) => s + i.transferAmount, 0);
+  const noDateCount = committed.filter(i => !i.dueDate).length;
+  const overdueCount = committed.filter(i => getTimeGroup(i.dueDate) === 'vencido').length;
+  const provisionalTotal = provisionales.reduce((s, i) => s + i.transferAmount, 0);
+  const provisionalCount = provisionales.length;
 
   // Apply quick filter
   const filtered = items.filter(item => {

@@ -88,8 +88,18 @@ export function FinanzasPanelTab({ artistId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex justify-end">
+      {/* Period selector + accounting legend */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Comprometido <span className="opacity-70">· contabilidad real</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Previsto / Pipeline <span className="opacity-70">· no se suma</span>
+          </span>
+        </div>
         <PeriodSelector period={period} onChange={setPeriod} />
       </div>
 
@@ -160,28 +170,36 @@ export function FinanzasPanelTab({ artistId }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fmt(data.gastosComprometidos)}</div>
-            <p className="text-xs text-muted-foreground">
-              {fmt(data.gastosConfirmados)} confirmado · {fmt(data.gastosProvisionales)} provisional
-            </p>
+            {data.gastosPrevistos > 0 ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                + {fmt(data.gastosPrevistos)} previstos (sin confirmar)
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Sin gastos provisionales</p>
+            )}
           </CardContent>
         </Card>
 
-        {/* Resultado Neto */}
-        <Card className={`card-moodita border-l-4 ${data.beneficioNeto >= 0 ? 'border-l-emerald-500' : 'border-l-destructive'}`}>
+        {/* Resultado: contable + proyectado */}
+        <Card className={`card-moodita border-l-4 ${data.resultadoContable >= 0 ? 'border-l-emerald-500' : 'border-l-destructive'}`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resultado Neto</CardTitle>
-            {data.beneficioNeto >= 0 ? (
+            <CardTitle className="text-sm font-medium">Resultado Contable</CardTitle>
+            {data.resultadoContable >= 0 ? (
               <TrendingUp className="h-4 w-4 text-emerald-500" />
             ) : (
               <TrendingDown className="h-4 w-4 text-destructive" />
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold ${data.beneficioNeto >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-              {data.beneficioNeto < 0 ? '-' : ''}{fmt(data.beneficioNeto)}
+            <div className={`text-3xl font-bold ${data.resultadoContable >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+              {data.resultadoContable < 0 ? '-' : ''}{fmt(data.resultadoContable)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {data.beneficioNeto >= 0 ? `Margen ${data.margenPct}%` : `Pérdida ${Math.abs(data.margenPct)}%`}
+              {data.resultadoContable >= 0 ? `Margen ${data.margenPct}%` : `Pérdida ${Math.abs(data.margenPct)}%`}
+              {' · '}
+              <span className="text-amber-600 dark:text-amber-400">
+                Proyectado {data.resultadoProyectado < 0 ? '-' : ''}{fmt(data.resultadoProyectado)}
+              </span>
             </p>
           </CardContent>
         </Card>
@@ -189,21 +207,30 @@ export function FinanzasPanelTab({ artistId }: Props) {
 
       {/* KPI Cards Row 2 */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Cobros Pendientes */}
+        {/* Por cobrar (comprometido) */}
         <Card
           className={`card-moodita border-l-4 cursor-pointer hover:border-primary/30 transition-colors ${data.vencidosCount > 0 ? 'border-l-destructive' : 'border-l-blue-500'}`}
           onClick={() => navigate('/finanzas/cobros')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cobros Pendientes</CardTitle>
+            <CardTitle className="text-sm font-medium">Por Cobrar (comprometido)</CardTitle>
             <Receipt className={`h-4 w-4 ${data.vencidosCount > 0 ? 'text-destructive' : 'text-blue-500'}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fmt(data.cobrosPendientes)}</div>
+            <div className="text-2xl font-bold">{fmt(data.cobrosComprometidos)}</div>
             <p className="text-xs text-muted-foreground">
-              {data.eventosSinCobrar} evento{data.eventosSinCobrar !== 1 ? 's' : ''}
+              {data.eventosSinCobrar} evento{data.eventosSinCobrar !== 1 ? 's' : ''} confirmado{data.eventosSinCobrar !== 1 ? 's' : ''}
               {data.vencidosCount > 0 && <span className="text-destructive"> · {data.vencidosCount} vencido{data.vencidosCount !== 1 ? 's' : ''}</span>}
             </p>
+            {data.pipelineIngresos > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate('/booking'); }}
+                className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+              >
+                + {fmt(data.pipelineIngresos)} en pipeline ({data.pipelineCount} oferta{data.pipelineCount !== 1 ? 's' : ''})
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            )}
           </CardContent>
         </Card>
 
