@@ -383,7 +383,7 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
+      {/* Summary cards (solo COMPROMETIDOS = contabilidad real) */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="card-moodita border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -426,9 +426,49 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
         </Card>
       </div>
 
+      {/* Pipeline informativo (no contabilizado) */}
+      {pipelineCount > 0 && (
+        <button
+          onClick={() => setScopeFilter('pipeline')}
+          className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2 text-sm">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="font-medium text-amber-700 dark:text-amber-400">
+              Pipeline (no contabilizado)
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {fmt(totalPipeline)} en {pipelineCount} oferta{pipelineCount !== 1 ? 's' : ''} en negociación
+            </span>
+          </div>
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">Ver →</span>
+        </button>
+      )}
+
+      {/* Scope toggle: Comprometidos / Pipeline / Todos */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+          {([
+            { value: 'comprometidos', label: '🟢 Comprometidos' },
+            { value: 'pipeline', label: `🟡 Pipeline${pipelineCount > 0 ? ` (${pipelineCount})` : ''}` },
+            { value: 'todos', label: 'Todos' },
+          ] as { value: ScopeFilter; label: string }[]).map(s => (
+            <button
+              key={s.value}
+              onClick={() => setScopeFilter(s.value)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                scopeFilter === s.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Source tabs + Add button */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+        <div className="inline-flex items-center gap-1 bg-muted/50 rounded-lg p-1 flex-wrap">
           <button
             onClick={() => setSourceFilter('todos')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
