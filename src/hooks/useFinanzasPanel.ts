@@ -577,11 +577,12 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
     // KPI 1
     ingresosBrutos, cobrosCount, ingresosTrend,
     // KPI 2
-    gastosComprometidos, gastosConfirmados, gastosProvisionales,
+    gastosComprometidos, gastosConfirmados, gastosProvisionales, gastosPrevistos,
     // KPI 3
-    beneficioNeto, margenPct,
-    // KPI 4
-    cobrosPendientes, eventosSinCobrar, vencidosCount,
+    beneficioNeto, resultadoContable, resultadoProyectado, margenPct,
+    // KPI 4 — comprometido + pipeline
+    cobrosPendientes, cobrosComprometidos, eventosSinCobrar, vencidosCount,
+    pipelineIngresos, pipelineCount,
     // KPI 5
     pagosPendientes, facturasPendientes,
     // KPI 6
