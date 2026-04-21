@@ -205,25 +205,53 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
   const prevIngresos = prevCobros.reduce((s, c) => s + (c.amount_gross || 0), 0);
   const ingresosTrend = prevIngresos > 0 ? ((ingresosBrutos - prevIngresos) / prevIngresos) * 100 : (ingresosBrutos > 0 ? 100 : null);
 
-  // ══ KPI 2: Gastos Comprometidos ══
+  // ══ Phase classification (accounting) ══
+  // Comprometido = firmado/confirmado (Accounts Receivable)
+  // Pipeline = forecast no confirmado (no se contabiliza)
+  const CONFIRMED_PHASES = ['confirmado', 'realizado', 'facturado'];
+  const PIPELINE_PHASES = ['interes', 'interés', 'oferta', 'negociacion', 'negociación', 'propuesta'];
+
+  // ══ KPI 2: Gastos ══
   const activeItems = allItems.filter(i => activeIds.has(i.budget_id));
   const confirmedItems = activeItems.filter(i => !i.is_provisional);
   const provisionalItems = activeItems.filter(i => i.is_provisional);
-  const gastosConfirmados = sumItems(confirmedItems);
-  const gastosProvisionales = sumItems(provisionalItems);
-  const gastosComprometidos = gastosConfirmados + gastosProvisionales;
+  const gastosComprometidos = sumItems(confirmedItems);   // committed (firmados)
+  const gastosPrevistos = sumItems(provisionalItems);     // estimated (provisionales)
+  // Backwards-compat aliases
+  const gastosConfirmados = gastosComprometidos;
+  const gastosProvisionales = gastosPrevistos;
 
-  // ══ KPI 3: Resultado Neto ══
-  const beneficioNeto = ingresosBrutos - gastosComprometidos;
-  const margenPct = ingresosBrutos > 0 ? Math.round((beneficioNeto / ingresosBrutos) * 100) : 0;
+  // ══ KPI 3: Resultado ══
+  // Contable = solo lo firmado (auditable)
+  const resultadoContable = ingresosBrutos - gastosComprometidos;
+  const margenPct = ingresosBrutos > 0 ? Math.round((resultadoContable / ingresosBrutos) * 100) : 0;
+  // Backwards-compat alias
+  const beneficioNeto = resultadoContable;
 
-  // ══ KPI 4: Cobros Pendientes ══
+  // ══ KPI 4: Cobros Comprometidos (Accounts Receivable) ══
+  // Solo bookings en fase confirmada/realizada con cobro pendiente
   const pendienteBookings = allBookings.filter(b =>
-    (b.cobro_estado === 'pendiente' || b.cobro_estado === 'anticipo_cobrado' || (!b.cobro_estado && b.phase === 'realizado')) &&
-    (b.phase === 'realizado' || b.phase === 'confirmado')
+    CONFIRMED_PHASES.includes(b.phase || '') &&
+    b.cobro_estado !== 'cobrado_completo' &&
+    (b.fee || 0) > 0
   );
-  const cobrosPendientes = pendienteBookings.reduce((s, b) => s + (b.fee || 0), 0);
+  const cobrosComprometidos = pendienteBookings.reduce((s, b) => s + (b.fee || 0), 0);
   const eventosSinCobrar = pendienteBookings.length;
+  // Backwards-compat alias
+  const cobrosPendientes = cobrosComprometidos;
+
+  // ══ Pipeline de Ingresos (forecast, NO se suma a contabilidad) ══
+  const pipelineBookings = allBookings.filter(b =>
+    PIPELINE_PHASES.includes(b.phase || '') &&
+    (b.fee || 0) > 0
+  );
+  const pipelineIngresos = pipelineBookings.reduce((s, b) => s + (b.fee || 0), 0);
+  const pipelineCount = pipelineBookings.length;
+
+  // ══ Resultado Proyectado (escenario completo) ══
+  const resultadoProyectado =
+    (ingresosBrutos + cobrosComprometidos + pipelineIngresos) -
+    (gastosComprometidos + gastosPrevistos);
 
   const cobrosVencidosFromTable = allCobros.filter(c =>
     c.status === 'vencido' || (c.status === 'pendiente' && c.expected_date && c.expected_date < format(new Date(), 'yyyy-MM-dd'))
