@@ -88,8 +88,18 @@ export function FinanzasPanelTab({ artistId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex justify-end">
+      {/* Period selector + accounting legend */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Comprometido <span className="opacity-70">· contabilidad real</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Previsto / Pipeline <span className="opacity-70">· no se suma</span>
+          </span>
+        </div>
         <PeriodSelector period={period} onChange={setPeriod} />
       </div>
 
