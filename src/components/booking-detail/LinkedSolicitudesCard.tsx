@@ -163,6 +163,7 @@ export function LinkedSolicitudesCard({ bookingId, artistId, projectId, booking 
         artistId={artistId ?? undefined}
         projectId={projectId ?? undefined}
         defaultTipo="booking"
+        bookingData={booking}
       />
     </>
   );
