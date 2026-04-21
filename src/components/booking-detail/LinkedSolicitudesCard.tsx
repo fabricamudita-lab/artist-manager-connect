@@ -23,6 +23,7 @@ interface LinkedSolicitudesCardProps {
   bookingId: string;
   artistId?: string | null;
   projectId?: string | null;
+  booking?: any;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Clock }> = {
