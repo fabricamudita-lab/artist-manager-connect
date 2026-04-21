@@ -361,41 +361,86 @@ export function FinanzasPanelTab({ artistId }: Props) {
             </CardContent>
           </Card>
 
-          {/* Top artists */}
-          <Card className="card-moodita">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Top artistas por ingresos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.topArtists.length > 0 ? (
-                <div className="space-y-3">
-                  {data.topArtists.map((a, i) => (
-                    <div key={a.artistId} className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground w-4 text-right">{i + 1}</span>
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={a.avatarUrl || undefined} />
-                        <AvatarFallback className="text-[10px]">{a.artistName.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{a.artistName}</p>
-                        <div className="h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
-                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${a.percentage}%` }} />
+          {/* Top artists (all) OR Concept breakdown (single artist) */}
+          {artistId === 'all' ? (
+            <Card className="card-moodita">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Top artistas por ingresos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.topArtists.length > 0 ? (
+                  <div className="space-y-3">
+                    {data.topArtists.map((a, i) => (
+                      <div key={a.artistId} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground w-4 text-right">{i + 1}</span>
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={a.avatarUrl || undefined} />
+                          <AvatarFallback className="text-[10px]">{a.artistName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{a.artistName}</p>
+                          <div className="h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${a.percentage}%` }} />
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-semibold tabular-nums">{fmt(a.total)}</p>
+                          <p className="text-[10px] text-muted-foreground">{a.percentage.toFixed(1)}%</p>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-semibold tabular-nums">{fmt(a.total)}</p>
-                        <p className="text-[10px] text-muted-foreground">{a.percentage.toFixed(1)}%</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  {artistId !== 'all' ? 'Selecciona "Todos" para ver el ranking' : 'Sin datos en este período'}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">Sin datos en este período</p>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="card-moodita">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">
+                  Desglose de ingresos{data.selectedArtistName ? ` · ${data.selectedArtistName}` : ''}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.artistConceptBreakdown.length > 0 ? (
+                  <div className="space-y-3">
+                    {(() => {
+                      const totalArtist = data.artistConceptBreakdown.reduce((s, c) => s + c.value, 0);
+                      return data.artistConceptBreakdown.map(c => {
+                        const pct = totalArtist > 0 ? (c.value / totalArtist) * 100 : 0;
+                        return (
+                          <div key={c.name} className="flex items-center gap-3">
+                            <span className="text-base flex-shrink-0">{c.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{c.label}</p>
+                              <div className="h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-sm font-semibold tabular-nums">{fmt(c.value)}</p>
+                              <p className="text-[10px] text-muted-foreground">{pct.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Sin ingresos{data.selectedArtistName ? ` de ${data.selectedArtistName}` : ''} en este período
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/finanzas/cobros')}>
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      Añadir cobro
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
