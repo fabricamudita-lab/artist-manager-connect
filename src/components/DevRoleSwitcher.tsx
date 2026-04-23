@@ -103,6 +103,7 @@ export function DevRoleSwitcher() {
   const PUBLIC_PATH_PREFIXES = [
     '/shared/', '/epk/', '/contract-draft/', '/sign/', '/sync-request/',
     '/artist-form/', '/release-form/', '/contact-form/', '/reset-password',
+    '/auth',
   ];
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isDevHost =
