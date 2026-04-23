@@ -75,24 +75,47 @@ export default function SharedRelease() {
       // Fetch tracks with current version audio
       const { data: trackData } = await supabase
         .from('tracks')
-        .select('id, title, track_number, duration')
+        .select('id, title, track_number, duration, lyrics')
         .eq('release_id', rel.id)
         .order('track_number', { ascending: true });
 
       if (trackData && trackData.length > 0) {
         const trackIds = trackData.map(t => t.id);
-        const { data: versions } = await supabase
-          .from('track_versions')
-          .select('track_id, file_url')
-          .in('track_id', trackIds)
-          .eq('is_current_version', true);
+        const [{ data: versions }, { data: creditsData }] = await Promise.all([
+          supabase
+            .from('track_versions')
+            .select('track_id, file_url')
+            .in('track_id', trackIds)
+            .eq('is_current_version', true),
+          supabase
+            .from('track_credits')
+            .select('id, track_id, role, name, sort_order')
+            .in('track_id', trackIds)
+            .order('sort_order', { ascending: true, nullsFirst: false }),
+        ]);
 
         const versionMap = new Map(versions?.map(v => [v.track_id, v.file_url]) || []);
-        
+
         setTracks(trackData.map(t => ({
-          ...t,
+          id: t.id,
+          title: t.title,
+          track_number: t.track_number,
+          duration: t.duration,
+          lyrics: t.lyrics ?? null,
           file_url: versionMap.get(t.id) || null,
         })));
+
+        const grouped: Record<string, SharedCredit[]> = {};
+        (creditsData || []).forEach((c: any) => {
+          if (!grouped[c.track_id]) grouped[c.track_id] = [];
+          grouped[c.track_id].push({
+            id: c.id,
+            role: c.role,
+            name: c.name,
+            sort_order: c.sort_order,
+          });
+        });
+        setCreditsByTrack(grouped);
       }
     } catch {
       setError('Error al cargar el release.');
