@@ -1,23 +1,24 @@
 
 
-## Plan: arreglar el hueco superior en la pestaña Créditos
+## Plan: arreglar registro de nuevos usuarios
 
-### Problema
-En el panel lateral del enlace público, al abrir la pestaña **Créditos** el contenido aparece pegado a la mitad/inferior del panel en lugar de empezar justo debajo de la barra de pestañas. La causa está en `SharedReleaseTrackPanel.tsx`: el `TabsContent` de créditos usa `flex-1` + `overflow-y-auto` pero el contenido interno no se ancla arriba, y combinado con el `gap-4` del `SheetContent` y `mt-3` el layout deja un espacio vacío grande arriba.
+### Diagnóstico
+Los logs de auth muestran: `column "role" of relation "profiles" does not exist`. El trigger `handle_new_user` (que se ejecuta automáticamente al crear un usuario en `auth.users`) intenta insertar en una columna `role` (singular) que ya no existe en la tabla `profiles`. La tabla actual usa:
+- `roles` → array de `user_role` (default `{artist}`)
+- `active_role` → `user_role` (default `'artist'`)
+
+Por eso cualquier registro nuevo falla con "Database error saving new user".
 
 ### Solución
-Reorganizar el layout interno del `Sheet` para que:
-- El contenedor de scroll de Créditos empiece **inmediatamente debajo** del `TabsList`.
-- El contenido se ancle arriba (`items-start` / sin reverse), sin huecos.
-- Misma corrección preventiva en el `TabsContent` de Letra para mantener coherencia.
+Actualizar la función `public.handle_new_user()` para que inserte en las columnas correctas (`roles` como array y `active_role`), respetando el rol enviado en `raw_user_meta_data.role` (artist / management) desde el formulario de registro.
 
-### Cambios concretos
+### Cambio
 | Archivo | Cambio |
 |---|---|
-| `src/components/releases/SharedReleaseTrackPanel.tsx` | Ajustar el contenedor `Tabs`: añadir `gap-0` y reducir `mt-3` a `mt-2`. En el `TabsContent` de créditos, envolver el contenido en un wrapper `h-full overflow-y-auto` y mover el scroll allí, asegurando que el `space-y-4` empiece desde arriba (`pt-3`). Eliminar cualquier `flex` innecesario que esté forzando el contenido hacia abajo. Hacer lo mismo en el `TabsContent` de Letra para consistencia. |
+| Migración SQL | `CREATE OR REPLACE FUNCTION public.handle_new_user()` que inserte en `profiles(user_id, email, full_name, roles, active_role)` usando el valor del metadata como rol activo y como único elemento del array `roles`. Se mantiene `SECURITY DEFINER` y `search_path` seguro. |
 
 ### Resultado esperado
-- Al abrir **Créditos**, las secciones (Compositor, Autoría, etc.) aparecen justo debajo de las pestañas, sin hueco vacío.
-- La pestaña **Letra** sigue funcionando con su auto-scroll y barra de control arriba.
-- Sin cambios en datos, lógica de agrupación ni RLS.
+- El registro de nuevos usuarios (Artista o Management) funciona correctamente desde `/auth`.
+- Se crea automáticamente el perfil con el rol elegido.
+- Sin cambios en la tabla `profiles` ni en otras políticas.
 
