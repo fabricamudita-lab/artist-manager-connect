@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -69,17 +70,22 @@ const DEMO_USERS: DemoUser[] = [
 
 export function DevRoleSwitcher() {
   const { user } = useAuth();
-  const [isVisible, setIsVisible] = useState(false);
+  const location = useLocation();
   const [isResetting, setIsResetting] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
 
-  useEffect(() => {
-    // Only show in development or staging environments
-    const isDev = process.env.NODE_ENV === 'development' || 
-                  window.location.hostname.includes('staging') ||
-                  window.location.hostname.includes('lovable');
-    setIsVisible(isDev);
-  }, []);
+  const PUBLIC_PATH_PREFIXES = [
+    '/shared/', '/epk/', '/contract-draft/', '/sign/', '/sync-request/',
+    '/artist-form/', '/release-form/', '/contact-form/', '/reset-password',
+  ];
+
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isDevHost =
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.startsWith('id-preview--');
+  const isPublicPath = PUBLIC_PATH_PREFIXES.some((p) => location.pathname.startsWith(p));
+  const isVisible = isDevHost && !isPublicPath;
 
   if (!isVisible) return null;
 
