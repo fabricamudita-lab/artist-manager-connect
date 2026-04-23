@@ -274,50 +274,91 @@ export default function SharedRelease() {
             {tracks.map((track, index) => {
               const isActive = currentTrackIndex === index;
               const hasAudio = !!track.file_url;
+              const trackCredits = creditsByTrack[track.id] || [];
+              const hasExtras = !!(track.lyrics?.trim()) || trackCredits.length > 0;
 
               return (
-                <button
+                <div
                   key={track.id}
-                  onClick={() => hasAudio && playTrack(index)}
-                  disabled={!hasAudio}
                   className={cn(
-                    "w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all text-left group",
+                    "w-full flex items-center gap-2 px-2 sm:px-4 py-3 rounded-lg transition-all group",
                     isActive
                       ? "bg-white/10 text-white"
                       : hasAudio
                         ? "hover:bg-white/5 text-zinc-300"
-                        : "text-zinc-600 cursor-not-allowed"
+                        : "text-zinc-600"
                   )}
                 >
-                  <span className="w-8 text-center text-sm font-mono shrink-0">
-                    {isActive && isPlaying ? (
-                      <span className="flex items-center justify-center gap-[2px]">
-                        <span className="w-[3px] h-3 bg-white rounded-full animate-pulse" />
-                        <span className="w-[3px] h-4 bg-white rounded-full animate-pulse [animation-delay:150ms]" />
-                        <span className="w-[3px] h-2 bg-white rounded-full animate-pulse [animation-delay:300ms]" />
-                      </span>
-                    ) : (
-                      <span className="text-zinc-500 group-hover:hidden">{track.track_number}</span>
+                  <button
+                    type="button"
+                    onClick={() => hasAudio && playTrack(index)}
+                    disabled={!hasAudio}
+                    className={cn(
+                      "flex-1 flex items-center gap-4 text-left min-w-0",
+                      !hasAudio && "cursor-not-allowed"
                     )}
-                    {!isActive && hasAudio && (
-                      <Play className="h-4 w-4 hidden group-hover:block mx-auto fill-current" />
-                    )}
-                  </span>
+                  >
+                    <span className="w-8 text-center text-sm font-mono shrink-0">
+                      {isActive && isPlaying ? (
+                        <span className="flex items-center justify-center gap-[2px]">
+                          <span className="w-[3px] h-3 bg-white rounded-full animate-pulse" />
+                          <span className="w-[3px] h-4 bg-white rounded-full animate-pulse [animation-delay:150ms]" />
+                          <span className="w-[3px] h-2 bg-white rounded-full animate-pulse [animation-delay:300ms]" />
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500 group-hover:hidden">{track.track_number}</span>
+                      )}
+                      {!isActive && hasAudio && (
+                        <Play className="h-4 w-4 hidden group-hover:block mx-auto fill-current" />
+                      )}
+                    </span>
 
-                  <span className="flex-1 truncate font-medium text-sm">
-                    {track.title}
-                  </span>
+                    <span className="flex-1 truncate font-medium text-sm">
+                      {track.title}
+                    </span>
+                  </button>
 
                   {track.duration && (
-                    <span className="text-xs text-zinc-500 shrink-0">
+                    <span className="text-xs text-zinc-500 shrink-0 tabular-nums">
                       {formatTime(track.duration)}
                     </span>
                   )}
-                </button>
+
+                  {hasExtras && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPanelTrackIndex(index);
+                        setPanelOpen(true);
+                      }}
+                      className="p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                      aria-label="Ver letra y créditos"
+                      title="Ver letra y créditos"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
+
+        {/* Lyrics + Credits Panel */}
+        {panelTrackIndex !== null && tracks[panelTrackIndex] && (
+          <SharedReleaseTrackPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            trackTitle={tracks[panelTrackIndex].title}
+            artistName={artist?.name}
+            coverUrl={release?.cover_image_url}
+            lyrics={tracks[panelTrackIndex].lyrics}
+            credits={creditsByTrack[tracks[panelTrackIndex].id] || []}
+            isPlaying={isPlaying && currentTrackIndex === panelTrackIndex}
+            currentTime={currentTrackIndex === panelTrackIndex ? currentTime : 0}
+            duration={currentTrackIndex === panelTrackIndex ? duration : 0}
+          />
+        )}
 
         {/* Now Playing Bar */}
         {currentTrack && (
