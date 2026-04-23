@@ -1,61 +1,46 @@
 
-## Plan: quitar definitivamente Dev Tools del enlace público compartido
 
-### Diagnóstico
-El problema ya no parece estar en la estructura del código, sino en el entorno publicado:
+## Plan: Letras + Créditos en el enlace público del release
 
-- `DevRoleSwitcher` solo existe en `src/components/DashboardLayout.tsx`.
-- La ruta pública `"/shared/release/:token"` en `src/App.tsx` renderiza `SharedRelease` directamente, sin `DashboardLayout`.
-- Además, `src/components/DevRoleSwitcher.tsx` ya tiene guardas por hostname y por rutas públicas.
+### Mejoras al enlace `/shared/release/:token`
+Añadir dos capas de información sobre cada track sin romper el reproductor actual:
 
-Con esa estructura, `Dev Tools` no debería salir en `https://artist-manager-connect.lovable.app/shared/...`. Si sigue apareciendo ahí, lo más probable es que el dominio publicado esté sirviendo un build anterior.
+1. **Letras sincronizadas (visualmente) con la reproducción**
+   - Botón/icono "Ver letra" en cada track que tenga `lyrics`.
+   - Al hacer clic se abre un **panel lateral** (drawer) o se expande la fila mostrando la letra completa con scroll.
+   - Mientras la canción suena, la letra hace **auto-scroll suave** proporcional al progreso del audio (no es karaoke por línea —no tenemos timestamps por verso— pero sí avanza al ritmo del tema).
+   - Botón para fijar/seguir scroll automáticamente o desactivarlo si el oyente quiere leer libremente.
 
-### Qué haré
-1. **Endurecer aún más la visibilidad de `DevRoleSwitcher`**
-   - En `src/components/DevRoleSwitcher.tsx`, cambiar la lógica para que el botón se muestre solo en:
-     - `localhost`
-     - `127.0.0.1`
-     - hosts internos de preview/editor tipo `*.lovableproject.com`
-   - Ocultarlo por defecto en cualquier `*.lovable.app`, incluido:
-     - `artist-manager-connect.lovable.app`
-     - previews compartibles tipo `id-preview--*.lovable.app`
+2. **Créditos por canción**
+   - Sección colapsable "Créditos" debajo de la letra (en el mismo panel) o como pestaña aparte dentro del panel.
+   - Lista los créditos del track agrupados por categoría: Composición/Letra, Producción, Intérpretes, Otros.
+   - Por cada crédito muestra: rol + nombre. Sin porcentajes ni datos sensibles (IPI, splits, contactos privados).
+   - Si el track no tiene letra ni créditos, no aparece el botón.
 
-2. **Mantener la lista negra de rutas públicas**
-   - Seguir ocultándolo en:
-     - `/shared/`
-     - `/epk/`
-     - `/contract-draft/`
-     - `/sign/`
-     - `/sync-request/`
-     - `/artist-form/`
-     - `/release-form/`
-     - `/contact-form/`
-     - `/reset-password`
-     - `/auth`
+3. **Cambios en datos cargados**
+   - Ampliar la consulta de `tracks` para incluir `lyrics`.
+   - Añadir consulta a `track_credits` (campos públicos: `role`, `name`, `track_id`, `sort_order`) para todos los tracks del release en una sola query `in('track_id', trackIds)`.
+   - Mapear créditos por `track_id` en el estado.
 
-3. **No tocar `App.tsx` ni `DashboardLayout.tsx` salvo que al revisar haya divergencias**
-   - La arquitectura actual ya es correcta: rutas públicas fuera del layout privado.
-   - El ajuste real será de endurecimiento final en `DevRoleSwitcher.tsx`.
+### UI propuesta
+- En cada fila del tracklist, junto a la duración, añadir un pequeño icono `FileText` si hay letra y/o créditos.
+- Al hacer clic en ese icono (sin disparar el play) → abre un **Sheet** (drawer lateral derecho) con:
+  - Cabecera: portada pequeña + título del track + artista.
+  - Tabs: **Letra** | **Créditos**.
+  - Letra: texto con `whitespace-pre-line`, scroll automático sincronizado con `audio.currentTime / duration`.
+  - Créditos: lista agrupada por rol, estética minimalista negra/zinc consistente con el reproductor.
+- El Sheet se mantiene abierto mientras suena el track y se puede dejar abierto al cambiar de canción (se actualiza el contenido al track activo si el usuario eligió "seguir reproducción").
 
-4. **Publicar/redeployar de nuevo el sitio**
-   - Este paso es clave: aunque el código ya esté bien encaminado, el dominio publicado necesita recibir el build actualizado.
-   - Sin redeploy, `artist-manager-connect.lovable.app` puede seguir mostrando el bundle antiguo.
-
-5. **Verificación final en el enlace exacto**
-   - Comprobar específicamente:
-     - `https://artist-manager-connect.lovable.app/shared/release/b00af56f-b0d1-414d-94a8-ab692a9f846c`
-   - Resultado esperado:
-     - no aparece `Dev Tools`
-     - la página pública sigue funcionando normal
-
-### Archivo principal
+### Archivos
 | Archivo | Cambio |
 |---|---|
-| `src/components/DevRoleSwitcher.tsx` | Cambiar allowlist de hostnames para permitir solo entorno local/editor y bloquear cualquier `.lovable.app`, además de mantener exclusión de rutas públicas |
+| `src/pages/SharedRelease.tsx` | Añadir carga de `lyrics` y `track_credits`; añadir botón letra/créditos por track; integrar el panel lateral con tabs y auto-scroll de letra |
+| `src/components/releases/SharedReleaseTrackPanel.tsx` *(nuevo)* | Componente Sheet con tabs Letra/Créditos, auto-scroll proporcional al progreso, agrupación de créditos por categoría |
 
-### Nota técnica
-Hay dos elementos distintos en la esquina inferior derecha:
-- **Dev Tools**: componente de tu app
-- **Edit with Lovable**: badge inyectado por la plataforma publicada
+### Detalles técnicos
+- Datos públicos seguros: solo `role` y `name` de `track_credits` (nunca `contact_id`, `artist_id`, IPI, porcentajes).
+- El RLS de `track_credits` debe permitir leer créditos cuando el `release_id` del track tiene `share_enabled=true`. Si no lo permite hoy, hará falta añadir una policy o usar una edge function pública. Verificaré esto al implementar y, si bloquea, propondré la policy mínima necesaria.
+- Auto-scroll: `scrollTop = (currentTime / duration) * (scrollHeight - clientHeight)` con un flag `userScrolling` para no pelearse con el lector.
+- Agrupación de créditos por palabras clave en `role` (composición/letra, producción, intérprete, mezcla/master, otros).
+- Sin cambios al reproductor existente ni al diseño del tracklist principal.
 
-Este plan elimina el primero del enlace público. Si también quieres ocultar el badge de Lovable en producción, eso se trata aparte como ajuste de publicación, no de código.
