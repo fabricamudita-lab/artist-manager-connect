@@ -124,8 +124,8 @@ export function SharedReleaseTrackPanel({
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue={hasLyrics ? 'lyrics' : 'credits'} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-3 bg-zinc-900 border border-zinc-800 grid grid-cols-2">
+        <Tabs defaultValue={hasLyrics ? 'lyrics' : 'credits'} className="flex-1 flex flex-col min-h-0 gap-0">
+          <TabsList className="mx-4 mt-3 bg-zinc-900 border border-zinc-800 grid grid-cols-2 shrink-0">
             <TabsTrigger value="lyrics" disabled={!hasLyrics} className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-400">
               Letra
             </TabsTrigger>
@@ -134,8 +134,8 @@ export function SharedReleaseTrackPanel({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="lyrics" className="flex-1 min-h-0 mt-3 px-4 pb-4 flex flex-col">
-            <div className="flex items-center justify-between mb-2">
+          <TabsContent value="lyrics" className="flex-1 min-h-0 mt-2 px-4 pb-4 flex flex-col data-[state=inactive]:hidden">
+            <div className="flex items-center justify-between mb-2 pt-1">
               <span className="text-xs text-zinc-500">
                 {autoScroll ? 'Auto-scroll activo' : 'Lectura libre'}
               </span>
