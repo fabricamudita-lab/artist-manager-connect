@@ -158,7 +158,7 @@ export function SharedReleaseTrackPanel({
             </div>
           </TabsContent>
 
-          <TabsContent value="credits" className="flex-1 min-h-0 mt-3 px-4 pb-4 overflow-y-auto">
+          <TabsContent value="credits" className="flex-1 min-h-0 mt-2 px-4 pb-4 pt-3 overflow-y-auto data-[state=inactive]:hidden">
             {hasCredits ? (
               <div className="space-y-4">
                 {orderedCategories.map((catKey) => {
