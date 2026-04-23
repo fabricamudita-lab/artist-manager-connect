@@ -78,7 +78,26 @@ export function DevRoleSwitcher() {
   useEffect(() => {
     const update = () => setPathname(window.location.pathname);
     window.addEventListener('popstate', update);
-    return () => window.removeEventListener('popstate', update);
+
+    // Patch pushState/replaceState so SPA navigation also updates pathname
+    const origPush = window.history.pushState;
+    const origReplace = window.history.replaceState;
+    window.history.pushState = function (...args) {
+      const ret = origPush.apply(this, args as any);
+      update();
+      return ret;
+    };
+    window.history.replaceState = function (...args) {
+      const ret = origReplace.apply(this, args as any);
+      update();
+      return ret;
+    };
+
+    return () => {
+      window.removeEventListener('popstate', update);
+      window.history.pushState = origPush;
+      window.history.replaceState = origReplace;
+    };
   }, []);
 
   const PUBLIC_PATH_PREFIXES = [
