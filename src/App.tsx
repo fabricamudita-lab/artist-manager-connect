@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, ForbiddenPage } from "@/components/ProtectedRoute";
-import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
+
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
@@ -93,7 +93,6 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <DevRoleSwitcher />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<RootRedirect />} />
