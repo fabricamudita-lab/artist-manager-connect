@@ -106,12 +106,13 @@ export function DevRoleSwitcher() {
     '/auth',
   ];
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isDevHost =
+  const isAllowedHost =
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
-    hostname.startsWith('id-preview--');
+    hostname.endsWith('.lovableproject.com');
+  const isBlockedHost = hostname.endsWith('.lovable.app');
   const isPublicPath = PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p));
-  const isVisible = isDevHost && !isPublicPath;
+  const isVisible = isAllowedHost && !isBlockedHost && !isPublicPath;
 
   if (!isVisible) return null;
 
