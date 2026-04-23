@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Play, Pause, SkipForward, SkipBack, Music, Disc3 } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Music, Disc3, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { SharedReleaseTrackPanel, SharedCredit } from '@/components/releases/SharedReleaseTrackPanel';
 
 interface SharedTrack {
   id: string;
@@ -12,6 +12,7 @@ interface SharedTrack {
   track_number: number;
   duration: number | null;
   file_url: string | null;
+  lyrics: string | null;
 }
 
 export default function SharedRelease() {
@@ -19,6 +20,7 @@ export default function SharedRelease() {
   const [release, setRelease] = useState<any>(null);
   const [artist, setArtist] = useState<any>(null);
   const [tracks, setTracks] = useState<SharedTrack[]>([]);
+  const [creditsByTrack, setCreditsByTrack] = useState<Record<string, SharedCredit[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
@@ -26,6 +28,8 @@ export default function SharedRelease() {
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTrackIndex, setPanelTrackIndex] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -71,24 +75,47 @@ export default function SharedRelease() {
       // Fetch tracks with current version audio
       const { data: trackData } = await supabase
         .from('tracks')
-        .select('id, title, track_number, duration')
+        .select('id, title, track_number, duration, lyrics')
         .eq('release_id', rel.id)
         .order('track_number', { ascending: true });
 
       if (trackData && trackData.length > 0) {
         const trackIds = trackData.map(t => t.id);
-        const { data: versions } = await supabase
-          .from('track_versions')
-          .select('track_id, file_url')
-          .in('track_id', trackIds)
-          .eq('is_current_version', true);
+        const [{ data: versions }, { data: creditsData }] = await Promise.all([
+          supabase
+            .from('track_versions')
+            .select('track_id, file_url')
+            .in('track_id', trackIds)
+            .eq('is_current_version', true),
+          supabase
+            .from('track_credits')
+            .select('id, track_id, role, name, sort_order')
+            .in('track_id', trackIds)
+            .order('sort_order', { ascending: true, nullsFirst: false }),
+        ]);
 
         const versionMap = new Map(versions?.map(v => [v.track_id, v.file_url]) || []);
-        
+
         setTracks(trackData.map(t => ({
-          ...t,
+          id: t.id,
+          title: t.title,
+          track_number: t.track_number,
+          duration: t.duration,
+          lyrics: t.lyrics ?? null,
           file_url: versionMap.get(t.id) || null,
         })));
+
+        const grouped: Record<string, SharedCredit[]> = {};
+        (creditsData || []).forEach((c: any) => {
+          if (!grouped[c.track_id]) grouped[c.track_id] = [];
+          grouped[c.track_id].push({
+            id: c.id,
+            role: c.role,
+            name: c.name,
+            sort_order: c.sort_order,
+          });
+        });
+        setCreditsByTrack(grouped);
       }
     } catch {
       setError('Error al cargar el release.');
@@ -247,50 +274,91 @@ export default function SharedRelease() {
             {tracks.map((track, index) => {
               const isActive = currentTrackIndex === index;
               const hasAudio = !!track.file_url;
+              const trackCredits = creditsByTrack[track.id] || [];
+              const hasExtras = !!(track.lyrics?.trim()) || trackCredits.length > 0;
 
               return (
-                <button
+                <div
                   key={track.id}
-                  onClick={() => hasAudio && playTrack(index)}
-                  disabled={!hasAudio}
                   className={cn(
-                    "w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all text-left group",
+                    "w-full flex items-center gap-2 px-2 sm:px-4 py-3 rounded-lg transition-all group",
                     isActive
                       ? "bg-white/10 text-white"
                       : hasAudio
                         ? "hover:bg-white/5 text-zinc-300"
-                        : "text-zinc-600 cursor-not-allowed"
+                        : "text-zinc-600"
                   )}
                 >
-                  <span className="w-8 text-center text-sm font-mono shrink-0">
-                    {isActive && isPlaying ? (
-                      <span className="flex items-center justify-center gap-[2px]">
-                        <span className="w-[3px] h-3 bg-white rounded-full animate-pulse" />
-                        <span className="w-[3px] h-4 bg-white rounded-full animate-pulse [animation-delay:150ms]" />
-                        <span className="w-[3px] h-2 bg-white rounded-full animate-pulse [animation-delay:300ms]" />
-                      </span>
-                    ) : (
-                      <span className="text-zinc-500 group-hover:hidden">{track.track_number}</span>
+                  <button
+                    type="button"
+                    onClick={() => hasAudio && playTrack(index)}
+                    disabled={!hasAudio}
+                    className={cn(
+                      "flex-1 flex items-center gap-4 text-left min-w-0",
+                      !hasAudio && "cursor-not-allowed"
                     )}
-                    {!isActive && hasAudio && (
-                      <Play className="h-4 w-4 hidden group-hover:block mx-auto fill-current" />
-                    )}
-                  </span>
+                  >
+                    <span className="w-8 text-center text-sm font-mono shrink-0">
+                      {isActive && isPlaying ? (
+                        <span className="flex items-center justify-center gap-[2px]">
+                          <span className="w-[3px] h-3 bg-white rounded-full animate-pulse" />
+                          <span className="w-[3px] h-4 bg-white rounded-full animate-pulse [animation-delay:150ms]" />
+                          <span className="w-[3px] h-2 bg-white rounded-full animate-pulse [animation-delay:300ms]" />
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500 group-hover:hidden">{track.track_number}</span>
+                      )}
+                      {!isActive && hasAudio && (
+                        <Play className="h-4 w-4 hidden group-hover:block mx-auto fill-current" />
+                      )}
+                    </span>
 
-                  <span className="flex-1 truncate font-medium text-sm">
-                    {track.title}
-                  </span>
+                    <span className="flex-1 truncate font-medium text-sm">
+                      {track.title}
+                    </span>
+                  </button>
 
                   {track.duration && (
-                    <span className="text-xs text-zinc-500 shrink-0">
+                    <span className="text-xs text-zinc-500 shrink-0 tabular-nums">
                       {formatTime(track.duration)}
                     </span>
                   )}
-                </button>
+
+                  {hasExtras && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPanelTrackIndex(index);
+                        setPanelOpen(true);
+                      }}
+                      className="p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                      aria-label="Ver letra y créditos"
+                      title="Ver letra y créditos"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
+
+        {/* Lyrics + Credits Panel */}
+        {panelTrackIndex !== null && tracks[panelTrackIndex] && (
+          <SharedReleaseTrackPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            trackTitle={tracks[panelTrackIndex].title}
+            artistName={artist?.name}
+            coverUrl={release?.cover_image_url}
+            lyrics={tracks[panelTrackIndex].lyrics}
+            credits={creditsByTrack[tracks[panelTrackIndex].id] || []}
+            isPlaying={isPlaying && currentTrackIndex === panelTrackIndex}
+            currentTime={currentTrackIndex === panelTrackIndex ? currentTime : 0}
+            duration={currentTrackIndex === panelTrackIndex ? duration : 0}
+          />
+        )}
 
         {/* Now Playing Bar */}
         {currentTrack && (
