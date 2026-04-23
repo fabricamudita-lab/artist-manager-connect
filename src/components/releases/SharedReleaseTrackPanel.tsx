@@ -3,6 +3,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Music, Pin, PinOff } from 'lucide-react';
+import {
+  CREDIT_CATEGORIES,
+  getRoleCategory5,
+  getRoleLabel,
+  type CreditCategory,
+} from '@/lib/creditRoles';
 
 export interface SharedCredit {
   id: string;
@@ -24,23 +30,32 @@ interface Props {
   duration: number;
 }
 
-const CATEGORIES: { key: string; label: string; match: RegExp }[] = [
-  { key: 'composition', label: 'Composición y Letra', match: /(compos|letr|lyric|author|songwrit)/i },
-  { key: 'production', label: 'Producción', match: /(produc|beat)/i },
-  { key: 'performance', label: 'Intérpretes', match: /(vocal|cant|voz|guitar|bass|bajo|drum|bater|piano|sax|trump|perform|featur|ft\.?|interpret)/i },
-  { key: 'mixmaster', label: 'Mezcla y Master', match: /(mix|master|engineer|ingenier)/i },
-];
+interface PersonGroup {
+  name: string;
+  roles: string[]; // raw role values, deduped, in insertion order
+}
 
-function groupCredits(credits: SharedCredit[]) {
-  const groups: Record<string, SharedCredit[]> = {
-    composition: [], production: [], performance: [], mixmaster: [], other: [],
-  };
-  credits.forEach((c) => {
-    const role = c.role || '';
-    const cat = CATEGORIES.find((x) => x.match.test(role));
-    groups[cat?.key ?? 'other'].push(c);
-  });
-  return groups;
+// Group credits: first by category, then by person within each category.
+function groupCreditsByCategory(credits: SharedCredit[]) {
+  const map = new Map<CreditCategory | 'otro', Map<string, PersonGroup>>();
+
+  for (const c of credits) {
+    const name = (c.name || '').trim();
+    if (!name) continue;
+    const role = (c.role || '').trim();
+    const cat = (getRoleCategory5(role) ?? 'otro') as CreditCategory | 'otro';
+
+    if (!map.has(cat)) map.set(cat, new Map());
+    const people = map.get(cat)!;
+    const key = name.toLowerCase();
+    if (!people.has(key)) {
+      people.set(key, { name, roles: [] });
+    }
+    const person = people.get(key)!;
+    if (role && !person.roles.includes(role)) person.roles.push(role);
+  }
+
+  return map;
 }
 
 export function SharedReleaseTrackPanel({
@@ -70,9 +85,20 @@ export function SharedReleaseTrackPanel({
     }, 1500);
   };
 
-  const groups = groupCredits(credits);
+  const grouped = groupCreditsByCategory(credits);
   const hasLyrics = !!(lyrics && lyrics.trim());
   const hasCredits = credits.length > 0;
+
+  // Order: use canonical category order, then "otro" at the end
+  const orderedCategories: (CreditCategory | 'otro')[] = [
+    ...CREDIT_CATEGORIES.map((c) => c.id),
+    'otro',
+  ];
+
+  const categoryLabel = (cat: CreditCategory | 'otro') => {
+    if (cat === 'otro') return 'Otros';
+    return CREDIT_CATEGORIES.find((c) => c.id === cat)?.label ?? cat;
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -134,37 +160,43 @@ export function SharedReleaseTrackPanel({
 
           <TabsContent value="credits" className="flex-1 min-h-0 mt-3 px-4 pb-4 overflow-y-auto">
             {hasCredits ? (
-              <div className="space-y-5">
-                {CATEGORIES.map((cat) => {
-                  const items = groups[cat.key];
-                  if (!items.length) return null;
+              <div className="space-y-4">
+                {orderedCategories.map((catKey) => {
+                  const people = grouped.get(catKey);
+                  if (!people || people.size === 0) return null;
+                  const label = categoryLabel(catKey);
                   return (
-                    <div key={cat.key}>
-                      <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-2">{cat.label}</h4>
-                      <ul className="space-y-1.5">
-                        {items.map((c) => (
-                          <li key={c.id} className="flex items-baseline justify-between gap-3 text-sm">
-                            <span className="text-zinc-400 shrink-0">{c.role || '—'}</span>
-                            <span className="text-white text-right truncate">{c.name || '—'}</span>
+                    <section
+                      key={catKey}
+                      className="rounded-lg border border-zinc-800 bg-zinc-900/40 overflow-hidden"
+                    >
+                      <header className="px-3 py-2 border-b border-zinc-800 bg-zinc-900/60">
+                        <h4 className="text-[11px] uppercase tracking-wider font-medium text-zinc-300">
+                          {label}
+                        </h4>
+                      </header>
+                      <ul className="divide-y divide-zinc-800/70">
+                        {Array.from(people.values()).map((p) => (
+                          <li key={p.name} className="px-3 py-2.5">
+                            <p className="text-sm font-medium text-white">{p.name}</p>
+                            {p.roles.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {p.roles.map((r) => (
+                                  <span
+                                    key={r}
+                                    className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[11px] text-zinc-200"
+                                  >
+                                    {getRoleLabel(r)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </li>
                         ))}
                       </ul>
-                    </div>
+                    </section>
                   );
                 })}
-                {groups.other.length > 0 && (
-                  <div>
-                    <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Otros</h4>
-                    <ul className="space-y-1.5">
-                      {groups.other.map((c) => (
-                        <li key={c.id} className="flex items-baseline justify-between gap-3 text-sm">
-                          <span className="text-zinc-400 shrink-0">{c.role || '—'}</span>
-                          <span className="text-white text-right truncate">{c.name || '—'}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             ) : (
               <p className="text-zinc-500 text-sm">Sin créditos disponibles.</p>
