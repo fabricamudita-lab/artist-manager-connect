@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Play, Pause, SkipForward, SkipBack, Music, Disc3 } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Music, Disc3, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { SharedReleaseTrackPanel, SharedCredit } from '@/components/releases/SharedReleaseTrackPanel';
 
 interface SharedTrack {
   id: string;
@@ -12,6 +12,7 @@ interface SharedTrack {
   track_number: number;
   duration: number | null;
   file_url: string | null;
+  lyrics: string | null;
 }
 
 export default function SharedRelease() {
