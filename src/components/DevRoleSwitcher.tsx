@@ -69,21 +69,28 @@ const DEMO_USERS: DemoUser[] = [
 
 export function DevRoleSwitcher() {
   const { user } = useAuth();
-  const location = useLocation();
+  const [pathname, setPathname] = useState(
+    typeof window !== 'undefined' ? window.location.pathname : ''
+  );
   const [isResetting, setIsResetting] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
+
+  useEffect(() => {
+    const update = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, []);
 
   const PUBLIC_PATH_PREFIXES = [
     '/shared/', '/epk/', '/contract-draft/', '/sign/', '/sync-request/',
     '/artist-form/', '/release-form/', '/contact-form/', '/reset-password',
   ];
-
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isDevHost =
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname.startsWith('id-preview--');
-  const isPublicPath = PUBLIC_PATH_PREFIXES.some((p) => location.pathname.startsWith(p));
+  const isPublicPath = PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p));
   const isVisible = isDevHost && !isPublicPath;
 
   if (!isVisible) return null;
