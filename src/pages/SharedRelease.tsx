@@ -20,6 +20,7 @@ export default function SharedRelease() {
   const [release, setRelease] = useState<any>(null);
   const [artist, setArtist] = useState<any>(null);
   const [tracks, setTracks] = useState<SharedTrack[]>([]);
+  const [creditsByTrack, setCreditsByTrack] = useState<Record<string, SharedCredit[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
@@ -27,6 +28,8 @@ export default function SharedRelease() {
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTrackIndex, setPanelTrackIndex] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
