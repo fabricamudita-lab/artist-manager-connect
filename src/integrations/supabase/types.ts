@@ -1795,6 +1795,7 @@ export type Database = {
           created_at: string
           fecha_emision: string | null
           id: string
+          invoice_group_parent_id: string | null
           invoice_link: string | null
           irpf_percentage: number | null
           is_attendee: boolean | null
@@ -1813,6 +1814,8 @@ export type Database = {
           reconciled_by: string | null
           sort_order: number | null
           subcategory: string | null
+          supplier_invoice_number: string | null
+          supplier_invoice_total: number | null
           unit_price: number | null
           updated_at: string
         }
@@ -1826,6 +1829,7 @@ export type Database = {
           created_at?: string
           fecha_emision?: string | null
           id?: string
+          invoice_group_parent_id?: string | null
           invoice_link?: string | null
           irpf_percentage?: number | null
           is_attendee?: boolean | null
@@ -1844,6 +1848,8 @@ export type Database = {
           reconciled_by?: string | null
           sort_order?: number | null
           subcategory?: string | null
+          supplier_invoice_number?: string | null
+          supplier_invoice_total?: number | null
           unit_price?: number | null
           updated_at?: string
         }
@@ -1857,6 +1863,7 @@ export type Database = {
           created_at?: string
           fecha_emision?: string | null
           id?: string
+          invoice_group_parent_id?: string | null
           invoice_link?: string | null
           irpf_percentage?: number | null
           is_attendee?: boolean | null
@@ -1875,6 +1882,8 @@ export type Database = {
           reconciled_by?: string | null
           sort_order?: number | null
           subcategory?: string | null
+          supplier_invoice_number?: string | null
+          supplier_invoice_total?: number | null
           unit_price?: number | null
           updated_at?: string
         }
@@ -1898,6 +1907,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_invoice_group_parent_id_fkey"
+            columns: ["invoice_group_parent_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
             referencedColumns: ["id"]
           },
         ]
@@ -8504,6 +8520,7 @@ export type Database = {
         | "facturado"
         | "cancelado"
         | "factura_solicitada"
+        | "agrupada"
       budget_status: "nacional" | "internacional"
       budget_type:
         | "concierto"
@@ -8749,6 +8766,7 @@ export const Constants = {
         "facturado",
         "cancelado",
         "factura_solicitada",
+        "agrupada",
       ],
       budget_status: ["nacional", "internacional"],
       budget_type: [
