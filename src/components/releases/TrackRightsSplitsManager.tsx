@@ -714,9 +714,9 @@ function AddSplitForm({
     }
   };
 
-  const handleCreateContactAndSave = async () => {
+  const handleCreateContactAndSave = async (useRedistribute = false) => {
     if (!name || !role) return;
-    
+
     try {
       // Create contact first
       const { data: newContact, error } = await supabase
@@ -729,18 +729,22 @@ function AddSplitForm({
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
-      // Now save credit with contact_id - use the correct percentage column
+
       const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
-      onSave({ 
-        name, 
-        role, 
+      const payload = {
+        name,
+        role,
         [percentageKey]: percentage,
         contact_id: newContact.id,
         ...publishingFields,
-      });
+      };
+      if (useRedistribute && onSaveWithRedistribute) {
+        onSaveWithRedistribute(payload);
+      } else {
+        onSave(payload);
+      }
       toast.success('Contacto creado y vinculado');
     } catch (error) {
       console.error('Error creating contact:', error);
@@ -748,21 +752,25 @@ function AddSplitForm({
     }
   };
 
-  const handleSelectContactAndSave = () => {
+  const handleSelectContactAndSave = (useRedistribute = false) => {
     if (!selectedContactId || !role) return;
-    
+
     const contact = contacts.find(c => c.id === selectedContactId);
     if (!contact) return;
-    
-    // Use the correct percentage column based on type
+
     const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
-    onSave({ 
-      name: contact.stage_name || contact.name, 
-      role, 
+    const payload = {
+      name: contact.stage_name || contact.name,
+      role,
       [percentageKey]: percentage,
       contact_id: selectedContactId,
       ...publishingFields,
-    });
+    };
+    if (useRedistribute && onSaveWithRedistribute) {
+      onSaveWithRedistribute(payload);
+    } else {
+      onSave(payload);
+    }
   };
 
   const filteredContacts = contacts.filter(c => 
