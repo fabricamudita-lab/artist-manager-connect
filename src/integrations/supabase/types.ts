@@ -2760,6 +2760,7 @@ export type Database = {
           ipi_number: string | null
           is_public: boolean | null
           legal_name: string | null
+          linked_artist_id: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -2796,6 +2797,7 @@ export type Database = {
           ipi_number?: string | null
           is_public?: boolean | null
           legal_name?: string | null
+          linked_artist_id?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -2832,6 +2834,7 @@ export type Database = {
           ipi_number?: string | null
           is_public?: boolean | null
           legal_name?: string | null
+          linked_artist_id?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -2852,6 +2855,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_linked_artist_id_fkey"
+            columns: ["linked_artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
