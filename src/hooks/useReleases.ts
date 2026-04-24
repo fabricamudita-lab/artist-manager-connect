@@ -96,6 +96,7 @@ export interface Track {
   c_copyright_year: number | null;
   p_copyright_holder: string | null;
   p_production_year: number | null;
+  recording_fixation_date: string | null;
   created_at: string;
   updated_at: string;
 }
