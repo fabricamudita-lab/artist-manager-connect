@@ -1,55 +1,37 @@
-## Plan: añadir participante con redistribución proporcional automática
+# Reordenar nombres en Créditos y Autoría
 
-### Comportamiento actual
-Al añadir un participante a Royalties Master o Publishing, el porcentaje se inserta tal cual y el total puede pasar de 100%. El usuario tiene que ajustar manualmente al resto.
+## Diagnóstico
 
-### Nuevo comportamiento
-Al añadir un nuevo participante, el porcentaje que indique se "reserva" y al resto de participantes existentes se les resta proporcionalmente para que el total siga siendo 100%.
+El icono de "agarre" (⠿) aparece junto a cada nombre, pero **el drag & drop no está conectado**. Hay dos problemas:
 
-Ejemplo:
-```text
-Antes: P1=50%, P2=50%   (total 100%)
-Añado P3 con 50%
-Después: P1=25%, P2=25%, P3=50%
-```
+1. **`PersonRow` no es arrastrable.** Muestra el `GripVertical`, pero no usa `useSortable`, así que dnd-kit no escucha eventos sobre la fila. De hecho, el contenedor del icono lleva `onClick={(e) => e.stopPropagation()}`, lo que bloquea cualquier interacción.
+2. **Los IDs del `SortableContext` no coinciden con lo que se renderiza.** Después de agrupar créditos por persona (una persona con dos roles = una sola fila), el contexto recibe IDs de créditos individuales en vez de claves de grupo.
 
-Si el reparto exacto entre los existentes no es entero/medio (paso 0,5%) y queda un sobrante de redondeo, el sistema preguntará a quién dar ese resto (redondeo al alza).
+Resultado: aunque el cursor cambia a "grab", arrastrar no produce ningún efecto.
 
-Ejemplo con resto:
-```text
-Antes: P1=33%, P2=33%, P3=34%   (total 100%)
-Añado P4 con 50%
-Hay que repartir 50% entre 3 → 16,67% c/u
-Sistema: pregunta "¿A quién asignar el 0,5% restante?" con lista P1/P2/P3
-Resultado final: por ejemplo P1=17%, P2=16,5%, P3=16,5%, P4=50%
-```
+## Cambios propuestos
 
-### Flujo de UI
-1. En el formulario "Añadir participante" (tanto modo Agenda como Nuevo Perfil) aparece una nueva opción / botón:
-   - **Añadir y ajustar resto** (nueva acción principal de proporcionalidad)
-   - **Añadir tal cual** (comportamiento actual, por si el usuario quiere meter el % sin tocar a los demás)
-2. Si al pulsar "Añadir y ajustar resto" hay sobrante por redondeo, se abre un mini-diálogo:
-   - Lista de participantes existentes con checkboxes (selección múltiple permitida).
-   - Texto: "¿A quién asignar el X% restante?"
-   - Botón Confirmar.
-3. El sistema guarda en una sola operación: actualiza los % de los existentes y crea el nuevo.
+Archivo: `src/pages/release-sections/ReleaseCreditos.tsx`
 
-### Reglas de redistribución
-- Solo afecta a los participantes del mismo tipo (publishing o master) del mismo track.
-- El nuevo % no puede ser >100. Si es 100, todos los demás quedan en 0 (con confirmación).
-- Si actualmente el total NO es 100% (estado incompleto), la lógica reparte sobre el espacio realmente ocupado y mantiene la proporción relativa entre los existentes.
-- Paso de cálculo: 0,5% (igual que el slider actual). Sumas se cuadran al 100% exacto usando el/los participantes elegidos para el redondeo.
-- Si solo hay 1 participante existente, no hace falta preguntar: recibe todo el sobrante.
-- Si no hay participantes existentes, se inserta el nuevo tal cual (no hay nada que repartir).
+1. **Hacer `PersonRow` sortable**
+   - Usar `useSortable({ id: group.key })` dentro del componente.
+   - Aplicar `setNodeRef`, `style` (transform/transition) al contenedor de la fila.
+   - Mover `attributes` + `listeners` al div del `GripVertical` (handle dedicado), quitando el `stopPropagation` actual.
 
-### Cambios técnicos
-| Archivo | Cambio |
-|---|---|
-| `src/components/releases/TrackRightsSplitsManager.tsx` | 1) Añadir helper `redistributeSplits(existing, newPct, step=0.5)` que devuelve `{ updates, remainder }`. 2) En `AddSplitForm` añadir el botón "Añadir y ajustar resto" junto a "Añadir". 3) Pasar callback nuevo `onSaveWithRedistribute` desde el manager. 4) En el manager, implementar `handleCreateWithRedistribute(data)` que: calcula la redistribución, si hay `remainder>0` y existen ≥2 participantes abre `RoundingPickerDialog`, aplica updates en lote (`upsert` por id) + insert del nuevo, invalida caché. |
-| Mismo archivo | Nuevo subcomponente `RoundingPickerDialog` (basado en `Dialog` de shadcn) con lista de participantes y checkboxes para elegir destinatarios del sobrante. |
+2. **Alinear `SortableContext` con los grupos por categoría**
+   - En lugar de un único contexto con todos los `credit.id`, envolver cada categoría en su propio `SortableContext` con `items={catGroups.map(g => g.key)}`. Así sólo se reordena dentro de la misma sección (Compositor, Autoría, etc.), que es el comportamiento esperado.
 
-### Resultado esperado
-- Al añadir un nuevo participante con % > 0, el usuario puede elegir entre añadirlo "tal cual" (legacy) o "ajustando el resto" (nuevo, recomendado).
-- Con la opción de ajuste, el total siempre queda en 100%.
-- Cuando el reparto no es exacto, la app pregunta a quién dar el sobrante en lugar de decidirlo en silencio.
-- No hay cambios en la base de datos ni en RLS; solo se reutilizan las operaciones existentes de `track_credits`.
+3. **Reescribir `handleDragEnd` para grupos**
+   - Recibir `active.id` y `over.id` como `group.key`.
+   - Detectar la categoría afectada, reordenar `catGroups` con `arrayMove`.
+   - Recalcular `sort_order` de **todos los créditos de cada grupo** según el nuevo orden de personas (asignando bloques consecutivos para mantener juntos los roles de una misma persona).
+   - Persistir con `update` por cada `track_credits.id` afectado e invalidar la query.
+
+4. **Feedback visual mínimo**
+   - Aplicar opacidad/elevación a la fila mientras `isDragging` para que se note el arrastre.
+
+## Resultado esperado
+
+- Arrastrando el icono ⠿ se puede reordenar libremente cada persona dentro de su categoría (Compositor / Autoría / Producción / Intérprete / Contribuidor).
+- El nuevo orden persiste tras recargar.
+- Los roles múltiples de una misma persona se mantienen agrupados.
