@@ -1167,20 +1167,45 @@ function CreditsSection({
     setTimeout(() => setCopiedCredits(false), 2000);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleCategoryDragEnd = async (category: CreditCategory, event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sortedCredits.findIndex(c => c.id === active.id);
-    const newIndex = sortedCredits.findIndex(c => c.id === over.id);
+    const catGroups = groupedByCategory[category] || [];
+    const oldIndex = catGroups.findIndex(g => g.key === active.id);
+    const newIndex = catGroups.findIndex(g => g.key === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reorderedCredits = arrayMove(sortedCredits, oldIndex, newIndex).map((credit, index) => ({
-      ...credit,
-      sort_order: index + 1,
-    }));
-    queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
+
+    const reorderedGroups = arrayMove(catGroups, oldIndex, newIndex);
+
+    // Build new sort_order for credits in this category as consecutive blocks per person.
+    // Use the minimum existing sort_order in this category as the starting offset to avoid
+    // disturbing the relative position of other categories.
+    const allCatCredits = catGroups.flatMap(g => g.credits);
+    const baseOrder = allCatCredits.reduce(
+      (min, c) => Math.min(min, c.sort_order ?? Number.MAX_SAFE_INTEGER),
+      Number.MAX_SAFE_INTEGER,
+    );
+    const startOrder = baseOrder === Number.MAX_SAFE_INTEGER ? 1 : baseOrder;
+
+    const updates: { id: string; sort_order: number }[] = [];
+    let cursor = startOrder;
+    for (const group of reorderedGroups) {
+      for (const credit of group.credits) {
+        updates.push({ id: credit.id, sort_order: cursor });
+        cursor += 1;
+      }
+    }
+
+    // Optimistic update of the cache
+    const updateMap = new Map(updates.map(u => [u.id, u.sort_order]));
+    queryClient.setQueryData(['track-credits', trackId], (prev: TrackCredit[] | undefined) => {
+      if (!prev) return prev;
+      return prev.map(c => updateMap.has(c.id) ? { ...c, sort_order: updateMap.get(c.id)! } : c);
+    });
+
     try {
-      for (const credit of reorderedCredits) {
-        const { error } = await supabase.from('track_credits').update({ sort_order: credit.sort_order }).eq('id', credit.id);
+      for (const u of updates) {
+        const { error } = await supabase.from('track_credits').update({ sort_order: u.sort_order }).eq('id', u.id);
         if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
@@ -1244,22 +1269,22 @@ function CreditsSection({
       {isLoading ? (
         <Skeleton className="h-16 w-full" />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={sortedCredits.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3">
-              {CREDIT_CATEGORIES.map((cat) => {
-                const catGroups = groupedByCategory[cat.id] || [];
-                return (
-                  <div key={cat.id} className={`rounded-lg border ${cat.borderClass} overflow-hidden`}>
-                    <div className={`flex items-center justify-between px-3 py-1.5 ${cat.bgClass}`}>
-                      <span className={`text-xs font-semibold ${cat.textClass}`}>{cat.label}</span>
-                      <Button variant="ghost" size="icon" className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`} onClick={() => handleOpenAddForCategory(cat.id)} title={`Añadir ${cat.label}`}>
-                        <Plus className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {catGroups.length > 0 ? (
-                        catGroups.map((group) => {
+        <div className="space-y-3">
+          {CREDIT_CATEGORIES.map((cat) => {
+            const catGroups = groupedByCategory[cat.id] || [];
+            return (
+              <div key={cat.id} className={`rounded-lg border ${cat.borderClass} overflow-hidden`}>
+                <div className={`flex items-center justify-between px-3 py-1.5 ${cat.bgClass}`}>
+                  <span className={`text-xs font-semibold ${cat.textClass}`}>{cat.label}</span>
+                  <Button variant="ghost" size="icon" className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`} onClick={() => handleOpenAddForCategory(cat.id)} title={`Añadir ${cat.label}`}>
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="divide-y divide-border">
+                  {catGroups.length > 0 ? (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleCategoryDragEnd(cat.id, e)}>
+                      <SortableContext items={catGroups.map(g => g.key)} strategy={verticalListSortingStrategy}>
+                        {catGroups.map((group) => {
                           const otherCats = Array.from(personCategoryMap.get(group.key) || []).filter(c => c !== cat.id);
                           return (
                             <PersonRow
@@ -1275,17 +1300,17 @@ function CreditsSection({
                               isSaving={updateCredit.isPending}
                             />
                           );
-                        })
-                      ) : (
-                        <p className="text-xs text-muted-foreground px-3 py-2 italic">{emptyLabels[cat.id]}</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </SortableContext>
-        </DndContext>
+                        })}
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    <p className="text-xs text-muted-foreground px-3 py-2 italic">{emptyLabels[cat.id]}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <Dialog open={isAddCreditOpen} onOpenChange={(open) => { setIsAddCreditOpen(open); if (!open) setAddCategoryFilter(undefined); }}>
@@ -1352,6 +1377,13 @@ function PersonRow({
   const firstCredit = group.credits[0];
   const hasContact = !!group.contact_id;
   const [editStates, setEditStates] = useState<Record<string, { role: string; publishingPct: string; masterPct: string }>>({});
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.key });
+  const sortableStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : 'auto',
+  };
 
   const handleStartEdit = () => {
     const states: Record<string, { role: string; publishingPct: string; masterPct: string }> = {};
@@ -1383,7 +1415,7 @@ function PersonRow({
 
   if (isEditing) {
     return (
-      <div className="p-3 bg-background space-y-2">
+      <div ref={setNodeRef} style={sortableStyle} className="p-3 bg-background space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <p className="font-medium text-sm">{group.name}</p>
@@ -1419,11 +1451,18 @@ function PersonRow({
   }
 
   return (
-    <div className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors">
+    <div ref={setNodeRef} style={sortableStyle} className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1 touch-none"
+          aria-label="Arrastrar para reordenar"
+          onClick={(e) => e.stopPropagation()}
+        >
           <GripVertical className="h-4 w-4" />
-        </div>
+        </button>
         <div className="cursor-pointer min-w-0" onClick={handleStartEdit}>
           <div className="flex items-center gap-1.5">
             <p className="font-medium text-sm truncate">{group.name}</p>
