@@ -1303,16 +1303,14 @@ function CreditsSection({
                         })}
                       </SortableContext>
                     </DndContext>
-                      ) : (
-                        <p className="text-xs text-muted-foreground px-3 py-2 italic">{emptyLabels[cat.id]}</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </SortableContext>
-        </DndContext>
+                  ) : (
+                    <p className="text-xs text-muted-foreground px-3 py-2 italic">{emptyLabels[cat.id]}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <Dialog open={isAddCreditOpen} onOpenChange={(open) => { setIsAddCreditOpen(open); if (!open) setAddCategoryFilter(undefined); }}>
