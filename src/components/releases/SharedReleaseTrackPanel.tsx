@@ -63,19 +63,56 @@ export function SharedReleaseTrackPanel({
   lyrics, credits, isPlaying, currentTime, duration,
 }: Props) {
   const lyricsRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const userScrollingRef = useRef(false);
   const userScrollTimer = useRef<number | null>(null);
 
-  // Auto-scroll proporcional al progreso
+  // Split lyrics into lines + compute weighted timing per line
+  const { lines, lineEndTimes } = useMemo(() => {
+    const raw = (lyrics || '').replace(/\r\n/g, '\n').split('\n');
+    // Weight: words count, with a small base so empty lines still take a sliver
+    const weights = raw.map((l) => {
+      const words = l.trim().split(/\s+/).filter(Boolean).length;
+      if (words === 0) return 0.25; // pause/empty line
+      // Slightly sublinear so very long lines don't dominate too much
+      return Math.max(1, Math.pow(words, 0.9));
+    });
+    const total = weights.reduce((a, b) => a + b, 0) || 1;
+    // Reserve 8% intro and 8% outro so scroll doesn't race ahead at start/end
+    const introFrac = 0.08;
+    const outroFrac = 0.08;
+    const usable = 1 - introFrac - outroFrac;
+    let acc = 0;
+    const ends = weights.map((w) => {
+      acc += w;
+      return introFrac + (acc / total) * usable;
+    });
+    return { lines: raw, lineEndTimes: ends };
+  }, [lyrics]);
+
+  // Determine active line based on currentTime fraction
+  const activeLineIndex = useMemo(() => {
+    if (!duration || lines.length === 0) return -1;
+    const frac = Math.min(1, Math.max(0, currentTime / duration));
+    for (let i = 0; i < lineEndTimes.length; i++) {
+      if (frac <= lineEndTimes[i]) return i;
+    }
+    return lines.length - 1;
+  }, [currentTime, duration, lineEndTimes, lines.length]);
+
+  // Auto-scroll: keep active line near upper-third of the panel
   useEffect(() => {
-    if (!autoScroll || !isPlaying || !lyricsRef.current || !duration) return;
-    const el = lyricsRef.current;
-    const max = el.scrollHeight - el.clientHeight;
-    if (max <= 0) return;
-    const target = (currentTime / duration) * max;
-    el.scrollTo({ top: target, behavior: 'smooth' });
-  }, [currentTime, duration, isPlaying, autoScroll]);
+    if (!autoScroll || !isPlaying) return;
+    if (activeLineIndex < 0) return;
+    const container = lyricsRef.current;
+    const el = lineRefs.current[activeLineIndex];
+    if (!container || !el) return;
+    const targetOffset = el.offsetTop - container.clientHeight * 0.35;
+    const max = container.scrollHeight - container.clientHeight;
+    const top = Math.max(0, Math.min(max, targetOffset));
+    container.scrollTo({ top, behavior: 'smooth' });
+  }, [activeLineIndex, autoScroll, isPlaying]);
 
   const handleUserScroll = () => {
     userScrollingRef.current = true;
