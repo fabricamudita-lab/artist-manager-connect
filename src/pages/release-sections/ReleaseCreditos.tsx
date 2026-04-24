@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useRelease, useTracks, useTrackCredits, Track, TrackCredit } from '@/hooks/useReleases';
+import { renumberTracks, reorderTracks } from '@/lib/releases/trackOrdering';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -396,7 +397,15 @@ export default function ReleaseCreditos() {
         table: 'tracks',
         id: trackId,
         successMessage: 'Canción eliminada',
-        onComplete: () => {
+        onComplete: async () => {
+          // Renumeramos tras la confirmación definitiva del borrado
+          // (también cubre el caso de "deshacer": al restaurarse, la siguiente
+          // renumeración reabsorbe el track devuelto en su orden por created_at).
+          try {
+            if (id) await renumberTracks(id);
+          } catch (e) {
+            console.error('renumberTracks failed', e);
+          }
           queryClient.invalidateQueries({ queryKey: ['tracks', id] });
         },
       });
@@ -419,20 +428,17 @@ export default function ReleaseCreditos() {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id || !tracks) return;
+    if (!over || active.id === over.id || !tracks || !id) return;
     const oldIndex = tracks.findIndex((t) => t.id === active.id);
     const newIndex = tracks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove([...tracks], oldIndex, newIndex);
     try {
-      await Promise.all(
-        reordered.map((t, i) =>
-          supabase.from('tracks').update({ track_number: i + 1 } as any).eq('id', t.id)
-        )
-      );
+      await reorderTracks(id, reordered.map((t) => t.id));
       queryClient.invalidateQueries({ queryKey: ['tracks', id] });
-    } catch {
-      toast.error('Error al reordenar');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Error al reordenar');
     }
   };
 
@@ -513,7 +519,7 @@ export default function ReleaseCreditos() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Canciones y Autoría</CardTitle>
-              {tracks && tracks.length > 1 && release?.status !== 'released' && (
+              {tracks && tracks.length > 1 && (
                 <Button
                   variant={isReorderMode ? 'default' : 'outline'}
                   size="sm"
@@ -524,6 +530,16 @@ export default function ReleaseCreditos() {
                 </Button>
               )}
             </CardHeader>
+            {isReorderMode && release?.status === 'released' && (
+              <div className="mx-4 mb-2">
+                <Alert className="border-amber-500/30 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-sm">
+                    Este lanzamiento ya está publicado. Reordenar las canciones puede afectar a metadatos enviados a distribución.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             {showCreditsBanner && (
               <div className="mx-4 mb-2">
                 <Alert className="border-amber-500/30 bg-amber-500/10">
