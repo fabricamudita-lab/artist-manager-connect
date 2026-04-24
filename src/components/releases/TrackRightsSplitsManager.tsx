@@ -59,15 +59,6 @@ import {
   getRoleLabel,
 } from '@/lib/creditRoles';
 
-interface TrackRightsSplitsManagerProps {
-  track: Track;
-  type: 'publishing' | 'master';
-  /** Si se proporciona, habilita la edición de notas por canción para este release. */
-  releaseId?: string;
-  /** Workspace para sociedades de gestión personalizadas. */
-  workspaceId?: string | null;
-}
-
 // Helper: round to nearest step
 function roundToStep(value: number, step = 0.5): number {
   return Math.round(value / step) * step;
