@@ -33,6 +33,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PROCombobox } from '@/components/credits/PROCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
