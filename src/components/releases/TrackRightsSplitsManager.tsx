@@ -910,17 +910,36 @@ function AddSplitForm({
           </>
         )}
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             disabled={!selectedContactId || isLoading}
-            onClick={handleSelectContactAndSave}
+            onClick={() => handleSelectContactAndSave(false)}
           >
-            Añadir
+            Añadir tal cual
           </Button>
+          {hasExistingSplits && onSaveWithRedistribute && (
+            <Button
+              size="sm"
+              disabled={!selectedContactId || isLoading}
+              onClick={() => handleSelectContactAndSave(true)}
+            >
+              Añadir y ajustar resto
+            </Button>
+          )}
+          {!hasExistingSplits && (
+            <Button
+              size="sm"
+              disabled={!selectedContactId || isLoading}
+              onClick={() => handleSelectContactAndSave(false)}
+            >
+              Añadir
+            </Button>
+          )}
         </div>
       </div>
     );
