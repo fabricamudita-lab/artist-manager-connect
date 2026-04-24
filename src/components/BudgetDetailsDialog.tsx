@@ -125,8 +125,11 @@ interface BudgetItem {
   iva_percentage: number;
   irpf_percentage: number;
   is_attendee: boolean;
-  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado';
+  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' | 'agrupada';
   invoice_link?: string;
+  supplier_invoice_number?: string | null;
+  supplier_invoice_total?: number | null;
+  invoice_group_parent_id?: string | null;
   observations?: string;
   category_id?: string;
   fecha_emision?: string;
