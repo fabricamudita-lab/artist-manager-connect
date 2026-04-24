@@ -4779,6 +4779,28 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                  >
                                                    <Edit className="w-3 h-3" />
                                                  </Button>
+                                                 {item.invoice_group_parent_id ? (
+                                                   <Button
+                                                     onClick={() => unlinkFromInvoiceGroup({ itemId: item.id, onDone: fetchBudgetItems })}
+                                                     size="sm"
+                                                     variant="ghost"
+                                                     className="h-6 w-6 p-0 hover:bg-purple-100 text-purple-700"
+                                                     title="Desagrupar de la factura"
+                                                   >
+                                                     <Eraser className="w-3 h-3" />
+                                                   </Button>
+                                                 ) : (
+                                                   <Button
+                                                     onClick={() => setLinkInvoiceItem(item)}
+                                                     size="sm"
+                                                     variant="ghost"
+                                                     className="h-6 w-6 p-0 hover:bg-purple-100 text-purple-700"
+                                                     title={item.contact_id ? 'Agrupar en factura del proveedor' : 'Asigna un proveedor primero'}
+                                                     disabled={!item.contact_id}
+                                                   >
+                                                     <Link2 className="w-3 h-3" />
+                                                   </Button>
+                                                 )}
                                                  {selectedItems.has(item.id) && (
                                                    <Button
                                                      onClick={() => deleteItem(item.id)}
