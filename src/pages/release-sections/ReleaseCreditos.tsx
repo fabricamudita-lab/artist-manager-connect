@@ -1016,7 +1016,7 @@ function TrackCreditsItem({
               {credits.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   <Users className="w-3 h-3 mr-1" />
-                  {credits.length}
+                  {new Set(credits.map((c: any) => (c.name || '').trim().toLowerCase()).filter(Boolean)).size}
                 </Badge>
               )}
             </div>
