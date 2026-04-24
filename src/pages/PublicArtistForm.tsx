@@ -141,50 +141,68 @@ export default function PublicArtistForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!artistId) return;
+    if (!artistId || !token) return;
     try {
       setSaving(true);
-      const toNull = (v: string) => v.trim() || null;
-      const { error: updateError } = await supabase
-        .from('artists')
-        .update({
-          name: formData.name.trim() || undefined,
-          stage_name: toNull(formData.stage_name),
-          description: toNull(formData.description),
-          genre: toNull(formData.genre),
-          instagram_url: toNull(formData.instagram_url),
-          spotify_url: toNull(formData.spotify_url),
-          tiktok_url: toNull(formData.tiktok_url),
-          company_name: toNull(formData.company_name),
-          legal_name: toNull(formData.legal_name),
-          tax_id: toNull(formData.tax_id),
-          nif: toNull(formData.nif),
-          tipo_entidad: toNull(formData.tipo_entidad),
-          irpf_type: toNull(formData.irpf_type),
-          irpf_porcentaje: formData.irpf_porcentaje ? parseFloat(formData.irpf_porcentaje) : null,
-          actividad_inicio: toNull(formData.actividad_inicio),
-          iban: toNull(formData.iban),
-          bank_name: toNull(formData.bank_name),
-          swift_code: toNull(formData.swift_code),
-          clothing_size: toNull(formData.clothing_size),
-          shoe_size: toNull(formData.shoe_size),
-          allergies: toNull(formData.allergies),
-          special_needs: toNull(formData.special_needs),
-          notes: toNull(formData.notes),
-          email: toNull(formData.email),
-          phone: toNull(formData.phone),
-          address: toNull(formData.address),
-          custom_data: customData,
-          social_links: socialLinks.filter((l) => l.url.trim()),
-        } as any)
-        .eq('id', artistId);
 
-      if (updateError) throw updateError;
+      // Construir payload: dejamos que la edge function aplique validación Zod
+      // y normalice (uppercase IBAN/NIF, etc.). Enviamos sólo strings (no `null`)
+      // para coincidir con el esquema; cadenas vacías son tratadas como ausencia.
+      const payload = {
+        name: formData.name,
+        stage_name: formData.stage_name,
+        description: formData.description,
+        genre: formData.genre,
+        instagram_url: formData.instagram_url,
+        spotify_url: formData.spotify_url,
+        tiktok_url: formData.tiktok_url,
+        company_name: formData.company_name,
+        legal_name: formData.legal_name,
+        tax_id: formData.tax_id,
+        nif: formData.nif,
+        tipo_entidad: formData.tipo_entidad,
+        irpf_type: formData.irpf_type,
+        irpf_porcentaje: formData.irpf_porcentaje,
+        actividad_inicio: formData.actividad_inicio,
+        iban: formData.iban,
+        bank_name: formData.bank_name,
+        swift_code: formData.swift_code,
+        clothing_size: formData.clothing_size,
+        shoe_size: formData.shoe_size,
+        allergies: formData.allergies,
+        special_needs: formData.special_needs,
+        notes: formData.notes,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        custom_data: customData,
+        social_links: socialLinks.filter((l) => l.url.trim()),
+      };
+
+      const { data, error: fnError } = await supabase.functions.invoke(
+        'update-artist-public',
+        { body: { token, payload } },
+      );
+
+      if (fnError) {
+        // Errores de red o 5xx
+        throw new Error(fnError.message || 'Error de conexión');
+      }
+      if (data?.error) {
+        // Errores de validación (422) — mostrar detalle al usuario
+        const fields = data.error.fields as Record<string, string[]> | undefined;
+        const firstFieldError = fields
+          ? Object.entries(fields)[0]?.[1]?.[0]
+          : undefined;
+        throw new Error(firstFieldError || data.error.message || 'No se pudo guardar');
+      }
+
       setSaved(true);
       toast({ title: "Información actualizada", description: "Los datos se han guardado correctamente." });
     } catch (err) {
-      console.error('Error saving:', err);
-      toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive" });
+      const msg = err instanceof Error ? err.message : 'No se pudieron guardar los cambios.';
+      console.error('Error saving artist form');
+      toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
