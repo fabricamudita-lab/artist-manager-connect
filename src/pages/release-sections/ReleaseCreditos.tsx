@@ -1713,7 +1713,7 @@ function EditTrackForm({
   isLoading,
 }: {
   track: Track;
-  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => void;
+  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null; recording_fixation_date?: string | null }) => void;
   isLoading: boolean;
 }) {
   const [title, setTitle] = useState(track.title);
@@ -1724,6 +1724,9 @@ function EditTrackForm({
   const [cCopyrightYear, setCCopyrightYear] = useState<number | ''>(track.c_copyright_year ?? '');
   const [pCopyrightHolder, setPCopyrightHolder] = useState(track.p_copyright_holder || '');
   const [pProductionYear, setPProductionYear] = useState<number | ''>(track.p_production_year ?? '');
+  const [fixationDate, setFixationDate] = useState<Date | undefined>(
+    track.recording_fixation_date ? new Date(track.recording_fixation_date + 'T00:00:00') : undefined
+  );
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: currentYear - 1999 }, (_, i) => currentYear - i);
@@ -1739,6 +1742,7 @@ function EditTrackForm({
       c_copyright_year: cCopyrightYear === '' ? null : cCopyrightYear,
       p_copyright_holder: pCopyrightHolder.trim() || null,
       p_production_year: pProductionYear === '' ? null : pProductionYear,
+      recording_fixation_date: fixationDate ? format(fixationDate, 'yyyy-MM-dd') : null,
     });
   };
 
