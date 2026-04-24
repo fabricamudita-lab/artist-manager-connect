@@ -308,6 +308,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [linkInvoiceItem, setLinkInvoiceItem] = useState<BudgetItem | null>(null);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetData, setBudgetData] = useState(budget);
   const [isFullscreen, setIsFullscreen] = useState(false);
