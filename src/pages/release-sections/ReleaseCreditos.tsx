@@ -731,9 +731,24 @@ function TrackCreditsItem({
           const roleLabel = getRoleLabel(data.role);
           const teamCategory = categoryMap[cat5 || ''] || 'artistico';
 
+          // Detectar si el nombre coincide con un artista del roster del usuario.
+          // Si coincide, el contacto se vincula por FK (linked_artist_id) — la
+          // ficha autoritativa vive en `artists`, este contacto sólo guarda el
+          // rol funcional dentro del equipo.
+          const norm = (s: string) =>
+            (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+          const { data: candidateArtists } = await supabase
+            .from('artists')
+            .select('id, name, stage_name')
+            .eq('created_by', user.id);
+          const matchingArtist = (candidateArtists || []).find(
+            (a) => norm(a.stage_name || '') === norm(data.name) || norm(a.name) === norm(data.name)
+          );
+          const linkedArtistId = matchingArtist?.id || null;
+
           const { data: existingContact } = await supabase
             .from('contacts')
-            .select('id, role, field_config')
+            .select('id, role, field_config, linked_artist_id')
             .eq('created_by', user.id)
             .ilike('name', data.name)
             .limit(1)
@@ -757,6 +772,8 @@ function TrackCreditsItem({
                   team_categories: mergedCats,
                 },
                 role: mergedRoles.join(', '),
+                // Backfill el vínculo si no estaba aún
+                ...(existingContact.linked_artist_id ? {} : { linked_artist_id: linkedArtistId }),
               })
               .eq('id', existingContact.id);
           } else {
@@ -767,6 +784,7 @@ function TrackCreditsItem({
                 category: contactCategory,
                 role: roleLabel,
                 created_by: user.id,
+                linked_artist_id: linkedArtistId,
                 field_config: {
                   is_team_member: true,
                   team_categories: [teamCategory],
