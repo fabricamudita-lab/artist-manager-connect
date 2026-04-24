@@ -189,9 +189,38 @@ export function SharedReleaseTrackPanel({
               ref={lyricsRef}
               onWheel={handleUserScroll}
               onTouchMove={handleUserScroll}
-              className="flex-1 overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-zinc-200 pr-2"
+              className="flex-1 overflow-y-auto text-sm leading-relaxed text-zinc-400 pr-2"
             >
-              {hasLyrics ? lyrics : <span className="text-zinc-500">Sin letra disponible.</span>}
+              {hasLyrics ? (
+                <div className="space-y-1 pb-[40%]">
+                  {lines.map((line, i) => {
+                    const isActive = i === activeLineIndex;
+                    const isPast = i < activeLineIndex;
+                    const isEmpty = line.trim() === '';
+                    return (
+                      <div
+                        key={i}
+                        ref={(el) => (lineRefs.current[i] = el)}
+                        className={
+                          isEmpty
+                            ? 'h-3'
+                            : `transition-colors duration-300 ${
+                                isActive
+                                  ? 'text-white font-medium'
+                                  : isPast
+                                    ? 'text-zinc-500'
+                                    : 'text-zinc-400'
+                              }`
+                        }
+                      >
+                        {isEmpty ? '\u00A0' : line}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="text-zinc-500">Sin letra disponible.</span>
+              )}
             </div>
           </TabsContent>
 
