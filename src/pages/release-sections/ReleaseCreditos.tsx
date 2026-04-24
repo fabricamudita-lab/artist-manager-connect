@@ -1451,11 +1451,18 @@ function PersonRow({
   }
 
   return (
-    <div className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors">
+    <div ref={setNodeRef} style={sortableStyle} className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1 touch-none"
+          aria-label="Arrastrar para reordenar"
+          onClick={(e) => e.stopPropagation()}
+        >
           <GripVertical className="h-4 w-4" />
-        </div>
+        </button>
         <div className="cursor-pointer min-w-0" onClick={handleStartEdit}>
           <div className="flex items-center gap-1.5">
             <p className="font-medium text-sm truncate">{group.name}</p>
