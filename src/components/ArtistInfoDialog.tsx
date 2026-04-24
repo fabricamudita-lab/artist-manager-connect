@@ -363,66 +363,80 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
           {/* Left Panel — Config */}
           {canEdit && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Configuración de Campos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-sm">Plantilla</Label>
-                  <Select value={selectedPreset} onValueChange={applyPreset}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(ARTIST_FIELD_PRESETS).map(([key, preset]) => (
-                        <SelectItem key={key} value={key}>{preset.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => applyPreset('complete')}
-                >
-                  Activar todos los campos
-                </Button>
-                <Separator className="my-2" />
-                {Object.entries(ARTIST_FIELD_LABELS).map(([field, label]) => (
-                  <div key={field} className="flex items-center justify-between">
-                    <Label htmlFor={`config-${field}`} className="text-sm">{label}</Label>
-                    <Switch
-                      id={`config-${field}`}
-                      checked={visible(field)}
-                      onCheckedChange={(checked) => updateFieldConfig(field, checked)}
-                      className="data-[state=checked]:bg-primary"
-                    />
-                  </div>
-                ))}
-
-                {customFields.length > 0 && (
-                  <>
+              <Collapsible open={configOpen} onOpenChange={setConfigOpen}>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/40 transition-colors rounded-t-lg">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Configuración de Campos</CardTitle>
+                      <ChevronDown
+                        className={cn(
+                          'h-5 w-5 text-muted-foreground transition-transform',
+                          configOpen && 'rotate-180'
+                        )}
+                      />
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Plantilla</Label>
+                      <Select value={selectedPreset} onValueChange={applyPreset}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(ARTIST_FIELD_PRESETS).map(([key, preset]) => (
+                            <SelectItem key={key} value={key}>{preset.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => applyPreset('complete')}
+                    >
+                      Activar todos los campos
+                    </Button>
                     <Separator className="my-2" />
-                    <Label className="text-xs uppercase text-muted-foreground tracking-wide">Campos personalizados</Label>
-                    {customFields.map((field) => {
-                      const key = `custom_${field.id}`;
-                      return (
-                        <div key={field.id} className="flex items-center justify-between">
-                          <Label htmlFor={`config-${key}`} className="text-sm">{field.label}</Label>
-                          <Switch
-                            id={`config-${key}`}
-                            checked={visible(key)}
-                            onCheckedChange={(checked) => updateFieldConfig(key, checked)}
-                            className="data-[state=checked]:bg-primary"
-                          />
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-              </CardContent>
+                    {Object.entries(ARTIST_FIELD_LABELS).map(([field, label]) => (
+                      <div key={field} className="flex items-center justify-between">
+                        <Label htmlFor={`config-${field}`} className="text-sm">{label}</Label>
+                        <Switch
+                          id={`config-${field}`}
+                          checked={visible(field)}
+                          onCheckedChange={(checked) => updateFieldConfig(field, checked)}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    ))}
+
+                    {customFields.length > 0 && (
+                      <>
+                        <Separator className="my-2" />
+                        <Label className="text-xs uppercase text-muted-foreground tracking-wide">Campos personalizados</Label>
+                        {customFields.map((field) => {
+                          const key = `custom_${field.id}`;
+                          return (
+                            <div key={field.id} className="flex items-center justify-between">
+                              <Label htmlFor={`config-${key}`} className="text-sm">{field.label}</Label>
+                              <Switch
+                                id={`config-${key}`}
+                                checked={visible(key)}
+                                onCheckedChange={(checked) => updateFieldConfig(key, checked)}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
           )}
 
