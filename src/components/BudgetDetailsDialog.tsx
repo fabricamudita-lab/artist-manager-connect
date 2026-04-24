@@ -4631,15 +4631,32 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
                                        {/* Enlace Factura */}
                                        <TableCell className="p-2 text-center">
-                                         {editingItem === item.id ? (
-                                           <Input
-                                             type="text"
-                                             value={editingItemValues.invoice_link || item.invoice_link || ''}
-                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, invoice_link: e.target.value }))}
-                                             placeholder="URL de factura"
-                                             className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
-                                           />
-                                         ) : (
+                                         {item.invoice_group_parent_id ? (
+                                           <TooltipProvider>
+                                             <Tooltip>
+                                               <TooltipTrigger asChild>
+                                                 <div className="h-8 flex items-center justify-center">
+                                                   <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 font-mono text-[10px] gap-1">
+                                                     <Link2 className="w-3 h-3" />
+                                                     ↳ {item.supplier_invoice_number || 'agrupada'}
+                                                   </Badge>
+                                                 </div>
+                                               </TooltipTrigger>
+                                               <TooltipContent>
+                                                 <p className="text-xs">Esta línea está agrupada en la factura principal del proveedor.</p>
+                                                 <p className="text-xs text-muted-foreground">Se pagará junto con ella.</p>
+                                               </TooltipContent>
+                                             </Tooltip>
+                                           </TooltipProvider>
+                                         ) : editingItem === item.id ? (
+                                          <Input
+                                            type="text"
+                                            value={editingItemValues.invoice_link || item.invoice_link || ''}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, invoice_link: e.target.value }))}
+                                            placeholder="URL de factura"
+                                            className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                          />
+                                        ) : (
                                             <div className="h-8 flex items-center justify-center gap-1">
                                               {item.invoice_link ? (
                                                 <div className="flex items-center gap-1">
