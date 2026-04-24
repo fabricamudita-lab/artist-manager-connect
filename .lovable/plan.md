@@ -1,81 +1,116 @@
-## Problema
+## Diagnóstico: la "ficha" ya existe — el problema es de referencia
 
-Eudald Payés aparece en la categoría **Compositor** como un **contacto** normal (círculo morado liso, sin borde verde, sin estrella), separado de su perfil de **Artista principal** (círculo verde con estrella).
+Tras inspeccionar la base de datos, la ficha de Eudald que rellenó por el formulario público **ya está completa en la tabla `artists`**:
 
-Esto ocurre porque:
-
-1. Cuando se añadió a Eudald como compositor en los créditos del release, el sistema creó (o reutilizó) un **contacto** llamado "Eudald Payés" con `team_categories: ['compositor']`. Este contacto es una entidad distinta del registro del **artista** del roster.
-2. La página de Equipos sólo inyecta el "perfil de artista principal" (tarjeta verde con estrella) en las categorías `artistico` y `banda`. En cualquier otra categoría (compositor, letrista, técnico, producción…), el artista aparece como contacto.
-
-Tu regla deseada: **si el artista principal tiene un cargo en una categoría, debe mostrarse SIEMPRE como tarjeta de artista principal** (mismo estilo verde con estrella que en "Equipo artístico"), sólo cambiando el rol mostrado debajo (ej. "Compositor", "Productor"…).
-
-## Solución
-
-### 1. Resolver "contactos = artista del roster" y promocionarlos
-
-En `src/pages/Teams.tsx`, dentro del `useMemo` `allTeamByCategory`:
-
-- Para cada categoría, antes de filtrar contactos, detectar cuáles coinciden con un artista del roster (match por `stage_name` / `name` normalizado, ignorando mayúsculas/acentos, dentro de la lista `artists`).
-- Esos contactos NO se renderizan como tarjeta de contacto. En su lugar:
-  - Se inyecta el artista correspondiente como `artistMember` de esa categoría.
-  - El campo `role` del artistMember toma el rol del contacto en esa categoría (ej. "Compositor" en vez de "Artista principal").
-- La inyección automática de "Artista principal" en `artistico`/`banda` se mantiene tal cual (cuando el artista no tiene un rol explícito ahí).
-
-Pseudocódigo dentro del map de categorías:
-
-```ts
-// Construir lookup de artistas por nombre normalizado
-const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-const artistByName = new Map(artists.map(a => [norm(a.stage_name || a.name), a]));
-
-// Filtrar contactos: separar los que coinciden con un artista del roster
-const matchedArtistContacts: Array<{ artist, role }> = [];
-const realContacts = contacts.filter(c => {
-  const match = artistByName.get(norm(c.stage_name || c.name));
-  if (match && (selectedArtistId === 'all' || match.id === selectedArtistId)) {
-    matchedArtistContacts.push({ artist: match, role: c.role });
-    return false; // se excluye de la lista de contactos
-  }
-  return true;
-});
-
-// Añadir esos artistas como artistMembers (con rol específico)
-matchedArtistContacts.forEach(({ artist, role }) => {
-  artistMembers.push({
-    id: `artist-${artist.id}-${cat.value}`,
-    isArtist: true,
-    name: artist.stage_name || artist.name,
-    role: role || cat.label,   // p. ej. "Compositor, Productor"
-    artistId: artist.id,
-    avatarUrl: artist.avatar_url,
-  });
-});
+```
+artists.id = d8cc3ba2-a8c7-417d-b185-e7756b1b663a
+  artist_type   = roster
+  name          = Eudald Payés Roma
+  stage_name    = Eudald Payés
+  email         = eudaldpayes@gmail.com
+  phone         = 654778063
+  nif           = 77622002S
+  tipo_entidad  = persona_fisica
+  iban          = ES18 2100 0384 3501 0090 1145
+  bank_name     = CaixaBank
+  swift_code    = CAIXESBBXXX
+  profile_id    = NULL  (sin cuenta de usuario aún)
 ```
 
-Con esto, en la captura, la categoría "Compositor" mostrará a Eudald como tarjeta verde con estrella y "Compositor, Productor" debajo, en lugar del círculo morado actual.
+Y existe **en paralelo** un registro sombra en `contacts` (creado al añadir a Eudald como compositor en los créditos del release):
 
-### 2. Evitar duplicados cuando el artista ya está inyectado
+```
+contacts.id = 29d565fb-34c4-44d8-a9da-aa3ad660a765
+  name           = Eudald Payés
+  role           = "Compositor, Productor"
+  field_config   = { is_team_member: true, team_categories: [compositor] }
+  email/iban/nif = vacíos
+```
 
-En `artistico` / `banda`, si el artista también está en `matchedArtistContacts`, usar el rol del contacto (más informativo) y no duplicar la tarjeta "Artista principal" genérica.
+Este contacto **no contiene datos fiscales propios** (sólo el rol de equipo) y, por suerte, ningún módulo de finanzas/contratos lo consulta para extraer IBAN/NIF (la búsqueda en código confirma que esos campos sólo se leen desde `artists`).
 
-### 3. Coherencia al hacer clic
+Por tanto, no hay datos que migrar. Lo que hay que hacer es:
 
-La tarjeta tipo `artist` ya abre el perfil del artista (`ArtistInfoDialog`), igual que en "Equipo artístico". No se requieren cambios en handlers.
+1. **Garantizar la fuente única de verdad**: declarar formalmente que para todo artista del roster, `artists` es la base de datos autoritativa de su ficha.
+2. **Vincular el contacto-sombra al artista** para que cualquier acción sobre ese contacto (editar nombre, rol, etc.) se propague a `artists` cuando proceda, y para que los módulos puedan resolver "este contacto = este artista" sin depender del matching por nombre que añadimos en la pantalla de Equipos.
+3. **No romper auth ni el portal del artista**: `profile_id` sigue siendo `NULL`. El día que Eudald sea invitado y cree cuenta, `handle_new_user` creará su `profiles` row y luego se vinculará a `artists.profile_id` mediante el flujo existente de invitación. La ficha de `artists` **no debe duplicarse en `profiles`** (allí sólo van datos de la cuenta de usuario, no de identidad fiscal del artista).
 
-## Archivos modificados
+## Plan
+
+### 1. Vínculo formal contacto → artista (DB)
+
+Migración SQL:
+
+- Añadir columna `contacts.linked_artist_id uuid REFERENCES public.artists(id) ON DELETE SET NULL` con índice.
+- Backfill: para cada contacto cuyo `name` o `stage_name` (normalizado) coincide con un `artist` del mismo `created_by`/`workspace_id`, asignar `linked_artist_id`. Esto incluye a Eudald.
+- RLS: la política existente de `contacts` se mantiene; el FK no expone más datos.
+
+### 2. Crear el contacto-sombra ya vinculado (código)
+
+`src/pages/release-sections/ReleaseCreditos.tsx` — al crear/actualizar el contacto desde un crédito:
+
+- Si el `name` coincide con un artista del workspace → `linked_artist_id = <artist.id>` y **no copiar** datos fiscales (esos viven en `artists`).
+- Si después se intenta editar email/IBAN/NIF de un contacto con `linked_artist_id`, mostrar aviso "Este perfil pertenece al artista X — edita su ficha".
+
+### 3. Refactor del matching de la pantalla Equipos
+
+`src/pages/Teams.tsx` — el matching por nombre que añadimos en la iteración anterior pasa a usar `linked_artist_id` cuando exista (más preciso); el matching por nombre se mantiene como fallback para registros antiguos no migrados.
+
+### 4. Edge function `update-artist-public` con validación Zod estricta
+
+`supabase/functions/update-artist-public/index.ts` (nueva):
+
+- Recibe `{ token, payload }`. Valida el token contra `artist_form_tokens` (activo, no expirado).
+- Valida `payload` con Zod:
+  - `name`, `stage_name`: `z.string().trim().min(1).max(120)`
+  - `email`: `z.string().trim().email().max(255).optional()`
+  - `phone`: `z.string().trim().regex(/^[+\d\s().-]{6,30}$/).optional()`
+  - `nif`: `z.string().trim().regex(/^[A-Z0-9]{8,15}$/i).optional()`
+  - `iban`: `z.string().trim().regex(/^[A-Z]{2}[0-9A-Z\s]{13,32}$/i).transform(s=>s.replace(/\s/g,'').toUpperCase()).optional()`
+  - `swift_code`: `z.string().trim().regex(/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/i).optional()`
+  - `bank_name`, `legal_name`, `company_name`, `address`, `notes`: `z.string().trim().max(500).optional()`
+  - `irpf_porcentaje`: `z.coerce.number().min(0).max(50).optional()`
+  - `tipo_entidad`: `z.enum(['persona_fisica','autonomo','sociedad'])`
+  - URLs sociales: `z.string().url().max(500).optional()`
+  - `custom_data`: `z.record(z.string().max(2000))` (limita tamaño de cada campo libre)
+- Sanitiza strings (`.trim()` + recorte de caracteres de control) — el cliente Postgres ya parametriza queries (no hay SQL injection en consultas Supabase JS), pero el regex/length-cap previene payloads abusivos.
+- XSS: no se renderiza HTML — siempre que el frontend siga usando React (auto-escape), las cadenas almacenadas son seguras. Como cinturón, rechazar payloads con `<script` en el servidor.
+- Errores devueltos como `{ error: { code, message, field? } }` con HTTP 400/401/403/422. Sin `console.log` de payloads sensibles (solo `error.message`).
+- Usa `service_role` internamente para escribir en `artists` (la tabla tiene RLS estricta y el formulario es público vía token).
+
+### 5. Migrar `PublicArtistForm.tsx` para usar la edge function
+
+Actualmente el formulario público escribe directamente con anon key. Lo redirigimos a la nueva edge function para centralizar validación.
+
+### 6. Edge cases manejados
+
+- Token inválido/expirado/desactivado → 401 con mensaje genérico.
+- Artista borrado entre carga y guardado → 404.
+- IBAN/NIF/SWIFT con formato no válido → 422 con `field` para resaltar el input.
+- Carrera (dos guardados simultáneos) → último gana, pero loggeamos `updated_at` previo en metadata.
+- Contacto-sombra existente con email/iban manual → no se sobreescribe (la unificación es one-way: artist → contact).
+
+## Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/Teams.tsx` | Lógica de matching artista↔contacto en `allTeamByCategory` y deduplicación con la inyección automática de `artistico`/`banda`. |
+| Migración SQL (nueva) | `contacts.linked_artist_id` + índice + backfill |
+| `supabase/functions/update-artist-public/index.ts` | Nueva edge function con Zod |
+| `supabase/config.toml` | Registrar la function como `verify_jwt = false` |
+| `src/pages/PublicArtistForm.tsx` | Llamar a la edge function en el submit |
+| `src/pages/release-sections/ReleaseCreditos.tsx` | Asignar `linked_artist_id` al crear contactos desde créditos |
+| `src/pages/Teams.tsx` | Usar `linked_artist_id` con fallback al matching por nombre |
+| `src/components/EditContactDialog.tsx` | Mostrar aviso "vinculado al artista X" si aplica |
+
+## Lo que NO se toca
+
+- `profiles` y el sistema de auth: la ficha de Eudald no se copia a `profiles`. El día que tenga cuenta, `artists.profile_id` apuntará a su `profiles.id` (link, no copia).
+- `ArtistInfoDialog` y la pantalla `/artist/:id`: ya leen/escriben en `artists`, sólo confirmamos que sigan siendo el único editor manual.
+- RLS de `artists`: ya correcta — sólo workspace owners/managers pueden editar; el formulario público pasa por edge function con service_role.
 
 ## Resultado esperado
 
-- "Compositor" → Eudald aparece como tarjeta de Artista principal (verde, estrella) con rol "Compositor, Productor".
-- "Equipo artístico" → Eudald sigue apareciendo como Artista principal.
-- Otros contactos (no artistas) siguen apareciendo como tarjeta de contacto normal.
-- El contador de la categoría no cambia (sigue siendo 1).
-
-## Notas
-
-- No se borran ni modifican los contactos existentes en BD: la unificación es puramente visual en la página de Equipos.
-- A futuro, si el matching por nombre da falsos positivos, podemos añadir un campo explícito `linked_artist_id` en `contacts` para vincular un contacto a un artista del roster, pero por ahora el match por nombre cubre el caso.
+- La ficha de Eudald (NIF, IBAN, etc.) tiene **un solo lugar autoritativo**: `artists`.
+- El contacto-sombra queda vinculado por FK, no por nombre.
+- El formulario público está protegido por validación estricta server-side.
+- Cualquier futura mención a Eudald (créditos, equipos, contratos, finanzas) resuelve a su artista del roster automáticamente.
