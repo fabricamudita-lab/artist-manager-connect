@@ -1827,6 +1827,55 @@ function EditTrackForm({
               </SelectContent>
             </Select>
           </div>
+          <div className="col-span-2">
+            <Label htmlFor="edit_fixation_date" className="text-xs">
+              Fecha de fijación de la grabación
+            </Label>
+            <div className="flex gap-2 items-start">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="edit_fixation_date"
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'flex-1 h-8 justify-start text-left font-normal text-sm',
+                      !fixationDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                    {fixationDate
+                      ? format(fixationDate, 'PPP', { locale: es })
+                      : 'Seleccionar fecha'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fixationDate}
+                    onSelect={setFixationDate}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                    className={cn('p-3 pointer-events-auto')}
+                  />
+                </PopoverContent>
+              </Popover>
+              {fixationDate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => setFixationDate(undefined)}
+                >
+                  Limpiar
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Útil para contratos de Propiedad Intelectual y registros legales.
+            </p>
+          </div>
         </div>
       </div>
 
