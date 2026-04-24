@@ -5591,6 +5591,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {linkInvoiceItem && (
+        <LinkInvoiceGroupDialog
+          open={!!linkInvoiceItem}
+          onOpenChange={(o) => { if (!o) setLinkInvoiceItem(null); }}
+          itemId={linkInvoiceItem.id}
+          itemName={linkInvoiceItem.name}
+          itemAmount={(linkInvoiceItem.quantity || 1) * (linkInvoiceItem.unit_price || 0)}
+          budgetId={linkInvoiceItem.budget_id}
+          contactId={linkInvoiceItem.contact_id || null}
+          contactName={linkInvoiceItem.contacts?.name}
+          onLinked={fetchBudgetItems}
+        />
+      )}
     </>
   );
 }
