@@ -661,6 +661,8 @@ function AddSplitForm({
   roles,
   workspaceId,
   onSave,
+  onSaveWithRedistribute,
+  hasExistingSplits,
   onCancel,
   isLoading,
 }: {
@@ -669,6 +671,8 @@ function AddSplitForm({
   roles: { value: string; label: string }[];
   workspaceId?: string | null;
   onSave: (data: any) => void;
+  onSaveWithRedistribute?: (data: any) => void;
+  hasExistingSplits?: boolean;
   onCancel: () => void;
   isLoading: boolean;
 }) {
