@@ -68,6 +68,53 @@ interface TrackRightsSplitsManagerProps {
   workspaceId?: string | null;
 }
 
+// Helper: round to nearest step
+function roundToStep(value: number, step = 0.5): number {
+  return Math.round(value / step) * step;
+}
+
+/**
+ * Redistribuye proporcionalmente los porcentajes existentes para hacer hueco a `newPct`.
+ * Devuelve los nuevos valores (mismo orden que `existing`) y el `remainder` que queda
+ * por compensar tras redondear al `step` (positivo = hay que restar más; negativo = hay que sumar).
+ */
+function redistributeSplits(
+  existing: { id: string; pct: number }[],
+  newPct: number,
+  step = 0.5,
+): { newValues: { id: string; pct: number }[]; remainder: number } {
+  const target = Math.max(0, 100 - newPct);
+  const currentTotal = existing.reduce((s, e) => s + e.pct, 0);
+
+  let raw: number[];
+  if (currentTotal <= 0) {
+    // Reparto equitativo si no había nada
+    const each = existing.length > 0 ? target / existing.length : 0;
+    raw = existing.map(() => each);
+  } else {
+    raw = existing.map((e) => (e.pct / currentTotal) * target);
+  }
+
+  // Redondear al step (a la baja para no pasarse del target)
+  const rounded = raw.map((v) => Math.max(0, Math.floor(v / step) * step));
+  const sumRounded = rounded.reduce((s, v) => s + v, 0);
+  const remainder = +(target - sumRounded).toFixed(4); // positivo: queda por repartir al alza
+
+  return {
+    newValues: existing.map((e, i) => ({ id: e.id, pct: +rounded[i].toFixed(4) })),
+    remainder,
+  };
+}
+
+interface TrackRightsSplitsManagerProps {
+  track: Track;
+  type: 'publishing' | 'master';
+  /** Si se proporciona, habilita la edición de notas por canción para este release. */
+  releaseId?: string;
+  /** Workspace para sociedades de gestión personalizadas. */
+  workspaceId?: string | null;
+}
+
 export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }: TrackRightsSplitsManagerProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
