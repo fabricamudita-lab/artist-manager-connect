@@ -1167,20 +1167,45 @@ function CreditsSection({
     setTimeout(() => setCopiedCredits(false), 2000);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleCategoryDragEnd = async (category: CreditCategory, event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sortedCredits.findIndex(c => c.id === active.id);
-    const newIndex = sortedCredits.findIndex(c => c.id === over.id);
+    const catGroups = groupedByCategory[category] || [];
+    const oldIndex = catGroups.findIndex(g => g.key === active.id);
+    const newIndex = catGroups.findIndex(g => g.key === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reorderedCredits = arrayMove(sortedCredits, oldIndex, newIndex).map((credit, index) => ({
-      ...credit,
-      sort_order: index + 1,
-    }));
-    queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
+
+    const reorderedGroups = arrayMove(catGroups, oldIndex, newIndex);
+
+    // Build new sort_order for credits in this category as consecutive blocks per person.
+    // Use the minimum existing sort_order in this category as the starting offset to avoid
+    // disturbing the relative position of other categories.
+    const allCatCredits = catGroups.flatMap(g => g.credits);
+    const baseOrder = allCatCredits.reduce(
+      (min, c) => Math.min(min, c.sort_order ?? Number.MAX_SAFE_INTEGER),
+      Number.MAX_SAFE_INTEGER,
+    );
+    const startOrder = baseOrder === Number.MAX_SAFE_INTEGER ? 1 : baseOrder;
+
+    const updates: { id: string; sort_order: number }[] = [];
+    let cursor = startOrder;
+    for (const group of reorderedGroups) {
+      for (const credit of group.credits) {
+        updates.push({ id: credit.id, sort_order: cursor });
+        cursor += 1;
+      }
+    }
+
+    // Optimistic update of the cache
+    const updateMap = new Map(updates.map(u => [u.id, u.sort_order]));
+    queryClient.setQueryData(['track-credits', trackId], (prev: TrackCredit[] | undefined) => {
+      if (!prev) return prev;
+      return prev.map(c => updateMap.has(c.id) ? { ...c, sort_order: updateMap.get(c.id)! } : c);
+    });
+
     try {
-      for (const credit of reorderedCredits) {
-        const { error } = await supabase.from('track_credits').update({ sort_order: credit.sort_order }).eq('id', credit.id);
+      for (const u of updates) {
+        const { error } = await supabase.from('track_credits').update({ sort_order: u.sort_order }).eq('id', u.id);
         if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
