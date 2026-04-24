@@ -222,6 +222,84 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
     setIsAdding(false);
   };
 
+  // Estado para el diálogo de redistribución con redondeo
+  const [redistributePending, setRedistributePending] = useState<{
+    newCreditData: any;
+    baseUpdates: { id: string; pct: number }[];
+    remainder: number;
+    candidates: { id: string; name: string; pct: number }[];
+  } | null>(null);
+  const [roundingTargets, setRoundingTargets] = useState<string[]>([]);
+
+  const applyRedistribution = async (
+    newCreditData: any,
+    finalUpdates: { id: string; pct: number }[],
+  ) => {
+    // 1) Actualizar existentes
+    await Promise.all(
+      finalUpdates.map((u) =>
+        supabase.from('track_credits').update({ [percentageKey]: u.pct }).eq('id', u.id),
+      ),
+    );
+    // 2) Crear el nuevo
+    await supabase.from('track_credits').insert({ ...newCreditData, track_id: track.id });
+    queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+    toast.success('Crédito añadido y porcentajes ajustados');
+    setIsAdding(false);
+  };
+
+  const handleCreateWithRedistribute = async (data: any) => {
+    const newPct = Number(data[percentageKey]) || 0;
+    if (newPct <= 0 || splits.length === 0) {
+      // Nada que repartir
+      await handleCreate(data);
+      return;
+    }
+    if (newPct > 100) {
+      toast.error('El porcentaje no puede ser mayor a 100%');
+      return;
+    }
+
+    const existing = splits.map((s) => ({ id: s.id, pct: Number(s[percentageKey]) || 0 }));
+    const { newValues, remainder } = redistributeSplits(existing, newPct, 0.5);
+
+    if (remainder <= 0.0001) {
+      await applyRedistribution(data, newValues);
+      return;
+    }
+
+    // Hay sobrante: si solo hay 1 existente, dárselo entero
+    if (existing.length === 1) {
+      const finalUpdates = newValues.map((v) => ({ ...v, pct: +(v.pct + remainder).toFixed(4) }));
+      await applyRedistribution(data, finalUpdates);
+      return;
+    }
+
+    // Abrir diálogo para elegir destinatarios del sobrante
+    const candidates = splits.map((s) => ({
+      id: s.id,
+      name: s.name || 'Sin nombre',
+      pct: newValues.find((v) => v.id === s.id)?.pct ?? 0,
+    }));
+    setRedistributePending({ newCreditData: data, baseUpdates: newValues, remainder, candidates });
+    setRoundingTargets([candidates[0].id]); // Pre-selección: primero
+  };
+
+  const confirmRedistribution = async () => {
+    if (!redistributePending) return;
+    const { newCreditData, baseUpdates, remainder, candidates } = redistributePending;
+    const targets = roundingTargets.length > 0 ? roundingTargets : [candidates[0].id];
+    const perTarget = +(remainder / targets.length).toFixed(4);
+    // Repartir el sobrante en pasos de 0.5 entre los targets seleccionados
+    const finalUpdates = baseUpdates.map((u) =>
+      targets.includes(u.id) ? { ...u, pct: +(u.pct + perTarget).toFixed(4) } : u,
+    );
+    setRedistributePending(null);
+    setRoundingTargets([]);
+    await applyRedistribution(newCreditData, finalUpdates);
+  };
+
+
   const handleUpdate = async (id: string, data: any) => {
     await updateCredit.mutateAsync({ id, ...data });
     setEditingId(null);
