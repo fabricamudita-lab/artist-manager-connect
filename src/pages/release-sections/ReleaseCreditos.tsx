@@ -1269,22 +1269,22 @@ function CreditsSection({
       {isLoading ? (
         <Skeleton className="h-16 w-full" />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={sortedCredits.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3">
-              {CREDIT_CATEGORIES.map((cat) => {
-                const catGroups = groupedByCategory[cat.id] || [];
-                return (
-                  <div key={cat.id} className={`rounded-lg border ${cat.borderClass} overflow-hidden`}>
-                    <div className={`flex items-center justify-between px-3 py-1.5 ${cat.bgClass}`}>
-                      <span className={`text-xs font-semibold ${cat.textClass}`}>{cat.label}</span>
-                      <Button variant="ghost" size="icon" className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`} onClick={() => handleOpenAddForCategory(cat.id)} title={`Añadir ${cat.label}`}>
-                        <Plus className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {catGroups.length > 0 ? (
-                        catGroups.map((group) => {
+        <div className="space-y-3">
+          {CREDIT_CATEGORIES.map((cat) => {
+            const catGroups = groupedByCategory[cat.id] || [];
+            return (
+              <div key={cat.id} className={`rounded-lg border ${cat.borderClass} overflow-hidden`}>
+                <div className={`flex items-center justify-between px-3 py-1.5 ${cat.bgClass}`}>
+                  <span className={`text-xs font-semibold ${cat.textClass}`}>{cat.label}</span>
+                  <Button variant="ghost" size="icon" className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`} onClick={() => handleOpenAddForCategory(cat.id)} title={`Añadir ${cat.label}`}>
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="divide-y divide-border">
+                  {catGroups.length > 0 ? (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleCategoryDragEnd(cat.id, e)}>
+                      <SortableContext items={catGroups.map(g => g.key)} strategy={verticalListSortingStrategy}>
+                        {catGroups.map((group) => {
                           const otherCats = Array.from(personCategoryMap.get(group.key) || []).filter(c => c !== cat.id);
                           return (
                             <PersonRow
@@ -1300,7 +1300,9 @@ function CreditsSection({
                               isSaving={updateCredit.isPending}
                             />
                           );
-                        })
+                        })}
+                      </SortableContext>
+                    </DndContext>
                       ) : (
                         <p className="text-xs text-muted-foreground px-3 py-2 italic">{emptyLabels[cat.id]}</p>
                       )}
