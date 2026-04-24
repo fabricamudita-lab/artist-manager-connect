@@ -1,95 +1,93 @@
-## Objetivo
+# Facturas agrupadas (varias partidas en una misma factura)
 
-Añadir el campo **Fecha de fijación de la grabación** (`recording_fixation_date`) al diálogo "Editar Canción" en Créditos y Autoría. Este dato es relevante para contratos de Propiedad Intelectual (ya existe `grabacion_fecha_fijacion` en `IPLicenseGenerator`) y para Label Copy / metadatos legales.
+## El problema
 
-## Interacción con el sistema existente (revisión)
+Hoy, en una partida de presupuesto, puedes adjuntar **una URL de factura** y marcar el estado (`Pendiente → Factura solicitada → Factura recibida → Pagada`). Pero no hay forma de decir:
 
-- **Auth**: La edición de tracks usa `supabase.from('tracks').update()` directamente desde el cliente. La autorización está garantizada por las políticas RLS existentes de la tabla `tracks` (ligadas a `release_id` → `releases` → workspace/artist). No se altera ese flujo.
-- **Panel de usuario / artistas roster**: El campo se almacena por track, no afecta a `artists`, `profiles` ni a la lógica de Eudald Payés / fichas de artista. No rompe la "single source of truth" de roster.
-- **Contratos**: `IPLicenseGenerator` ya tiene un campo equivalente (`grabacion_fecha_fijacion`) introducido manualmente. Tras esta migración, en el futuro se podrá precargar desde el track (no se hace en este cambio para mantenerlo acotado).
-- **Label Copy / Splits PDF**: No se incluye en exportes ahora (no rompe nada); se podrá añadir después.
+> "Estas dos partidas (Marc Soto · músico 300 € + Mix Hobba · grabación 250 €) corresponden a **la misma factura** del proveedor — total 550 €. No me la pagues dos veces."
+
+Si copias la URL en ambas partidas, contabilidad/gestoría no sabe si es una factura repetida o la misma agrupada → riesgo real de doble pago.
+
+## Lenguaje contable correcto
+
+Una gestoría llamaría a esto una **factura con varios conceptos / multi-línea**, donde cada línea del presupuesto es una **línea de factura** del mismo documento. La pieza clave que las une es el **número de factura del proveedor** (más el proveedor y la fecha). Por eso introducimos:
+
+- **Nº de factura del proveedor** (campo identificador, ej. `2026/A-117`)
+- **Estado de pago a nivel de factura** (no de línea), con un estado nuevo: **"Agrupada en factura"** para las líneas adicionales que comparten documento.
+
+Así cualquier contable lo lee de un vistazo: una sola factura `2026/A-117` de Marc Soto por 550 € (IVA + IRPF aplicados al total), con dos líneas internas asignadas a categorías distintas (Musicos y Grabación).
+
+## Cómo se verá en la UI
+
+En la tabla de partidas (cada categoría: Grabación, Musicos, …):
+
+```text
+CONCEPTO     CONTACTO      PRECIO   ESTADO                FACTURA
+Mix Hobba    Marc Soto     250 €    Factura recibida ●    📎 2026/A-117  [principal]
+Tocar bajo   Marc Soto     300 €    Agrupada en factura   ↳ 2026/A-117   (550 € total)
+```
+
+- La **línea principal** lleva el adjunto/URL y muestra el total real de la factura.
+- Las **líneas agrupadas** muestran un badge sutil ("Agrupada en 2026/A-117") y un enlace que lleva a la línea principal. **No se pueden pagar de forma independiente** desde Cobros/Pagos: cuando marcas "Pagada" la principal, todas las agrupadas pasan a Pagada automáticamente.
+
+### Cómo se agrupa (acción del usuario)
+
+Desde el menú de una partida → **"Agrupar en factura existente…"** → se abre un selector con las facturas ya creadas para ese proveedor en ese presupuesto/booking. Eliges una y la línea queda enlazada. Acción inversa: **"Desagrupar"**.
+
+Al subir una factura nueva desde una línea, se pide (opcional pero recomendado) el **Nº de factura del proveedor** y el **importe total del documento**, para poder validar que la suma de las líneas agrupadas cuadra con el total de la factura. Si no cuadra, aparece un aviso en amarillo: *"La suma de líneas (550,00 €) no coincide con el total de la factura (560,00 €)"*.
 
 ## Cambios técnicos
 
-### 1. Migración de base de datos
-Añadir columna a `tracks`:
+### 1. Base de datos — `budget_items`
+Nuevas columnas:
+- `supplier_invoice_number text` — Nº de factura del proveedor (texto, normalizado en mayúsculas y trim).
+- `supplier_invoice_total numeric` — total bruto del documento (informativo, para conciliar).
+- `invoice_group_parent_id uuid references budget_items(id) on delete set null` — si está presente, esta línea está **agrupada** bajo otra. La línea "principal" tiene este campo a NULL y mantiene el `invoice_link` + `supplier_invoice_number`.
+- Nuevo valor en el enum `billing_status`: `'agrupada'` (label "Agrupada en factura").
+- Índice: `(booking_id_or_budget_id, contact_id, supplier_invoice_number)` para búsquedas rápidas y para ofrecer "facturas existentes de este proveedor".
+
+Migración SQL (resumen):
 ```sql
-ALTER TABLE public.tracks
-ADD COLUMN IF NOT EXISTS recording_fixation_date date;
-COMMENT ON COLUMN public.tracks.recording_fixation_date IS
-  'Fecha en la que se fijó (grabó) por primera vez la interpretación. Útil para contratos de Propiedad Intelectual.';
+ALTER TYPE billing_status ADD VALUE IF NOT EXISTS 'agrupada';
+ALTER TABLE budget_items
+  ADD COLUMN IF NOT EXISTS supplier_invoice_number text,
+  ADD COLUMN IF NOT EXISTS supplier_invoice_total numeric,
+  ADD COLUMN IF NOT EXISTS invoice_group_parent_id uuid
+      REFERENCES budget_items(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_budget_items_invoice_group
+  ON budget_items (budget_id, contact_id, supplier_invoice_number);
 ```
-- Tipo `date` nativo de PostgreSQL → previene inyección SQL por construcción (no se concatenan strings).
-- Las políticas RLS existentes de `tracks` cubren la nueva columna automáticamente.
 
-### 2. Validación estricta con Zod (`src/pages/release-sections/ReleaseCreditos.tsx`)
-Crear esquema antes del `updateTrack.mutate`:
-```ts
-const TrackUpdateSchema = z.object({
-  title: z.string().trim().min(1).max(255),
-  isrc: z.string().trim().regex(/^[A-Z]{2}-?[A-Z0-9]{3}-?\d{2}-?\d{5}$/i).optional().or(z.literal('')),
-  lyrics: z.string().max(20000).optional(),
-  recording_fixation_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(d => {
-    const dt = new Date(d);
-    return !isNaN(dt.getTime()) && dt <= new Date();
-  }, 'Fecha inválida o futura').nullable().optional(),
-  c_copyright_holder: z.string().trim().max(255).nullable(),
-  p_copyright_holder: z.string().trim().max(255).nullable(),
-  c_copyright_year: z.number().int().min(1900).max(new Date().getFullYear() + 1).nullable(),
-  p_production_year: z.number().int().min(1900).max(new Date().getFullYear() + 1).nullable(),
-  explicit: z.boolean(),
-});
-```
-Edge cases manejados:
-- Fecha vacía → se guarda como `null`.
-- Fecha futura → rechazada (no se puede fijar algo que no ha ocurrido).
-- Strings con HTML/script → React escapa al renderizar (XSS prevenido); además `.trim()` y `.max()` limitan input.
-- Valor inválido → `toast.error` con mensaje claro, no se llama al backend.
+### 2. Validación (Zod, cliente)
+- `supplier_invoice_number`: trim, max 64, regex permisivo `^[A-Za-z0-9 _\-\/\.]+$`.
+- `supplier_invoice_total`: número ≥ 0, ≤ 1.000.000.
+- Al agrupar: la línea hija debe pertenecer al mismo `budget_id` y mismo `contact_id` que la principal; si no, se rechaza.
+- Trigger en BD para evitar cadenas: una línea con `invoice_group_parent_id` no puede a su vez ser padre de otra (anti-recursión).
 
-### 3. UI del diálogo (`EditTrackForm`)
-Añadir dentro del bloque "Copyright & Producción", debajo de los selects de año:
-```tsx
-<div className="col-span-2">
-  <Label htmlFor="edit_fixation_date" className="text-xs">
-    Fecha de fijación de la grabación
-  </Label>
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button variant="outline" className="w-full h-8 justify-start text-left font-normal text-sm">
-        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-        {fixationDate ? format(fixationDate, 'PPP', { locale: es }) : 'Seleccionar fecha'}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-auto p-0">
-      <Calendar mode="single" selected={fixationDate} onSelect={setFixationDate}
-                disabled={(d) => d > new Date()} initialFocus />
-    </PopoverContent>
-  </Popover>
-  <p className="text-[11px] text-muted-foreground mt-1">
-    Útil para contratos de Propiedad Intelectual y registros legales.
-  </p>
-</div>
-```
-Estado: `const [fixationDate, setFixationDate] = useState<Date | undefined>(track.recording_fixation_date ? new Date(track.recording_fixation_date) : undefined);`
+### 3. UI — `BudgetDetailsDialog.tsx`
+- Nuevo estado en el `Select` de "Estado": `Agrupada en factura` (visualmente con un icono link 🔗).
+- Nuevo botón en el menú de fila: **"Agrupar en factura existente…"** → abre `LinkInvoiceGroupDialog` con la lista de facturas del mismo proveedor en el presupuesto.
+- Nuevo campo "Nº factura proveedor" en el formulario de edición de la partida principal y al subir un adjunto de factura.
+- Las filas agrupadas:
+  - muestran `↳ Nº factura` en lugar del icono de subida,
+  - bloquean los campos `invoice_link` e `IVA/IRPF` (heredan de la principal, mostrados en gris con tooltip),
+  - su acción "Marcar pagada" queda deshabilitada con tooltip *"Se paga junto con la factura principal"*.
 
-En el submit: `recording_fixation_date: fixationDate ? format(fixationDate, 'yyyy-MM-dd') : null`.
+### 4. Sincronización de estados
+- Cambiar el `billing_status` de la línea principal propaga el cambio a todas las hijas (`UPDATE … WHERE invoice_group_parent_id = principal.id`).
+- Eliminar la línea principal: las hijas pasan a `pendiente` y pierden la agrupación (gracias al `ON DELETE SET NULL`).
 
-### 4. Tipos
-- Actualizar la interfaz `Track` en `src/hooks/useReleases.ts` añadiendo `recording_fixation_date: string | null`.
-- `src/integrations/supabase/types.ts` se regenera automáticamente tras la migración.
-- Actualizar la firma de `updateTrack.mutationFn` y la prop `onSubmit` de `EditTrackForm`.
+### 5. Pagos (`Finanzas → Pagos`) y conciliación
+- En `useTransactions` / vista de Pagos, las líneas con `invoice_group_parent_id` **no se listan como cargo independiente**. Se muestra **una sola entrada por factura** del proveedor con desglose de las líneas agrupadas.
+- En `MarkExpensesAsInvoicedDialog` y similares, agrupar por `(contact_id, supplier_invoice_number)` para evitar que aparezcan dos veces.
 
-## Archivos a modificar / crear
+### 6. Aviso de doble pago (red flag)
+En el "Centro de Tareas" / Health Check del presupuesto, nuevo aviso:
+> *"Posible factura duplicada: hay 2 partidas del mismo proveedor con el mismo Nº de factura sin estar agrupadas."*
 
-- **Nueva migración SQL**: añadir columna `recording_fixation_date` a `tracks`.
-- `src/pages/release-sections/ReleaseCreditos.tsx`: estado, UI del campo, esquema Zod, mutación.
-- `src/hooks/useReleases.ts`: tipo `Track`.
+## Resumen para la gestoría
 
-## Seguridad — checklist
-
-- ✅ Validación Zod estricta antes del envío (longitud, formato, rango de fechas).
-- ✅ Tipo `date` en PostgreSQL → sin riesgo de inyección SQL.
-- ✅ RLS existente en `tracks` cubre la nueva columna (autorización por release).
-- ✅ React escapa contenido al renderizar → XSS prevenido en visualización.
-- ✅ Edge cases: fecha vacía (null), fecha futura (rechazada), formato inválido (rechazada con toast).
-- ✅ No se rompe lógica de auth, perfiles de artista, contratos ni Label Copy.
+- **Una factura = un Nº de factura del proveedor**, aunque tenga varias líneas en categorías distintas.
+- La línea principal almacena el documento, el número y el total.
+- Las líneas adicionales quedan marcadas como **"Agrupada en factura {Nº}"** y se pagan en bloque.
+- Imposible duplicar el pago: el sistema avisa y no genera dos cargos en Pagos.
