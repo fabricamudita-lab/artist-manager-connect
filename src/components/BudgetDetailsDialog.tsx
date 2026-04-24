@@ -86,6 +86,7 @@ import { BudgetContactSelector } from '@/components/BudgetContactSelector';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { LinkInvoiceGroupDialog, unlinkFromInvoiceGroup } from '@/components/LinkInvoiceGroupDialog';
 import { ChevronDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -125,8 +126,11 @@ interface BudgetItem {
   iva_percentage: number;
   irpf_percentage: number;
   is_attendee: boolean;
-  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado';
+  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' | 'agrupada';
   invoice_link?: string;
+  supplier_invoice_number?: string | null;
+  supplier_invoice_total?: number | null;
+  invoice_group_parent_id?: string | null;
   observations?: string;
   category_id?: string;
   fecha_emision?: string;
@@ -304,6 +308,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [linkInvoiceItem, setLinkInvoiceItem] = useState<BudgetItem | null>(null);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetData, setBudgetData] = useState(budget);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -4595,43 +4600,63 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                               <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
                                                 <SelectValue placeholder="Seleccionar estado" />
                                               </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="pendiente">Pendiente</SelectItem>
-                                               <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
-                                               <SelectItem value="factura_recibida">Factura recibida</SelectItem>
-                                               <SelectItem value="pagada">Pagada</SelectItem>
-                                             </SelectContent>
-                                           </Select>
-                                         ) : (
-                                           <div 
-                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                             onClick={() => startEditingItem(item)}
-                                           >
-                                              <Badge variant={
-                                                item.billing_status === 'pagada' ? 'default' :
-                                                item.billing_status === 'factura_recibida' ? 'secondary' :
-                                                item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
-                                              }>
-                                                {item.billing_status === 'pendiente' ? 'Pendiente' :
-                                                 item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
-                                                 item.billing_status === 'factura_recibida' ? 'Factura recibida' :
-                                                 item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
-                                              </Badge>
-                                            </div>
-                                          )}
-                                        </TableCell>
+                                              <SelectContent>
+                                                <SelectItem value="pendiente">Pendiente</SelectItem>
+                                                <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                                                <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                                                <SelectItem value="pagada">Pagada</SelectItem>
+                                                <SelectItem value="agrupada">Agrupada en factura</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          ) : (
+                                            <div 
+                                              className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                              onClick={() => startEditingItem(item)}
+                                            >
+                                               <Badge variant={
+                                                 item.billing_status === 'pagada' ? 'default' :
+                                                 item.billing_status === 'agrupada' ? 'secondary' :
+                                                 item.billing_status === 'factura_recibida' ? 'secondary' :
+                                                 item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
+                                               } className={item.billing_status === 'agrupada' ? 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100' : undefined}>
+                                                 {item.billing_status === 'pendiente' ? 'Pendiente' :
+                                                  item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
+                                                  item.billing_status === 'factura_recibida' ? 'Factura recibida' :
+                                                  item.billing_status === 'pagada' ? 'Pagada' :
+                                                  item.billing_status === 'agrupada' ? '🔗 Agrupada' : item.billing_status}
+                                               </Badge>
+                                             </div>
+                                           )}
+                                         </TableCell>
 
                                        {/* Enlace Factura */}
                                        <TableCell className="p-2 text-center">
-                                         {editingItem === item.id ? (
-                                           <Input
-                                             type="text"
-                                             value={editingItemValues.invoice_link || item.invoice_link || ''}
-                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, invoice_link: e.target.value }))}
-                                             placeholder="URL de factura"
-                                             className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
-                                           />
-                                         ) : (
+                                         {item.invoice_group_parent_id ? (
+                                           <TooltipProvider>
+                                             <Tooltip>
+                                               <TooltipTrigger asChild>
+                                                 <div className="h-8 flex items-center justify-center">
+                                                   <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 font-mono text-[10px] gap-1">
+                                                     <Link2 className="w-3 h-3" />
+                                                     ↳ {item.supplier_invoice_number || 'agrupada'}
+                                                   </Badge>
+                                                 </div>
+                                               </TooltipTrigger>
+                                               <TooltipContent>
+                                                 <p className="text-xs">Esta línea está agrupada en la factura principal del proveedor.</p>
+                                                 <p className="text-xs text-muted-foreground">Se pagará junto con ella.</p>
+                                               </TooltipContent>
+                                             </Tooltip>
+                                           </TooltipProvider>
+                                         ) : editingItem === item.id ? (
+                                          <Input
+                                            type="text"
+                                            value={editingItemValues.invoice_link || item.invoice_link || ''}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, invoice_link: e.target.value }))}
+                                            placeholder="URL de factura"
+                                            className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                          />
+                                        ) : (
                                             <div className="h-8 flex items-center justify-center gap-1">
                                               {item.invoice_link ? (
                                                 <div className="flex items-center gap-1">
@@ -4754,6 +4779,28 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                  >
                                                    <Edit className="w-3 h-3" />
                                                  </Button>
+                                                 {item.invoice_group_parent_id ? (
+                                                   <Button
+                                                     onClick={() => unlinkFromInvoiceGroup({ itemId: item.id, onDone: fetchBudgetItems })}
+                                                     size="sm"
+                                                     variant="ghost"
+                                                     className="h-6 w-6 p-0 hover:bg-purple-100 text-purple-700"
+                                                     title="Desagrupar de la factura"
+                                                   >
+                                                     <Eraser className="w-3 h-3" />
+                                                   </Button>
+                                                 ) : (
+                                                   <Button
+                                                     onClick={() => setLinkInvoiceItem(item)}
+                                                     size="sm"
+                                                     variant="ghost"
+                                                     className="h-6 w-6 p-0 hover:bg-purple-100 text-purple-700"
+                                                     title={item.contact_id ? 'Agrupar en factura del proveedor' : 'Asigna un proveedor primero'}
+                                                     disabled={!item.contact_id}
+                                                   >
+                                                     <Link2 className="w-3 h-3" />
+                                                   </Button>
+                                                 )}
                                                  {selectedItems.has(item.id) && (
                                                    <Button
                                                      onClick={() => deleteItem(item.id)}
@@ -5544,6 +5591,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {linkInvoiceItem && (
+        <LinkInvoiceGroupDialog
+          open={!!linkInvoiceItem}
+          onOpenChange={(o) => { if (!o) setLinkInvoiceItem(null); }}
+          itemId={linkInvoiceItem.id}
+          itemName={linkInvoiceItem.name}
+          itemAmount={(linkInvoiceItem.quantity || 1) * (linkInvoiceItem.unit_price || 0)}
+          budgetId={linkInvoiceItem.budget_id}
+          contactId={linkInvoiceItem.contact_id || null}
+          contactName={linkInvoiceItem.contacts?.name}
+          onLinked={fetchBudgetItems}
+        />
+      )}
     </>
   );
 }
