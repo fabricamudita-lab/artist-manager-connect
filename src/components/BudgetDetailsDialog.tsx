@@ -86,6 +86,7 @@ import { BudgetContactSelector } from '@/components/BudgetContactSelector';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { LinkInvoiceGroupDialog, unlinkFromInvoiceGroup } from '@/components/LinkInvoiceGroupDialog';
 import { ChevronDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
