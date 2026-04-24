@@ -1,4 +1,4 @@
-import { Users, UserCheck, Building, Mail, Shield, Tag } from 'lucide-react';
+import { Users, UserCheck, Building, Mail, Shield, Tag, Mic } from 'lucide-react';
 
 export interface TeamCategoryOption {
   value: string;
@@ -23,6 +23,7 @@ export const TEAM_CATEGORIES: TeamCategoryOption[] = [
   { value: 'interprete', label: 'Intérprete', icon: Users },
   { value: 'sello', label: 'Sello', icon: Building },
   { value: 'editorial', label: 'Editorial', icon: Building },
+  { value: 'colaborador', label: 'Colaboradores', icon: Mic },
   { value: 'otro', label: 'Otros', icon: Tag },
 ];
 

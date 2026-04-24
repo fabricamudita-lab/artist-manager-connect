@@ -724,7 +724,7 @@ function TrackCreditsItem({
             compositor: 'compositor',
             autoria: 'letrista',
             produccion: 'tecnico',
-            interprete: 'banda',
+            interprete: 'colaborador',
             contribuidor: 'artistico',
           };
           const contactCategory = categoryMap[cat5 || ''] || 'otro';
@@ -801,7 +801,7 @@ function TrackCreditsItem({
             compositor: 'compositor',
             autoria: 'letrista',
             produccion: 'produccion',
-            interprete: 'banda',
+            interprete: 'colaborador',
             contribuidor: 'artistico',
           };
           const teamCat = categoryMap[cat5 || ''] || 'artistico';

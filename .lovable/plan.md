@@ -1,37 +1,60 @@
-# Reordenar nombres en Créditos y Autoría
+# Colaboradores vs Banda: separar intérpretes ocasionales
 
 ## Diagnóstico
 
-El icono de "agarre" (⠿) aparece junto a cada nombre, pero **el drag & drop no está conectado**. Hay dos problemas:
+Cuando se añade un crédito de tipo **Intérprete** (Voz Principal, etc.) en un track, el código en `ReleaseCreditos.tsx` (líneas 723-732 y 800-807) crea/actualiza el contacto con `team_categories = ['banda']` automáticamente. Por eso Jay Jules apareció como miembro de la **Banda** de Eudald Payés.
 
-1. **`PersonRow` no es arrastrable.** Muestra el `GripVertical`, pero no usa `useSortable`, así que dnd-kit no escucha eventos sobre la fila. De hecho, el contenedor del icono lleva `onClick={(e) => e.stopPropagation()}`, lo que bloquea cualquier interacción.
-2. **Los IDs del `SortableContext` no coinciden con lo que se renderiza.** Después de agrupar créditos por persona (una persona con dos roles = una sola fila), el contexto recibe IDs de créditos individuales en vez de claves de grupo.
+El problema conceptual:
+- **Banda** debe contener únicamente a los miembros estables del proyecto (los que sugiere el formato del artista).
+- **Intérpretes / colaboradores ocasionales** (un cantante invitado en un single, un featuring, etc.) no son banda — son colaboraciones puntuales del artista.
 
-Resultado: aunque el cursor cambia a "grab", arrastrar no produce ningún efecto.
+## Solución propuesta
 
-## Cambios propuestos
+### 1. Nueva categoría de equipo: "Colaboradores"
 
-Archivo: `src/pages/release-sections/ReleaseCreditos.tsx`
+Añadir a `src/lib/teamCategories.ts` una nueva entrada antes de "Otros":
 
-1. **Hacer `PersonRow` sortable**
-   - Usar `useSortable({ id: group.key })` dentro del componente.
-   - Aplicar `setNodeRef`, `style` (transform/transition) al contenedor de la fila.
-   - Mover `attributes` + `listeners` al div del `GripVertical` (handle dedicado), quitando el `stopPropagation` actual.
+```ts
+{ value: 'colaborador', label: 'Colaboradores', icon: Mic },
+```
 
-2. **Alinear `SortableContext` con los grupos por categoría**
-   - En lugar de un único contexto con todos los `credit.id`, envolver cada categoría en su propio `SortableContext` con `items={catGroups.map(g => g.key)}`. Así sólo se reordena dentro de la misma sección (Compositor, Autoría, etc.), que es el comportamiento esperado.
+Sirve como cajón para artistas/intérpretes invitados (cantantes, featurings, músicos de sesión puntuales) que están vinculados al artista pero no forman parte de su banda estable.
 
-3. **Reescribir `handleDragEnd` para grupos**
-   - Recibir `active.id` y `over.id` como `group.key`.
-   - Detectar la categoría afectada, reordenar `catGroups` con `arrayMove`.
-   - Recalcular `sort_order` de **todos los créditos de cada grupo** según el nuevo orden de personas (asignando bloques consecutivos para mantener juntos los roles de una misma persona).
-   - Persistir con `update` por cada `track_credits.id` afectado e invalidar la query.
+### 2. Cambiar el mapeo automático en ReleaseCreditos.tsx
 
-4. **Feedback visual mínimo**
-   - Aplicar opacidad/elevación a la fila mientras `isDragging` para que se note el arrastre.
+En las **dos** ocurrencias del `categoryMap` (líneas 723-729 y 800-806), reemplazar:
+```
+interprete: 'banda'
+```
+por:
+```
+interprete: 'colaborador'
+```
+
+Esto aplica al flujo de **crear nuevo contacto desde un crédito** y al de **vincular contacto existente**. Los nuevos intérpretes que no existan ya en la base de datos pasarán automáticamente a Colaboradores en lugar de Banda.
+
+### 3. Migración de datos existente (Jay Jules y similares)
+
+Detectar todos los contactos cuyo `field_config.team_categories` incluya `'banda'` **únicamente porque** se les añadió como intérpretes (sin haber sido marcados manualmente como banda). Como no podemos distinguir con certeza el origen, **no haremos un rebatch automático**. En su lugar:
+
+- Añadir en la página `Teams.tsx`, dentro del menú contextual de cada tarjeta de miembro (los tres puntitos), una nueva opción **"Mover a Colaboradores"** disponible cuando el miembro está en categoría `banda`. Hace `field_config.team_categories = team_categories.filter(c => c !== 'banda').concat('colaborador')`.
+- Mostrar un aviso suave la primera vez que se abra Teams para Eudald: "Revisa si todos los miembros de Banda son realmente parte estable del proyecto. Puedes mover colaboradores ocasionales con el menú · · ·".
+
+### 4. UI de la nueva categoría
+
+- Aparece como una sección más en la vista de Equipos (igual que Banda, Equipo Artístico, etc.).
+- Color/icono: micrófono (`Mic`) para diferenciarla visualmente.
+- En el filtro **"Categoría"** del selector superior se incluye automáticamente porque la lista se genera desde `TEAM_CATEGORIES`.
 
 ## Resultado esperado
 
-- Arrastrando el icono ⠿ se puede reordenar libremente cada persona dentro de su categoría (Compositor / Autoría / Producción / Intérprete / Contribuidor).
-- El nuevo orden persiste tras recargar.
-- Los roles múltiples de una misma persona se mantienen agrupados.
+- Jay Jules deja de aparecer en **Banda** de Eudald y pasa a **Colaboradores** (tras moverlo manualmente con el nuevo botón).
+- Cualquier futuro cantante/intérprete añadido desde un crédito de release se guardará automáticamente como **Colaborador**, no como banda.
+- La banda queda reservada exclusivamente para los músicos que el artista define como integrantes estables.
+- Sigue siendo posible buscar a Jay Jules como "cantante con quien Eudald ha colaborado" porque el vínculo `contact_artist_assignments` se mantiene intacto.
+
+## Archivos a modificar
+
+- `src/lib/teamCategories.ts` — añadir categoría `colaborador`.
+- `src/pages/release-sections/ReleaseCreditos.tsx` — cambiar mapeo `interprete → colaborador` en los dos sitios.
+- `src/pages/Teams.tsx` — opción "Mover a Colaboradores" en el menú de cada miembro de Banda.
