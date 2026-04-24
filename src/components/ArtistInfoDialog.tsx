@@ -104,6 +104,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
 
   // Field config state
   const [fieldConfig, setFieldConfig] = useState<ArtistFieldConfig>({});
+  const [configOpen, setConfigOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('complete');
 
   // Avatar upload states
