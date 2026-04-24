@@ -1415,7 +1415,7 @@ function PersonRow({
 
   if (isEditing) {
     return (
-      <div className="p-3 bg-background space-y-2">
+      <div ref={setNodeRef} style={sortableStyle} className="p-3 bg-background space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <p className="font-medium text-sm">{group.name}</p>
