@@ -848,20 +848,23 @@ export default function Teams() {
         return categories.includes(cat.value) || singleCategory === cat.value;
       });
 
-      // Separar contactos que en realidad representan a un artista del roster
-      // Esos se promocionan a tarjeta de "Artista principal" en esta categoría
+      // Separar contactos que en realidad representan a un artista del roster.
+      // Prioridad: linked_artist_id (FK exacto) > matching por nombre normalizado.
       const promotedArtists = new Map<string, { artist: typeof artists[number]; role?: string }>();
       const contacts = rawContacts.filter(c => {
-        const match =
-          artistByName.get(norm(c.stage_name || '')) ||
-          artistByName.get(norm(c.name || ''));
+        const linkedId = (c as any).linked_artist_id as string | null | undefined;
+        let match = linkedId ? artists.find(a => a.id === linkedId) : undefined;
+        if (!match) {
+          match =
+            artistByName.get(norm(c.stage_name || '')) ||
+            artistByName.get(norm(c.name || ''));
+        }
         if (!match) return true;
         // Respetar el filtro de artista seleccionado
         if (selectedArtistId !== 'all' && selectedArtistId !== '00-management' && match.id !== selectedArtistId) {
           return true;
         }
         const existing = promotedArtists.get(match.id);
-        // Si ya hay un rol, concatenamos roles únicos
         const mergedRole = [existing?.role, c.role].filter(Boolean).join(', ');
         promotedArtists.set(match.id, { artist: match, role: mergedRole || c.role || undefined });
         return false; // excluir de la lista de contactos
