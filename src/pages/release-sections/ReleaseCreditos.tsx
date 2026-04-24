@@ -1377,6 +1377,13 @@ function PersonRow({
   const firstCredit = group.credits[0];
   const hasContact = !!group.contact_id;
   const [editStates, setEditStates] = useState<Record<string, { role: string; publishingPct: string; masterPct: string }>>({});
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.key });
+  const sortableStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : 'auto',
+  };
 
   const handleStartEdit = () => {
     const states: Record<string, { role: string; publishingPct: string; masterPct: string }> = {};
