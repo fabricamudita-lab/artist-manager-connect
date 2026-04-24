@@ -406,6 +406,68 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
           </div>
         )}
       </CollapsibleContent>
+
+      {/* Diálogo para elegir destinatario del sobrante por redondeo */}
+      <Dialog
+        open={!!redistributePending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRedistributePending(null);
+            setRoundingTargets([]);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar el porcentaje sobrante</DialogTitle>
+            <DialogDescription>
+              Tras repartir proporcionalmente queda un sobrante de{' '}
+              <strong>{redistributePending?.remainder.toFixed(2)}%</strong>. Elige a quién(es)
+              asignárselo (se reparte en partes iguales entre los seleccionados).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2 max-h-[40vh] overflow-y-auto">
+            {redistributePending?.candidates.map((c) => {
+              const checked = roundingTargets.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className="flex items-center gap-3 p-2 rounded border hover:bg-muted cursor-pointer"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => {
+                      setRoundingTargets((prev) =>
+                        v ? [...prev, c.id] : prev.filter((id) => id !== c.id),
+                      );
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tras repartir: {c.pct.toFixed(2)}%
+                    </p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRedistributePending(null);
+                setRoundingTargets([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={confirmRedistribution} disabled={roundingTargets.length === 0}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Collapsible>
   );
 }
