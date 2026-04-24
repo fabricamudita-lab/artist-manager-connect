@@ -914,24 +914,25 @@ function AddSplitForm({
           <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!selectedContactId || isLoading}
-            onClick={() => handleSelectContactAndSave(false)}
-          >
-            Añadir tal cual
-          </Button>
-          {hasExistingSplits && onSaveWithRedistribute && (
-            <Button
-              size="sm"
-              disabled={!selectedContactId || isLoading}
-              onClick={() => handleSelectContactAndSave(true)}
-            >
-              Añadir y ajustar resto
-            </Button>
-          )}
-          {!hasExistingSplits && (
+          {hasExistingSplits && onSaveWithRedistribute ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selectedContactId || isLoading}
+                onClick={() => handleSelectContactAndSave(false)}
+              >
+                Añadir tal cual
+              </Button>
+              <Button
+                size="sm"
+                disabled={!selectedContactId || isLoading}
+                onClick={() => handleSelectContactAndSave(true)}
+              >
+                Añadir y ajustar resto
+              </Button>
+            </>
+          ) : (
             <Button
               size="sm"
               disabled={!selectedContactId || isLoading}
