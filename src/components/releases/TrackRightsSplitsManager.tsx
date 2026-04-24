@@ -377,6 +377,8 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
             roles={roles}
             workspaceId={resolvedWorkspaceId}
             onSave={handleCreate}
+            onSaveWithRedistribute={handleCreateWithRedistribute}
+            hasExistingSplits={splits.length > 0}
             onCancel={() => setIsAdding(false)}
             isLoading={createCredit.isPending}
           />
