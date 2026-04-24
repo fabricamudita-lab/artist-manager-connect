@@ -796,6 +796,24 @@ export default function Teams() {
 
   // Build members data for the grid with category information
   const allTeamByCategory = useMemo(() => {
+    // Normalizador para hacer match de nombres ignorando mayúsculas/acentos/espacios
+    const norm = (s: string) =>
+      (s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    // Lookup de artistas del roster por nombre normalizado (stage_name y name)
+    const artistByName = new Map<string, typeof artists[number]>();
+    (artists || []).forEach(a => {
+      const keys = [a.stage_name, a.name].filter(Boolean) as string[];
+      keys.forEach(k => {
+        const key = norm(k);
+        if (key && !artistByName.has(key)) artistByName.set(key, a);
+      });
+    });
+
     return allCategoriesForDisplay.map(cat => {
       const wsMembers = teamMembers.filter(m => {
         if (selectedArtistId === '00-management') {
@@ -804,7 +822,7 @@ export default function Teams() {
         return m.team_category === cat.value;
       });
       
-      const contacts = teamContacts.filter(c => {
+      const rawContacts = teamContacts.filter(c => {
         const config = c.field_config as Record<string, any> | null;
         
         if (config?.mirror_type === 'workspace_member' || config?.workspace_user_id) {
@@ -830,28 +848,65 @@ export default function Teams() {
         return categories.includes(cat.value) || singleCategory === cat.value;
       });
 
+      // Separar contactos que en realidad representan a un artista del roster
+      // Esos se promocionan a tarjeta de "Artista principal" en esta categoría
+      const promotedArtists = new Map<string, { artist: typeof artists[number]; role?: string }>();
+      const contacts = rawContacts.filter(c => {
+        const match =
+          artistByName.get(norm(c.stage_name || '')) ||
+          artistByName.get(norm(c.name || ''));
+        if (!match) return true;
+        // Respetar el filtro de artista seleccionado
+        if (selectedArtistId !== 'all' && selectedArtistId !== '00-management' && match.id !== selectedArtistId) {
+          return true;
+        }
+        const existing = promotedArtists.get(match.id);
+        // Si ya hay un rol, concatenamos roles únicos
+        const mergedRole = [existing?.role, c.role].filter(Boolean).join(', ');
+        promotedArtists.set(match.id, { artist: match, role: mergedRole || c.role || undefined });
+        return false; // excluir de la lista de contactos
+      });
+
       let artistMembers: any[] = [];
+
+      // Inyección automática de "Artista principal" en categorías artistico/banda
       if (cat.value === 'artistico' || cat.value === 'banda') {
         if (selectedArtistId === 'all' && artists && artists.length > 0) {
-          artistMembers = artists.map(a => ({
-            id: `artist-${a.id}`,
-            isArtist: true,
-            name: a.stage_name || a.name,
-            role: 'Artista principal',
-            artistId: a.id,
-            avatarUrl: a.avatar_url,
-          }));
-        } else if (selectedArtist) {
-          artistMembers = [{
+          artists.forEach(a => {
+            // Si el artista ya está promocionado en esta categoría, lo dejamos para el bloque de abajo (con su rol específico)
+            if (promotedArtists.has(a.id)) return;
+            artistMembers.push({
+              id: `artist-${a.id}`,
+              isArtist: true,
+              name: a.stage_name || a.name,
+              role: 'Artista principal',
+              artistId: a.id,
+              avatarUrl: a.avatar_url,
+            });
+          });
+        } else if (selectedArtist && !promotedArtists.has(selectedArtist.id)) {
+          artistMembers.push({
             id: `artist-${selectedArtist.id}`,
             isArtist: true,
             name: selectedArtist.stage_name || selectedArtist.name,
             role: 'Artista principal',
             artistId: selectedArtist.id,
             avatarUrl: selectedArtist.avatar_url,
-          }];
+          });
         }
       }
+
+      // Añadir artistas promocionados desde contactos (con su rol real, ej. "Compositor, Productor")
+      promotedArtists.forEach(({ artist, role }) => {
+        artistMembers.push({
+          id: `artist-${artist.id}-${cat.value}`,
+          isArtist: true,
+          name: artist.stage_name || artist.name,
+          role: role || cat.label,
+          artistId: artist.id,
+          avatarUrl: artist.avatar_url,
+        });
+      });
 
       return {
         ...cat,

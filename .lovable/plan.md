@@ -1,42 +1,81 @@
 ## Problema
 
-El selector "Equipo" en `/teams` muestra **todos los artistas** de la tabla `artists`, mezclando perfiles del roster (artistas principales gestionados) con colaboradores ocasionales (Jay Jules, Ana Ayala, Kris Tena, etc. — todos con `artist_type = 'collaborator'`).
+Eudald Payés aparece en la categoría **Compositor** como un **contacto** normal (círculo morado liso, sin borde verde, sin estrella), separado de su perfil de **Artista principal** (círculo verde con estrella).
 
-Estos colaboradores no tienen su propio "equipo" — orbitan al artista principal con el que colaboran, o aparecen dentro de proyectos puntuales. Por eso no tiene sentido que aparezcan como "equipos" seleccionables.
+Esto ocurre porque:
+
+1. Cuando se añadió a Eudald como compositor en los créditos del release, el sistema creó (o reutilizó) un **contacto** llamado "Eudald Payés" con `team_categories: ['compositor']`. Este contacto es una entidad distinta del registro del **artista** del roster.
+2. La página de Equipos sólo inyecta el "perfil de artista principal" (tarjeta verde con estrella) en las categorías `artistico` y `banda`. En cualquier otra categoría (compositor, letrista, técnico, producción…), el artista aparece como contacto.
+
+Tu regla deseada: **si el artista principal tiene un cargo en una categoría, debe mostrarse SIEMPRE como tarjeta de artista principal** (mismo estilo verde con estrella que en "Equipo artístico"), sólo cambiando el rol mostrado debajo (ej. "Compositor", "Productor"…).
 
 ## Solución
 
-Filtrar el `fetchArtists()` de `src/pages/Teams.tsx` para traer únicamente artistas del roster.
+### 1. Resolver "contactos = artista del roster" y promocionarlos
 
-### Cambio único
+En `src/pages/Teams.tsx`, dentro del `useMemo` `allTeamByCategory`:
 
-**Archivo:** `src/pages/Teams.tsx` (función `fetchArtists`, líneas 147-152)
+- Para cada categoría, antes de filtrar contactos, detectar cuáles coinciden con un artista del roster (match por `stage_name` / `name` normalizado, ignorando mayúsculas/acentos, dentro de la lista `artists`).
+- Esos contactos NO se renderizan como tarjeta de contacto. En su lugar:
+  - Se inyecta el artista correspondiente como `artistMember` de esa categoría.
+  - El campo `role` del artistMember toma el rol del contacto en esa categoría (ej. "Compositor" en vez de "Artista principal").
+- La inyección automática de "Artista principal" en `artistico`/`banda` se mantiene tal cual (cuando el artista no tiene un rol explícito ahí).
 
-Añadir el filtro `.eq('artist_type', 'roster')` a la query de Supabase:
+Pseudocódigo dentro del map de categorías:
 
 ```ts
-const { data, error } = await supabase
-  .from('artists')
-  .select('id, name, stage_name, description, avatar_url')
-  .eq('artist_type', 'roster')
-  .order('name');
+// Construir lookup de artistas por nombre normalizado
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const artistByName = new Map(artists.map(a => [norm(a.stage_name || a.name), a]));
+
+// Filtrar contactos: separar los que coinciden con un artista del roster
+const matchedArtistContacts: Array<{ artist, role }> = [];
+const realContacts = contacts.filter(c => {
+  const match = artistByName.get(norm(c.stage_name || c.name));
+  if (match && (selectedArtistId === 'all' || match.id === selectedArtistId)) {
+    matchedArtistContacts.push({ artist: match, role: c.role });
+    return false; // se excluye de la lista de contactos
+  }
+  return true;
+});
+
+// Añadir esos artistas como artistMembers (con rol específico)
+matchedArtistContacts.forEach(({ artist, role }) => {
+  artistMembers.push({
+    id: `artist-${artist.id}-${cat.value}`,
+    isArtist: true,
+    name: artist.stage_name || artist.name,
+    role: role || cat.label,   // p. ej. "Compositor, Productor"
+    artistId: artist.id,
+    avatarUrl: artist.avatar_url,
+  });
+});
 ```
 
-### Resultado esperado
+Con esto, en la captura, la categoría "Compositor" mostrará a Eudald como tarjeta verde con estrella y "Compositor, Productor" debajo, en lugar del círculo morado actual.
 
-El selector "Equipo" pasará de listar 11 artistas a listar solo los 4 del roster:
-- VIC (Vic Mirallas)
-- Eudald Payés
-- PLAYGRXVND (Klaus Stroink)
-- Leyre Estruch (roster)
+### 2. Evitar duplicados cuando el artista ya está inyectado
 
-Los colaboradores como Jay Jules seguirán siendo accesibles desde:
-- El perfil del artista principal con el que colaboran (vía créditos/equipo del release)
-- La sección de proyectos donde participen
-- El listado global de contactos/colaboradores
+En `artistico` / `banda`, si el artista también está en `matchedArtistContacts`, usar el rol del contacto (más informativo) y no duplicar la tarjeta "Artista principal" genérica.
 
-### Notas
+### 3. Coherencia al hacer clic
 
-- No se borra ningún dato — los perfiles `collaborator` siguen existiendo y siendo consultables desde otras vistas.
-- No afecta a la asignación de créditos en releases, que ya distingue por `artist_type` y categoría.
-- Si en el futuro se quiere ofrecer una vista combinada, se puede añadir un toggle "Incluir colaboradores" en el selector — pero por defecto solo roster.
+La tarjeta tipo `artist` ya abre el perfil del artista (`ArtistInfoDialog`), igual que en "Equipo artístico". No se requieren cambios en handlers.
+
+## Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/pages/Teams.tsx` | Lógica de matching artista↔contacto en `allTeamByCategory` y deduplicación con la inyección automática de `artistico`/`banda`. |
+
+## Resultado esperado
+
+- "Compositor" → Eudald aparece como tarjeta de Artista principal (verde, estrella) con rol "Compositor, Productor".
+- "Equipo artístico" → Eudald sigue apareciendo como Artista principal.
+- Otros contactos (no artistas) siguen apareciendo como tarjeta de contacto normal.
+- El contador de la categoría no cambia (sigue siendo 1).
+
+## Notas
+
+- No se borran ni modifican los contactos existentes en BD: la unificación es puramente visual en la página de Equipos.
+- A futuro, si el matching por nombre da falsos positivos, podemos añadir un campo explícito `linked_artist_id` en `contacts` para vincular un contacto a un artista del roster, pero por ahora el match por nombre cubre el caso.
