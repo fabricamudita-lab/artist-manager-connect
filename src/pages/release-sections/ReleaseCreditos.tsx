@@ -329,9 +329,54 @@ export default function ReleaseCreditos() {
   });
 
   const updateTrack = useMutation({
-    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => {
+    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null; recording_fixation_date?: string | null }) => {
       const { id: trackId, ...updates } = data;
-      const { error } = await supabase.from('tracks').update(updates as any).eq('id', trackId);
+
+      // Strict server-bound validation (defense-in-depth alongside RLS).
+      // Zod normalizes/sanitizes inputs and rejects malformed/oversized values
+      // before they ever reach Supabase. PostgreSQL typed columns prevent SQL
+      // injection by construction (no string concatenation) and React escapes
+      // all rendered text (XSS-safe on display).
+      const currentYear = new Date().getFullYear();
+      const TrackUpdateSchema = z.object({
+        title: z.string().trim().min(1, 'El título es obligatorio').max(255).optional(),
+        lyrics: z.string().max(20000, 'La letra es demasiado larga').optional(),
+        isrc: z
+          .string()
+          .trim()
+          .max(15)
+          .regex(/^[A-Z]{2}-?[A-Z0-9]{3}-?\d{2}-?\d{5}$/i, 'ISRC con formato inválido')
+          .optional()
+          .or(z.literal(undefined)),
+        explicit: z.boolean().optional(),
+        c_copyright_holder: z.string().trim().max(255).nullable().optional(),
+        p_copyright_holder: z.string().trim().max(255).nullable().optional(),
+        c_copyright_year: z.number().int().min(1900).max(currentYear + 1).nullable().optional(),
+        p_production_year: z.number().int().min(1900).max(currentYear + 1).nullable().optional(),
+        recording_fixation_date: z
+          .union([
+            z.null(),
+            z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha con formato inválido')
+              .refine((d) => {
+                const dt = new Date(d + 'T00:00:00');
+                if (isNaN(dt.getTime())) return false;
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                return dt <= today;
+              }, 'La fecha de fijación no puede ser futura'),
+          ])
+          .optional(),
+      });
+
+      const parsed = TrackUpdateSchema.safeParse(updates);
+      if (!parsed.success) {
+        const firstIssue = parsed.error.issues[0];
+        throw new Error(firstIssue?.message || 'Datos inválidos');
+      }
+
+      const { error } = await supabase.from('tracks').update(parsed.data as any).eq('id', trackId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -340,8 +385,8 @@ export default function ReleaseCreditos() {
       setIsEditTrackOpen(false);
       setSelectedTrack(null);
     },
-    onError: () => {
-      toast.error('Error al actualizar');
+    onError: (err: any) => {
+      toast.error(err?.message || 'Error al actualizar');
     },
   });
 
