@@ -149,6 +149,7 @@ export default function Teams() {
       const { data, error } = await supabase
         .from('artists')
         .select('id, name, stage_name, description, avatar_url')
+        .eq('artist_type', 'roster')
         .order('name');
       
       if (error) throw error;
