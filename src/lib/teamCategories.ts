@@ -23,6 +23,7 @@ export const TEAM_CATEGORIES: TeamCategoryOption[] = [
   { value: 'interprete', label: 'Intérprete', icon: Users },
   { value: 'sello', label: 'Sello', icon: Building },
   { value: 'editorial', label: 'Editorial', icon: Building },
+  { value: 'colaborador', label: 'Colaboradores', icon: Mic },
   { value: 'otro', label: 'Otros', icon: Tag },
 ];
 
