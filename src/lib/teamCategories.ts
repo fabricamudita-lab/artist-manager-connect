@@ -1,4 +1,4 @@
-import { Users, UserCheck, Building, Mail, Shield, Tag } from 'lucide-react';
+import { Users, UserCheck, Building, Mail, Shield, Tag, Mic } from 'lucide-react';
 
 export interface TeamCategoryOption {
   value: string;
