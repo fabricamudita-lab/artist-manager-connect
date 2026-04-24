@@ -33,6 +33,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PROCombobox } from '@/components/credits/PROCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -49,6 +58,44 @@ import {
   MASTER_ROLE_VALUES,
   getRoleLabel,
 } from '@/lib/creditRoles';
+
+// Helper: round to nearest step
+function roundToStep(value: number, step = 0.5): number {
+  return Math.round(value / step) * step;
+}
+
+/**
+ * Redistribuye proporcionalmente los porcentajes existentes para hacer hueco a `newPct`.
+ * Devuelve los nuevos valores (mismo orden que `existing`) y el `remainder` que queda
+ * por compensar tras redondear al `step` (positivo = hay que restar más; negativo = hay que sumar).
+ */
+function redistributeSplits(
+  existing: { id: string; pct: number }[],
+  newPct: number,
+  step = 0.5,
+): { newValues: { id: string; pct: number }[]; remainder: number } {
+  const target = Math.max(0, 100 - newPct);
+  const currentTotal = existing.reduce((s, e) => s + e.pct, 0);
+
+  let raw: number[];
+  if (currentTotal <= 0) {
+    // Reparto equitativo si no había nada
+    const each = existing.length > 0 ? target / existing.length : 0;
+    raw = existing.map(() => each);
+  } else {
+    raw = existing.map((e) => (e.pct / currentTotal) * target);
+  }
+
+  // Redondear al step (a la baja para no pasarse del target)
+  const rounded = raw.map((v) => Math.max(0, Math.floor(v / step) * step));
+  const sumRounded = rounded.reduce((s, v) => s + v, 0);
+  const remainder = +(target - sumRounded).toFixed(4); // positivo: queda por repartir al alza
+
+  return {
+    newValues: existing.map((e, i) => ({ id: e.id, pct: +rounded[i].toFixed(4) })),
+    remainder,
+  };
+}
 
 interface TrackRightsSplitsManagerProps {
   track: Track;
@@ -175,6 +222,84 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
     setIsAdding(false);
   };
 
+  // Estado para el diálogo de redistribución con redondeo
+  const [redistributePending, setRedistributePending] = useState<{
+    newCreditData: any;
+    baseUpdates: { id: string; pct: number }[];
+    remainder: number;
+    candidates: { id: string; name: string; pct: number }[];
+  } | null>(null);
+  const [roundingTargets, setRoundingTargets] = useState<string[]>([]);
+
+  const applyRedistribution = async (
+    newCreditData: any,
+    finalUpdates: { id: string; pct: number }[],
+  ) => {
+    // 1) Actualizar existentes
+    await Promise.all(
+      finalUpdates.map((u) =>
+        supabase.from('track_credits').update({ [percentageKey]: u.pct }).eq('id', u.id),
+      ),
+    );
+    // 2) Crear el nuevo
+    await supabase.from('track_credits').insert({ ...newCreditData, track_id: track.id });
+    queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+    toast.success('Crédito añadido y porcentajes ajustados');
+    setIsAdding(false);
+  };
+
+  const handleCreateWithRedistribute = async (data: any) => {
+    const newPct = Number(data[percentageKey]) || 0;
+    if (newPct <= 0 || splits.length === 0) {
+      // Nada que repartir
+      await handleCreate(data);
+      return;
+    }
+    if (newPct > 100) {
+      toast.error('El porcentaje no puede ser mayor a 100%');
+      return;
+    }
+
+    const existing = splits.map((s) => ({ id: s.id, pct: Number(s[percentageKey]) || 0 }));
+    const { newValues, remainder } = redistributeSplits(existing, newPct, 0.5);
+
+    if (remainder <= 0.0001) {
+      await applyRedistribution(data, newValues);
+      return;
+    }
+
+    // Hay sobrante: si solo hay 1 existente, dárselo entero
+    if (existing.length === 1) {
+      const finalUpdates = newValues.map((v) => ({ ...v, pct: +(v.pct + remainder).toFixed(4) }));
+      await applyRedistribution(data, finalUpdates);
+      return;
+    }
+
+    // Abrir diálogo para elegir destinatarios del sobrante
+    const candidates = splits.map((s) => ({
+      id: s.id,
+      name: s.name || 'Sin nombre',
+      pct: newValues.find((v) => v.id === s.id)?.pct ?? 0,
+    }));
+    setRedistributePending({ newCreditData: data, baseUpdates: newValues, remainder, candidates });
+    setRoundingTargets([candidates[0].id]); // Pre-selección: primero
+  };
+
+  const confirmRedistribution = async () => {
+    if (!redistributePending) return;
+    const { newCreditData, baseUpdates, remainder, candidates } = redistributePending;
+    const targets = roundingTargets.length > 0 ? roundingTargets : [candidates[0].id];
+    const perTarget = +(remainder / targets.length).toFixed(4);
+    // Repartir el sobrante en pasos de 0.5 entre los targets seleccionados
+    const finalUpdates = baseUpdates.map((u) =>
+      targets.includes(u.id) ? { ...u, pct: +(u.pct + perTarget).toFixed(4) } : u,
+    );
+    setRedistributePending(null);
+    setRoundingTargets([]);
+    await applyRedistribution(newCreditData, finalUpdates);
+  };
+
+
   const handleUpdate = async (id: string, data: any) => {
     await updateCredit.mutateAsync({ id, ...data });
     setEditingId(null);
@@ -252,6 +377,8 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
             roles={roles}
             workspaceId={resolvedWorkspaceId}
             onSave={handleCreate}
+            onSaveWithRedistribute={handleCreateWithRedistribute}
+            hasExistingSplits={splits.length > 0}
             onCancel={() => setIsAdding(false)}
             isLoading={createCredit.isPending}
           />
@@ -279,6 +406,68 @@ export function TrackRightsSplitsManager({ track, type, releaseId, workspaceId }
           </div>
         )}
       </CollapsibleContent>
+
+      {/* Diálogo para elegir destinatario del sobrante por redondeo */}
+      <Dialog
+        open={!!redistributePending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRedistributePending(null);
+            setRoundingTargets([]);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar el porcentaje sobrante</DialogTitle>
+            <DialogDescription>
+              Tras repartir proporcionalmente queda un sobrante de{' '}
+              <strong>{redistributePending?.remainder.toFixed(2)}%</strong>. Elige a quién(es)
+              asignárselo (se reparte en partes iguales entre los seleccionados).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2 max-h-[40vh] overflow-y-auto">
+            {redistributePending?.candidates.map((c) => {
+              const checked = roundingTargets.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className="flex items-center gap-3 p-2 rounded border hover:bg-muted cursor-pointer"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => {
+                      setRoundingTargets((prev) =>
+                        v ? [...prev, c.id] : prev.filter((id) => id !== c.id),
+                      );
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tras repartir: {c.pct.toFixed(2)}%
+                    </p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRedistributePending(null);
+                setRoundingTargets([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={confirmRedistribution} disabled={roundingTargets.length === 0}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Collapsible>
   );
 }
@@ -472,6 +661,8 @@ function AddSplitForm({
   roles,
   workspaceId,
   onSave,
+  onSaveWithRedistribute,
+  hasExistingSplits,
   onCancel,
   isLoading,
 }: {
@@ -480,6 +671,8 @@ function AddSplitForm({
   roles: { value: string; label: string }[];
   workspaceId?: string | null;
   onSave: (data: any) => void;
+  onSaveWithRedistribute?: (data: any) => void;
+  hasExistingSplits?: boolean;
   onCancel: () => void;
   isLoading: boolean;
 }) {
@@ -521,9 +714,9 @@ function AddSplitForm({
     }
   };
 
-  const handleCreateContactAndSave = async () => {
+  const handleCreateContactAndSave = async (useRedistribute = false) => {
     if (!name || !role) return;
-    
+
     try {
       // Create contact first
       const { data: newContact, error } = await supabase
@@ -536,18 +729,22 @@ function AddSplitForm({
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
-      // Now save credit with contact_id - use the correct percentage column
+
       const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
-      onSave({ 
-        name, 
-        role, 
+      const payload = {
+        name,
+        role,
         [percentageKey]: percentage,
         contact_id: newContact.id,
         ...publishingFields,
-      });
+      };
+      if (useRedistribute && onSaveWithRedistribute) {
+        onSaveWithRedistribute(payload);
+      } else {
+        onSave(payload);
+      }
       toast.success('Contacto creado y vinculado');
     } catch (error) {
       console.error('Error creating contact:', error);
@@ -555,21 +752,25 @@ function AddSplitForm({
     }
   };
 
-  const handleSelectContactAndSave = () => {
+  const handleSelectContactAndSave = (useRedistribute = false) => {
     if (!selectedContactId || !role) return;
-    
+
     const contact = contacts.find(c => c.id === selectedContactId);
     if (!contact) return;
-    
-    // Use the correct percentage column based on type
+
     const publishingFields = type === 'publishing' ? { pro_society: proSociety || null, notes: creditNotes || null } : {};
-    onSave({ 
-      name: contact.stage_name || contact.name, 
-      role, 
+    const payload = {
+      name: contact.stage_name || contact.name,
+      role,
       [percentageKey]: percentage,
       contact_id: selectedContactId,
       ...publishingFields,
-    });
+    };
+    if (useRedistribute && onSaveWithRedistribute) {
+      onSaveWithRedistribute(payload);
+    } else {
+      onSave(payload);
+    }
   };
 
   const filteredContacts = contacts.filter(c => 
@@ -709,17 +910,37 @@ function AddSplitForm({
           </>
         )}
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button 
-            size="sm" 
-            disabled={!selectedContactId || isLoading}
-            onClick={handleSelectContactAndSave}
-          >
-            Añadir
-          </Button>
+          {hasExistingSplits && onSaveWithRedistribute ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selectedContactId || isLoading}
+                onClick={() => handleSelectContactAndSave(false)}
+              >
+                Añadir tal cual
+              </Button>
+              <Button
+                size="sm"
+                disabled={!selectedContactId || isLoading}
+                onClick={() => handleSelectContactAndSave(true)}
+              >
+                Añadir y ajustar resto
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              disabled={!selectedContactId || isLoading}
+              onClick={() => handleSelectContactAndSave(false)}
+            >
+              Añadir
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -791,17 +1012,37 @@ function AddSplitForm({
         </div>
       )}
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex flex-wrap justify-end gap-2 pt-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button 
-          size="sm" 
-          disabled={!name || !role || isLoading}
-          onClick={handleCreateContactAndSave}
-        >
-          Crear y Añadir
-        </Button>
+        {hasExistingSplits && onSaveWithRedistribute ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!name || !role || isLoading}
+              onClick={() => handleCreateContactAndSave(false)}
+            >
+              Crear y añadir tal cual
+            </Button>
+            <Button
+              size="sm"
+              disabled={!name || !role || isLoading}
+              onClick={() => handleCreateContactAndSave(true)}
+            >
+              Crear y ajustar resto
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            disabled={!name || !role || isLoading}
+            onClick={() => handleCreateContactAndSave(false)}
+          >
+            Crear y Añadir
+          </Button>
+        )}
       </div>
     </div>
   );
