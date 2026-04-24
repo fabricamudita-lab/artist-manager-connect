@@ -6,9 +6,14 @@ import { CreditNotesEditor } from '@/components/credits/CreditNotesEditor';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { z } from 'zod';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -324,9 +329,54 @@ export default function ReleaseCreditos() {
   });
 
   const updateTrack = useMutation({
-    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => {
+    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null; recording_fixation_date?: string | null }) => {
       const { id: trackId, ...updates } = data;
-      const { error } = await supabase.from('tracks').update(updates as any).eq('id', trackId);
+
+      // Strict server-bound validation (defense-in-depth alongside RLS).
+      // Zod normalizes/sanitizes inputs and rejects malformed/oversized values
+      // before they ever reach Supabase. PostgreSQL typed columns prevent SQL
+      // injection by construction (no string concatenation) and React escapes
+      // all rendered text (XSS-safe on display).
+      const currentYear = new Date().getFullYear();
+      const TrackUpdateSchema = z.object({
+        title: z.string().trim().min(1, 'El título es obligatorio').max(255).optional(),
+        lyrics: z.string().max(20000, 'La letra es demasiado larga').optional(),
+        isrc: z
+          .string()
+          .trim()
+          .max(15)
+          .regex(/^[A-Z]{2}-?[A-Z0-9]{3}-?\d{2}-?\d{5}$/i, 'ISRC con formato inválido')
+          .optional()
+          .or(z.literal(undefined)),
+        explicit: z.boolean().optional(),
+        c_copyright_holder: z.string().trim().max(255).nullable().optional(),
+        p_copyright_holder: z.string().trim().max(255).nullable().optional(),
+        c_copyright_year: z.number().int().min(1900).max(currentYear + 1).nullable().optional(),
+        p_production_year: z.number().int().min(1900).max(currentYear + 1).nullable().optional(),
+        recording_fixation_date: z
+          .union([
+            z.null(),
+            z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha con formato inválido')
+              .refine((d) => {
+                const dt = new Date(d + 'T00:00:00');
+                if (isNaN(dt.getTime())) return false;
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                return dt <= today;
+              }, 'La fecha de fijación no puede ser futura'),
+          ])
+          .optional(),
+      });
+
+      const parsed = TrackUpdateSchema.safeParse(updates);
+      if (!parsed.success) {
+        const firstIssue = parsed.error.issues[0];
+        throw new Error(firstIssue?.message || 'Datos inválidos');
+      }
+
+      const { error } = await supabase.from('tracks').update(parsed.data as any).eq('id', trackId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -335,8 +385,8 @@ export default function ReleaseCreditos() {
       setIsEditTrackOpen(false);
       setSelectedTrack(null);
     },
-    onError: () => {
-      toast.error('Error al actualizar');
+    onError: (err: any) => {
+      toast.error(err?.message || 'Error al actualizar');
     },
   });
 
@@ -1663,7 +1713,7 @@ function EditTrackForm({
   isLoading,
 }: {
   track: Track;
-  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => void;
+  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null; recording_fixation_date?: string | null }) => void;
   isLoading: boolean;
 }) {
   const [title, setTitle] = useState(track.title);
@@ -1674,6 +1724,9 @@ function EditTrackForm({
   const [cCopyrightYear, setCCopyrightYear] = useState<number | ''>(track.c_copyright_year ?? '');
   const [pCopyrightHolder, setPCopyrightHolder] = useState(track.p_copyright_holder || '');
   const [pProductionYear, setPProductionYear] = useState<number | ''>(track.p_production_year ?? '');
+  const [fixationDate, setFixationDate] = useState<Date | undefined>(
+    track.recording_fixation_date ? new Date(track.recording_fixation_date + 'T00:00:00') : undefined
+  );
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: currentYear - 1999 }, (_, i) => currentYear - i);
@@ -1689,6 +1742,7 @@ function EditTrackForm({
       c_copyright_year: cCopyrightYear === '' ? null : cCopyrightYear,
       p_copyright_holder: pCopyrightHolder.trim() || null,
       p_production_year: pProductionYear === '' ? null : pProductionYear,
+      recording_fixation_date: fixationDate ? format(fixationDate, 'yyyy-MM-dd') : null,
     });
   };
 
@@ -1772,6 +1826,55 @@ function EditTrackForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="col-span-2">
+            <Label htmlFor="edit_fixation_date" className="text-xs">
+              Fecha de fijación de la grabación
+            </Label>
+            <div className="flex gap-2 items-start">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="edit_fixation_date"
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'flex-1 h-8 justify-start text-left font-normal text-sm',
+                      !fixationDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                    {fixationDate
+                      ? format(fixationDate, 'PPP', { locale: es })
+                      : 'Seleccionar fecha'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fixationDate}
+                    onSelect={setFixationDate}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                    className={cn('p-3 pointer-events-auto')}
+                  />
+                </PopoverContent>
+              </Popover>
+              {fixationDate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => setFixationDate(undefined)}
+                >
+                  Limpiar
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Útil para contratos de Propiedad Intelectual y registros legales.
+            </p>
           </div>
         </div>
       </div>
