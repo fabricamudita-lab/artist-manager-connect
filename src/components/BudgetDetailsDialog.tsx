@@ -4600,31 +4600,34 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                               <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
                                                 <SelectValue placeholder="Seleccionar estado" />
                                               </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="pendiente">Pendiente</SelectItem>
-                                               <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
-                                               <SelectItem value="factura_recibida">Factura recibida</SelectItem>
-                                               <SelectItem value="pagada">Pagada</SelectItem>
-                                             </SelectContent>
-                                           </Select>
-                                         ) : (
-                                           <div 
-                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                             onClick={() => startEditingItem(item)}
-                                           >
-                                              <Badge variant={
-                                                item.billing_status === 'pagada' ? 'default' :
-                                                item.billing_status === 'factura_recibida' ? 'secondary' :
-                                                item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
-                                              }>
-                                                {item.billing_status === 'pendiente' ? 'Pendiente' :
-                                                 item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
-                                                 item.billing_status === 'factura_recibida' ? 'Factura recibida' :
-                                                 item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
-                                              </Badge>
-                                            </div>
-                                          )}
-                                        </TableCell>
+                                              <SelectContent>
+                                                <SelectItem value="pendiente">Pendiente</SelectItem>
+                                                <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                                                <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                                                <SelectItem value="pagada">Pagada</SelectItem>
+                                                <SelectItem value="agrupada">Agrupada en factura</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          ) : (
+                                            <div 
+                                              className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                              onClick={() => startEditingItem(item)}
+                                            >
+                                               <Badge variant={
+                                                 item.billing_status === 'pagada' ? 'default' :
+                                                 item.billing_status === 'agrupada' ? 'secondary' :
+                                                 item.billing_status === 'factura_recibida' ? 'secondary' :
+                                                 item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
+                                               } className={item.billing_status === 'agrupada' ? 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100' : undefined}>
+                                                 {item.billing_status === 'pendiente' ? 'Pendiente' :
+                                                  item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
+                                                  item.billing_status === 'factura_recibida' ? 'Factura recibida' :
+                                                  item.billing_status === 'pagada' ? 'Pagada' :
+                                                  item.billing_status === 'agrupada' ? '🔗 Agrupada' : item.billing_status}
+                                               </Badge>
+                                             </div>
+                                           )}
+                                         </TableCell>
 
                                        {/* Enlace Factura */}
                                        <TableCell className="p-2 text-center">
