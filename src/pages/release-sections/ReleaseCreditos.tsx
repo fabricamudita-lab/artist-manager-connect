@@ -615,7 +615,12 @@ export default function ReleaseCreditos() {
                     <SortableContext items={tracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-1">
                         {tracks.map((track) => (
-                          <SortableTrackRow key={track.id} track={track} />
+                          <SortableTrackRow
+                            key={track.id}
+                            track={track}
+                            totalTracks={tracks.length}
+                            onNumberChange={(newPos) => handleManualNumberChange(track.id, newPos)}
+                          />
                         ))}
                       </div>
                     </SortableContext>
