@@ -862,11 +862,15 @@ export default function Calendar() {
           {monthWeeks.map((week, weekIndex) => week.map((day: Date, dayIndex: number) => {
           const dayEvents = getEventsForDate(day);
           const dayBookings = getBookingOffersForDate(day);
+          const dayReleases = getReleasesForDate(day);
+          const dayMilestones = getMilestonesForDate(day);
           const isCurrentMonth = isSameMonth(day, monthDate);
           const isToday = isSameDay(day, new Date());
           const allItems = [
             ...dayEvents.map(e => ({ type: 'event' as const, data: e })),
-            ...dayBookings.map(b => ({ type: 'booking' as const, data: b }))
+            ...dayBookings.map(b => ({ type: 'booking' as const, data: b })),
+            ...dayReleases.map(r => ({ type: 'release' as const, data: r })),
+            ...dayMilestones.map(m => ({ type: 'milestone' as const, data: m })),
           ];
           return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
                 <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -888,8 +892,8 @@ export default function Calendar() {
                           {event.title}
                         </div>
                       );
-                    } else {
-                      const booking = item.data;
+                    } else if (item.type === 'booking') {
+                      const booking = item.data as any;
                       return (
                         <div 
                           key={booking.id} 
@@ -900,6 +904,30 @@ export default function Calendar() {
                           }}
                         >
                           {formatBookingTitle(booking)}
+                        </div>
+                      );
+                    } else if (item.type === 'release') {
+                      const release = item.data as CalendarRelease;
+                      return (
+                        <div
+                          key={`rel-${release.id}`}
+                          className="text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50 flex items-center gap-1"
+                          onClick={e => { e.stopPropagation(); setSelectedRelease(release); }}
+                        >
+                          <Disc3 className="h-2.5 w-2.5 flex-shrink-0" />
+                          <span className="truncate">{release.title}</span>
+                        </div>
+                      );
+                    } else {
+                      const m = item.data as CalendarMilestone;
+                      return (
+                        <div
+                          key={`ms-${m.id}`}
+                          className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1"
+                          onClick={e => { e.stopPropagation(); setSelectedMilestone(m); }}
+                        >
+                          <Target className="h-2.5 w-2.5 flex-shrink-0" />
+                          <span className="truncate">{m.title}</span>
                         </div>
                       );
                     }
