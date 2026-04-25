@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderKanban, UserCircle, ChevronLeft, ChevronRight, Building, Disc3, Target, Check } from 'lucide-react';
+import { FolderKanban, ChevronLeft, ChevronRight, Disc3, Target, Check } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
