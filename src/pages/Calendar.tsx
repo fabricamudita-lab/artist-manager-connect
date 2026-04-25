@@ -694,6 +694,8 @@ export default function Calendar() {
           {weekDays.map((day, dayIndex) => {
           const allDayEvents = getAllDayEventsForDate(day);
           const dayBookings = getBookingOffersForDate(day);
+          const dayReleases = getReleasesForDate(day);
+          const dayMilestones = getMilestonesForDate(day);
           return <div key={dayIndex} className="border-l min-h-16 p-2 space-y-1">
                 {allDayEvents.map((event) => <div key={event.id} className={`text-xs px-2 py-1 rounded truncate font-medium relative ${event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' : event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' : event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                     <div className="flex items-center justify-between">
@@ -721,6 +723,20 @@ export default function Calendar() {
                       })()}
                     </div>
                   </div>)}
+                {dayReleases.map((release) => (
+                  <div key={`rel-${release.id}`} className="text-xs px-2 py-1 rounded truncate font-medium bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-700 cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50 flex items-center gap-1"
+                    onClick={e => { e.stopPropagation(); setSelectedRelease(release); }}>
+                    <Disc3 className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{release.title}</span>
+                  </div>
+                ))}
+                {dayMilestones.map((m) => (
+                  <div key={`ms-${m.id}`} className="text-xs px-2 py-1 rounded truncate font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1"
+                    onClick={e => { e.stopPropagation(); setSelectedMilestone(m); }}>
+                    <Target className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{m.title}</span>
+                  </div>
+                ))}
               </div>;
         })}
         </div>
