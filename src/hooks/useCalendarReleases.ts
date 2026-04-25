@@ -22,7 +22,13 @@ export interface CalendarMilestone {
   status: string;
   category: string | null;
   responsible: string | null;
-  release?: { id: string; title: string; artist_id: string | null; project_id: string | null } | null;
+  notes: string | null;
+  metadata: Record<string, any> | null;
+  // Derived "phase" range for the milestone's category in this release.
+  phase_start: string | null;
+  phase_end: string | null;
+  phase_count: number;
+  release?: { id: string; title: string; artist_id: string | null; project_id: string | null; release_date: string | null } | null;
 }
 
 interface Options {
@@ -87,22 +93,55 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
         if (releaseIds.length > 0) {
           const { data: milestoneRows, error: mErr } = await supabase
             .from('release_milestones')
-            .select('id, release_id, title, due_date, status, category, responsible')
+            .select('id, release_id, title, due_date, status, category, responsible, notes, metadata')
             .in('release_id', releaseIds)
             .not('due_date', 'is', null);
           if (mErr) console.error('Error loading release milestones:', mErr);
           const releasesById = new Map(allReleases.map(r => [r.id, r]));
-          allMilestones = (milestoneRows || []).map((m: any) => ({
-            ...m,
-            release: releasesById.get(m.release_id)
-              ? {
-                  id: m.release_id,
-                  title: releasesById.get(m.release_id)!.title,
-                  artist_id: releasesById.get(m.release_id)!.artist_id,
-                  project_id: releasesById.get(m.release_id)!.project_id,
-                }
-              : null,
-          }));
+
+          // Pre-compute phase range (min/max due_date) per (release_id, category).
+          const phaseKey = (rid: string, cat: string | null) => `${rid}::${cat || ''}`;
+          const phaseAgg = new Map<string, { start: string; end: string; count: number }>();
+          (milestoneRows || []).forEach((m: any) => {
+            if (!m.due_date) return;
+            const k = phaseKey(m.release_id, m.category);
+            const existing = phaseAgg.get(k);
+            if (!existing) {
+              phaseAgg.set(k, { start: m.due_date, end: m.due_date, count: 1 });
+            } else {
+              if (m.due_date < existing.start) existing.start = m.due_date;
+              if (m.due_date > existing.end) existing.end = m.due_date;
+              existing.count += 1;
+            }
+          });
+
+          allMilestones = (milestoneRows || []).map((m: any) => {
+            const rel = releasesById.get(m.release_id);
+            const phase = phaseAgg.get(phaseKey(m.release_id, m.category));
+            return {
+              id: m.id,
+              release_id: m.release_id,
+              title: m.title,
+              due_date: m.due_date,
+              status: m.status,
+              category: m.category,
+              responsible: m.responsible,
+              notes: m.notes ?? null,
+              metadata: (m.metadata as Record<string, any>) ?? null,
+              phase_start: phase?.start ?? null,
+              phase_end: phase?.end ?? null,
+              phase_count: phase?.count ?? 1,
+              release: rel
+                ? {
+                    id: m.release_id,
+                    title: rel.title,
+                    artist_id: rel.artist_id,
+                    project_id: rel.project_id,
+                    release_date: rel.release_date ?? null,
+                  }
+                : null,
+            } as CalendarMilestone;
+          });
         }
 
         if (!cancelled) {

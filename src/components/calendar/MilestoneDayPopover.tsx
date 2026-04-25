@@ -1,8 +1,22 @@
+import { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, ExternalLink } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import {
+  Target,
+  ExternalLink,
+  CalendarDays,
+  Clock,
+  Layers,
+  Anchor,
+  CheckSquare,
+  StickyNote,
+  Rocket,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { format, differenceInCalendarDays, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { CalendarMilestone } from '@/hooks/useCalendarReleases';
 
 interface Props {
@@ -18,33 +32,231 @@ const statusLabel: Record<string, string> = {
   delayed: 'Retrasado',
 };
 
+const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  pending: 'outline',
+  in_progress: 'secondary',
+  completed: 'default',
+  delayed: 'destructive',
+};
+
+const fmt = (iso: string | null | undefined) =>
+  iso ? format(parseISO(iso), "d 'de' MMM yyyy", { locale: es }) : null;
+
+const fmtShort = (iso: string | null | undefined) =>
+  iso ? format(parseISO(iso), 'd MMM', { locale: es }) : null;
+
+interface Subtask {
+  title?: string;
+  label?: string;
+  done?: boolean;
+  completed?: boolean;
+}
+
 export function MilestoneDayPopover({ milestone, open, onOpenChange }: Props) {
-  if (!milestone) return null;
+  const data = useMemo(() => {
+    if (!milestone) return null;
+    const meta = milestone.metadata || {};
+    const startDate: string | null = meta.customStartDate || null;
+    const estimatedDays: number | null =
+      typeof meta.estimatedDays === 'number' ? meta.estimatedDays : null;
+
+    // End date inferred from start + duration; fall back to due_date.
+    let endDate: string | null = null;
+    if (startDate && estimatedDays != null) {
+      const d = parseISO(startDate);
+      d.setDate(d.getDate() + Math.max(0, estimatedDays - 1));
+      endDate = d.toISOString().slice(0, 10);
+    }
+
+    const subtasksRaw: Subtask[] = Array.isArray(meta.subtasks) ? meta.subtasks : [];
+    const subtasks = subtasksRaw.map((s) => ({
+      title: s.title || s.label || 'Sin título',
+      done: !!(s.done ?? s.completed),
+    }));
+    const subtasksDone = subtasks.filter((s) => s.done).length;
+
+    const anchoredTo: string | null = meta.anchoredTo || null;
+
+    const releaseDate = milestone.release?.release_date || null;
+    const daysToRelease = releaseDate
+      ? differenceInCalendarDays(parseISO(releaseDate), new Date())
+      : null;
+
+    const isPhase = (milestone.phase_count || 1) > 1;
+    const isCompleted = milestone.status === 'completed';
+    const isOverdue =
+      !isCompleted &&
+      milestone.due_date &&
+      differenceInCalendarDays(parseISO(milestone.due_date), new Date()) < 0;
+
+    return {
+      meta,
+      startDate,
+      endDate,
+      estimatedDays,
+      subtasks,
+      subtasksDone,
+      anchoredTo,
+      releaseDate,
+      daysToRelease,
+      isPhase,
+      isOverdue,
+    };
+  }, [milestone]);
+
+  if (!milestone || !data) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-emerald-500" />
-            {milestone.title}
+            <span className="truncate">{milestone.title}</span>
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+
+        <div className="space-y-3 text-sm">
+          {/* Badges */}
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{statusLabel[milestone.status] || milestone.status}</Badge>
+            <Badge variant={statusVariant[milestone.status] || 'outline'}>
+              {statusLabel[milestone.status] || milestone.status}
+            </Badge>
             {milestone.category && <Badge variant="secondary">{milestone.category}</Badge>}
+            {data.isOverdue && <Badge variant="destructive">Atrasado</Badge>}
           </div>
+
+          {/* Release */}
           {milestone.release?.title && (
-            <p className="text-sm text-muted-foreground">
-              Lanzamiento: <span className="text-foreground">{milestone.release.title}</span>
+            <p className="text-muted-foreground">
+              Lanzamiento:{' '}
+              <span className="text-foreground font-medium">{milestone.release.title}</span>
             </p>
           )}
-          {milestone.responsible && (
-            <p className="text-sm text-muted-foreground">Responsable: <span className="text-foreground">{milestone.responsible}</span></p>
+
+          <Separator />
+
+          {/* Dates / duration */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
+              <CalendarDays className="h-3.5 w-3.5" /> Fechas
+            </div>
+            {data.startDate ? (
+              <p>
+                <span className="text-muted-foreground">Inicio:</span>{' '}
+                <span className="text-foreground">{fmt(data.startDate)}</span>
+              </p>
+            ) : null}
+            <p>
+              <span className="text-muted-foreground">{data.endDate ? 'Fin previsto:' : 'Vence:'}</span>{' '}
+              <span className="text-foreground">{fmt(data.endDate || milestone.due_date)}</span>
+            </p>
+            {data.estimatedDays != null && (
+              <p className="flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" /> Duración estimada:{' '}
+                <span className="text-foreground">
+                  {data.estimatedDays} {data.estimatedDays === 1 ? 'día' : 'días'}
+                </span>
+              </p>
+            )}
+          </div>
+
+          {/* Phase context */}
+          {data.isPhase && milestone.phase_start && milestone.phase_end && (
+            <>
+              <Separator />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
+                  <Layers className="h-3.5 w-3.5" /> Forma parte de la fase
+                </div>
+                <p>
+                  <span className="text-foreground font-medium">
+                    {milestone.category || 'Sin categoría'}
+                  </span>
+                  : {fmtShort(milestone.phase_start)} → {fmtShort(milestone.phase_end)}{' '}
+                  <span className="text-muted-foreground">
+                    ({milestone.phase_count} hitos)
+                  </span>
+                </p>
+              </div>
+            </>
           )}
+
+          {/* Anchor */}
+          {data.anchoredTo && (
+            <p className="flex items-center gap-1.5 text-muted-foreground">
+              <Anchor className="h-3.5 w-3.5" /> Anclado a:{' '}
+              <span className="text-foreground">{String(data.anchoredTo)}</span>
+            </p>
+          )}
+
+          {/* Countdown to release */}
+          {data.daysToRelease !== null && (
+            <p className="flex items-center gap-1.5 text-muted-foreground">
+              <Rocket className="h-3.5 w-3.5" />
+              {data.daysToRelease > 0
+                ? <>Faltan <span className="text-foreground font-medium">{data.daysToRelease} días</span> para el lanzamiento</>
+                : data.daysToRelease === 0
+                  ? <span className="text-foreground font-medium">El lanzamiento es hoy</span>
+                  : <>Lanzamiento publicado hace <span className="text-foreground font-medium">{Math.abs(data.daysToRelease)} días</span></>
+              }
+            </p>
+          )}
+
+          {/* Responsible */}
+          {milestone.responsible && (
+            <p className="text-muted-foreground">
+              Responsable: <span className="text-foreground">{milestone.responsible}</span>
+            </p>
+          )}
+
+          {/* Subtasks */}
+          {data.subtasks.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <CheckSquare className="h-3.5 w-3.5" /> Subtareas
+                  </span>
+                  <span>
+                    {data.subtasksDone} / {data.subtasks.length}
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {data.subtasks.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span
+                        className={`mt-1 inline-block h-1.5 w-1.5 rounded-full ${
+                          s.done ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                        }`}
+                      />
+                      <span className={s.done ? 'line-through text-muted-foreground' : ''}>
+                        {s.title}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+
+          {/* Notes */}
+          {milestone.notes && (
+            <>
+              <Separator />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide">
+                  <StickyNote className="h-3.5 w-3.5" /> Notas
+                </div>
+                <p className="whitespace-pre-wrap">{milestone.notes}</p>
+              </div>
+            </>
+          )}
+
           {milestone.release?.id && (
-            <Button asChild className="w-full">
-              <Link to={`/releases/${milestone.release.id}?tab=cronograma`}>
+            <Button asChild className="w-full mt-2">
+              <Link to={`/releases/${milestone.release.id}?tab=cronograma&milestone=${milestone.id}`}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Ver cronograma
               </Link>
