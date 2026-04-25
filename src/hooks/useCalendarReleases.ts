@@ -8,6 +8,7 @@ export interface CalendarRelease {
   release_date: string;
   status: string;
   artist_id: string | null;
+  project_id: string | null;
   cover_image_url: string | null;
   pitch_deadline: string | null;
   artist?: { name: string } | null;
@@ -21,7 +22,7 @@ export interface CalendarMilestone {
   status: string;
   category: string | null;
   responsible: string | null;
-  release?: { id: string; title: string; artist_id: string | null } | null;
+  release?: { id: string; title: string; artist_id: string | null; project_id: string | null } | null;
 }
 
 interface Options {
@@ -49,7 +50,7 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
         // 1. Releases of accessible artists with a release_date and not archived
         const { data: directReleases, error: relErr } = await supabase
           .from('releases')
-          .select('id, title, type, release_date, status, artist_id, cover_image_url, pitch_deadline, artist:artists(name)')
+          .select('id, title, type, release_date, status, artist_id, project_id, cover_image_url, pitch_deadline, artist:artists(name)')
           .in('artist_id', artistIds)
           .neq('status', 'archived')
           .not('release_date', 'is', null);
@@ -70,7 +71,7 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
           if (missing.length > 0) {
             const { data } = await supabase
               .from('releases')
-              .select('id, title, type, release_date, status, artist_id, cover_image_url, pitch_deadline, artist:artists(name)')
+              .select('id, title, type, release_date, status, artist_id, project_id, cover_image_url, pitch_deadline, artist:artists(name)')
               .in('id', missing)
               .neq('status', 'archived')
               .not('release_date', 'is', null);
@@ -98,6 +99,7 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
                   id: m.release_id,
                   title: releasesById.get(m.release_id)!.title,
                   artist_id: releasesById.get(m.release_id)!.artist_id,
+                  project_id: releasesById.get(m.release_id)!.project_id,
                 }
               : null,
           }));

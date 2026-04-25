@@ -26,6 +26,19 @@ import { useCalendarReleases, type CalendarRelease, type CalendarMilestone } fro
 import { ReleaseDayPopover } from '@/components/calendar/ReleaseDayPopover';
 import { MilestoneDayPopover } from '@/components/calendar/MilestoneDayPopover';
 import { Disc3, Target } from 'lucide-react';
+import {
+  applyProjectFilterToBookings,
+  applyProjectFilterToReleases,
+  applyProjectFilterToMilestones,
+  applyProjectFilterToEvents,
+  applyMemberFilterToEvents,
+  applyMemberFilterToBookings,
+  applyMemberFilterToMilestones,
+  applyDepartmentFilterToEvents,
+  applyDepartmentFilterToBookings,
+  applyDepartmentFilterToMilestones,
+  type CalendarTeamMember,
+} from '@/lib/calendar/filters';
 interface Event {
   id: string;
   title: string;
@@ -53,11 +66,7 @@ export default function Calendar() {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<{
-    id: string;
-    full_name: string;
-    type?: 'workspace' | 'contact';
-  }[]>([]);
+  const [teamMembers, setTeamMembers] = useState<CalendarTeamMember[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isImporting, setIsImporting] = useState(false);
   const {
@@ -153,10 +162,15 @@ export default function Calendar() {
     if (profile && selectedArtists.length > 0) {
       fetchEvents();
       fetchBookingOffers();
-      fetchProjects();
       fetchTeamMembers();
     }
-  }, [profile, selectedArtists, selectedProjects, selectedDepartment, showMyCalendar, showAllEvents]);
+  }, [profile, selectedArtists, showMyCalendar, showAllEvents]);
+
+  // Reload projects when accessible/selected artists change so the dropdown only
+  // lists projects of artists the user can see.
+  useEffect(() => {
+    if (profile) fetchProjects();
+  }, [profile, selectedArtists, accessibleArtistIds]);
 
   // Scroll to 9 AM when week view is rendered
   useEffect(() => {
@@ -261,14 +275,21 @@ export default function Calendar() {
   };
   const fetchProjects = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('projects').select('id, name, artist_id').order('name', {
-        ascending: true
-      });
+      // Restrict to artists the user can see (RBAC) — coherent with the artists filter.
+      const artistScope = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
+      if (artistScope.length === 0) {
+        setProjects([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, artist_id, is_folder')
+        .in('artist_id', artistScope)
+        .or('is_folder.is.null,is_folder.eq.false')
+        .order('name', { ascending: true });
       if (error) {
         console.error('Error fetching projects:', error);
+        setProjects([]);
       } else {
         setProjects(data || []);
       }
@@ -288,54 +309,59 @@ export default function Calendar() {
         .eq('user_id', user.id)
         .single();
 
-      const allMembers: { id: string; full_name: string; type?: 'workspace' | 'contact' }[] = [];
+      const allMembers: CalendarTeamMember[] = [];
+      const wsId = profileData?.workspace_id as string | undefined;
 
-      // Fetch workspace members
-      if (profileData?.workspace_id) {
+      // Workspace members (with their team_category = department)
+      if (wsId) {
         const { data: memberships } = await supabase
           .from('workspace_memberships')
-          .select('user_id')
-          .eq('workspace_id', profileData.workspace_id);
+          .select('user_id, team_category')
+          .eq('workspace_id', wsId);
 
         if (memberships && memberships.length > 0) {
-          const userIds = memberships.map(m => m.user_id);
+          const userIds = memberships.map((m: any) => m.user_id);
           const { data: profiles } = await supabase
             .from('profiles')
             .select('user_id, full_name, stage_name')
             .in('user_id', userIds);
-
-          if (profiles) {
-            profiles.forEach(p => {
-              allMembers.push({
-                id: p.user_id,
-                full_name: p.stage_name || p.full_name || 'Sin nombre',
-                type: 'workspace'
-              });
-            });
-          }
-        }
-      }
-
-      // Fetch team contacts
-      const { data: contacts } = await supabase
-        .from('contacts')
-        .select('id, name, stage_name, field_config')
-        .eq('created_by', user.id);
-
-      if (contacts) {
-        contacts.forEach(c => {
-          const config = c.field_config as Record<string, any> | null;
-          if (config?.is_team_member) {
+          const deptByUser = new Map(memberships.map((m: any) => [m.user_id, m.team_category]));
+          (profiles || []).forEach((p: any) => {
             allMembers.push({
-              id: c.id,
-              full_name: c.stage_name || c.name,
-              type: 'contact'
+              id: p.user_id,
+              full_name: p.stage_name || p.full_name || 'Sin nombre',
+              type: 'workspace',
+              team_category: deptByUser.get(p.user_id) ?? null,
             });
-          }
+          });
+        }
+
+        // Workspace-wide team contacts (not just current user's). Collaborators excluded.
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name, category, field_config, artist_id')
+          .neq('category', 'colaborador');
+
+        (contacts || []).forEach((c: any) => {
+          const config = c.field_config as Record<string, any> | null;
+          if (!config?.is_team_member) return;
+          allMembers.push({
+            id: c.id,
+            full_name: c.stage_name || c.name || 'Sin nombre',
+            type: 'contact',
+            team_category: c.category ?? null,
+          });
         });
       }
 
-      setTeamMembers(allMembers);
+      // Deduplicate by id
+      const seen = new Set<string>();
+      const unique = allMembers.filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+      setTeamMembers(unique);
     } catch (error) {
       console.error('Error fetching team members:', error);
     }
@@ -394,31 +420,74 @@ export default function Calendar() {
       console.error('Error fetching booking offers:', error);
     }
   };
-  const getEventsForDate = (date: Date) => {
-    return events.filter(event => isSameDay(new Date(event.start_date), date));
-  };
-  
-  const getBookingOffersForDate = (date: Date) => {
-    return bookingOffers.filter(offer => {
-      if (!offer.fecha) return false;
-      return isSameDay(new Date(offer.fecha), date);
-    });
-  };
+  // ----- Project / member / department filters wiring -----
+  // Map projectId → artistId so we can derive the project filter for entities that
+  // don't have a native `project_id` (events, milestones via release).
+  const projectArtistMap = (() => {
+    const m = new Map<string, string>();
+    projects.forEach((p: any) => p?.id && p?.artist_id && m.set(p.id, p.artist_id));
+    return m;
+  })();
 
-  // Releases & milestones layer
+  const selectedMember =
+    selectedTeam !== 'all' ? teamMembers.find((m) => m.id === selectedTeam) || null : null;
+
+  // Releases & milestones layer (must be declared before the getters use it).
   const releaseArtistIds = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
   const { releases: calendarReleases, milestones: calendarMilestones } = useCalendarReleases({
     artistIds: releaseArtistIds,
     enabled: !!profile,
   });
 
+  // Apply project / member / department filters once, then memoize via the per-date getters.
+  const filteredEvents = (() => {
+    let out = events;
+    out = applyProjectFilterToEvents(out, selectedProjects, projectArtistMap);
+    out = applyMemberFilterToEvents(out, selectedMember);
+    out = applyDepartmentFilterToEvents(out, teamMembers, selectedDepartment);
+    return out;
+  })();
+
+  const filteredBookings = (() => {
+    let out = bookingOffers;
+    out = applyProjectFilterToBookings(out, selectedProjects);
+    out = applyMemberFilterToBookings(out, selectedMember);
+    out = applyDepartmentFilterToBookings(out, teamMembers, selectedDepartment);
+    return out;
+  })();
+
+  const filteredReleases = (() => {
+    let out = calendarReleases;
+    out = applyProjectFilterToReleases(out, selectedProjects);
+    return out;
+  })();
+
+  const filteredMilestones = (() => {
+    let out = calendarMilestones;
+    out = applyProjectFilterToMilestones(out, selectedProjects);
+    out = applyMemberFilterToMilestones(out, selectedMember);
+    out = applyDepartmentFilterToMilestones(out, teamMembers, selectedDepartment);
+    return out;
+  })();
+
+  const getEventsForDate = (date: Date) => {
+    return filteredEvents.filter((event) => isSameDay(new Date(event.start_date), date));
+  };
+
+  const getBookingOffersForDate = (date: Date) => {
+    return filteredBookings.filter((offer) => {
+      if (!offer.fecha) return false;
+      return isSameDay(new Date(offer.fecha), date);
+    });
+  };
+
   const getReleasesForDate = (date: Date) => {
     if (!showReleases) return [] as CalendarRelease[];
-    return calendarReleases.filter(r => r.release_date && isSameDay(new Date(r.release_date), date));
+    return filteredReleases.filter((r) => r.release_date && isSameDay(new Date(r.release_date), date));
   };
   const getMilestonesForDate = (date: Date) => {
     if (!showMilestones) return [] as CalendarMilestone[];
-    return calendarMilestones.filter(m => m.due_date && isSameDay(new Date(m.due_date), date));
+    return filteredMilestones.filter((m) => m.due_date && isSameDay(new Date(m.due_date), date));
   };
   
   const formatBookingTitle = (offer: any) => {
