@@ -66,11 +66,7 @@ export default function Calendar() {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<{
-    id: string;
-    full_name: string;
-    type?: 'workspace' | 'contact';
-  }[]>([]);
+  const [teamMembers, setTeamMembers] = useState<CalendarTeamMember[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isImporting, setIsImporting] = useState(false);
   const {
@@ -166,10 +162,15 @@ export default function Calendar() {
     if (profile && selectedArtists.length > 0) {
       fetchEvents();
       fetchBookingOffers();
-      fetchProjects();
       fetchTeamMembers();
     }
-  }, [profile, selectedArtists, selectedProjects, selectedDepartment, showMyCalendar, showAllEvents]);
+  }, [profile, selectedArtists, showMyCalendar, showAllEvents]);
+
+  // Reload projects when accessible/selected artists change so the dropdown only
+  // lists projects of artists the user can see.
+  useEffect(() => {
+    if (profile) fetchProjects();
+  }, [profile, selectedArtists, accessibleArtistIds]);
 
   // Scroll to 9 AM when week view is rendered
   useEffect(() => {
