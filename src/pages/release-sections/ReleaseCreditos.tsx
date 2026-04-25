@@ -841,22 +841,46 @@ export default function ReleaseCreditos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isRenumberConfirmOpen} onOpenChange={setIsRenumberConfirmOpen}>
+      <AlertDialog
+        open={isRenumberConfirmOpen}
+        onOpenChange={(o) => {
+          setIsRenumberConfirmOpen(o);
+          if (!o) setRenumberAcknowledged(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Renumerar pistas?</AlertDialogTitle>
             <AlertDialogDescription>
               Se reasignarán los números de pista como 1, 2, 3… respetando el orden actual de las canciones. Útil para corregir huecos (por ejemplo, si la lista empieza en 2).
-              {release?.status === 'released' && (
-                <span className="block mt-2 text-amber-600 font-medium">
-                  Este lanzamiento ya está publicado. Renumerar puede afectar a metadatos enviados a distribución.
-                </span>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {reorderImpact && (
+            <div className="my-2">
+              <ReorderImpactNotice impact={reorderImpact} action="renumerar" />
+            </div>
+          )}
+          {reorderImpact && !reorderImpact.blocked && (reorderImpact.publishedToDistro || reorderImpact.pitches > 0 || reorderImpact.draftContracts > 0) && (
+            <label className="flex items-start gap-2 text-sm cursor-pointer mt-1">
+              <Checkbox
+                checked={renumberAcknowledged}
+                onCheckedChange={(v) => setRenumberAcknowledged(v === true)}
+              />
+              <span>Entiendo las consecuencias y quiero continuar.</span>
+            </label>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isRenumbering}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRenumber} disabled={isRenumbering}>
+            <AlertDialogAction
+              onClick={handleRenumber}
+              disabled={
+                isRenumbering ||
+                !!reorderImpact?.blocked ||
+                (!!reorderImpact && !reorderImpact.blocked &&
+                  (reorderImpact.publishedToDistro || reorderImpact.pitches > 0 || reorderImpact.draftContracts > 0) &&
+                  !renumberAcknowledged)
+              }
+            >
               {isRenumbering ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
