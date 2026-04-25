@@ -214,3 +214,76 @@ export function applyDepartmentFilterToMilestones<T extends FilterableMilestone>
   if (deptNames.size === 0) return [];
   return items.filter((m) => deptNames.has((m.responsible || '').trim().toLowerCase()));
 }
+
+// ----- Cross-filter cascade helpers -----
+
+/**
+ * Members visible given a selection of artists. A member with no artist links
+ * (e.g. workspace-wide management) is always visible — they aren't tied to any
+ * specific roster.
+ */
+export function filterMembersByArtists(
+  members: CalendarTeamMember[],
+  artistIds: string[],
+): CalendarTeamMember[] {
+  if (artistIds.length === 0) return members;
+  const set = new Set(artistIds);
+  return members.filter((m) => {
+    const links = m.artist_ids || [];
+    if (links.length === 0) return true;
+    return links.some((id) => set.has(id));
+  });
+}
+
+/** List of departments (team_category values) present in the given member set. */
+export function departmentsFromMembers(members: CalendarTeamMember[]): string[] {
+  const set = new Set<string>();
+  members.forEach((m) => {
+    if (m.team_category) set.add(m.team_category);
+  });
+  return Array.from(set);
+}
+
+/**
+ * Sanitise filters after the artist selection changes (or members reload).
+ * Returns the next valid value for each dependent filter; callers compare and
+ * only `setState` if there's a real change to avoid render loops.
+ */
+export function pruneFilters(args: {
+  selectedProjects: string[];
+  selectedTeam: string; // 'all' | memberId
+  selectedDepartment: string; // 'all' | category
+  members: CalendarTeamMember[];
+  visibleMembers: CalendarTeamMember[];
+  projectArtistMap: Map<string, string>;
+  selectedArtists: string[];
+}): {
+  projects: string[];
+  team: string;
+  department: string;
+} {
+  const { selectedProjects, selectedTeam, selectedDepartment, visibleMembers, projectArtistMap, selectedArtists } = args;
+
+  // Projects: keep only those whose artist is still selected (when artists are filtered).
+  let projects = selectedProjects;
+  if (selectedArtists.length > 0) {
+    const artistSet = new Set(selectedArtists);
+    projects = selectedProjects.filter((pid) => {
+      const aid = projectArtistMap.get(pid);
+      return aid ? artistSet.has(aid) : false;
+    });
+  }
+
+  // Team: reset if the selected member is no longer visible.
+  const team = selectedTeam === 'all' || visibleMembers.some((m) => m.id === selectedTeam)
+    ? selectedTeam
+    : 'all';
+
+  // Department: reset if no visible member belongs to it anymore.
+  const visibleDepts = new Set(visibleMembers.map((m) => m.team_category).filter(Boolean) as string[]);
+  const department = selectedDepartment === 'all' || visibleDepts.has(selectedDepartment)
+    ? selectedDepartment
+    : 'all';
+
+  return { projects, team, department };
+}
