@@ -1,51 +1,66 @@
-## Diagnóstico
+## Qué aparece hoy en el calendario
 
-Los dos conciertos `facturado` de PLAYGRXVND existen en BD (verificado vía SQL):
-- `2026-02-19` Barcelona, CurtCircuit — `estado=facturado`, `phase=facturado`
-- `2026-03-27` Barcelona, CurtCircuit — `estado=facturado`, `phase=facturado`
+Actualmente el calendario (`/agenda`) muestra dos fuentes de datos:
 
-El filtro `.or(estado.in..., phase.in...)` ya incluye `facturado`, así que **ese no es el problema**. El bug real está en el filtro por artista.
+1. **Eventos genéricos** (tabla `events`): creados manualmente desde el botón "+ Nuevo evento" o importados desde CSV / Google Calendar / Solicitudes. Pueden tener tipo libre (reunión, viaje, ensayo, personal…).
+2. **Booking offers** (tabla `booking_offers`): conciertos del módulo de Booking en cualquier fase relevante (Interés → Cerrado, incluyendo Realizado y Facturado). Se pintan con icono 🎤.
 
-### Causa raíz (`src/pages/Calendar.tsx`)
+Filtros disponibles: por artista, por proyecto, por equipo/departamento, "Mi calendario", "Ver todo".
 
-**Línea 101** inicializa el filtro de artistas con el ID del perfil del usuario, no con artist_ids:
-```ts
-setSelectedArtists([profile.id]);  // profile.id NO es un artist_id
-```
+Está previsto pero **no implementado todavía**:
+- Lanzamientos (releases) y sus hitos del cronograma (milestones).
+- Deadlines de pitch a distribuidoras.
+- Eventos de marketing del lanzamiento.
+- Pagos / vencimientos financieros.
 
-**Línea 332/342** en `fetchBookingOffers`:
-```ts
-const artistFilter = selectedArtists.length > 0 ? selectedArtists : (profile ? [profile.id] : []);
-...
-.in('artist_id', artistFilter)
-```
+---
 
-Resultado: por defecto se filtra `artist_id IN (profile.id)` que nunca matchea → **0 bookings se muestran hasta que el usuario seleccione manualmente un artista en el toolbar**. Aunque PLAYGRXVND esté seleccionado, si el usuario no abrió el filtro y eligió explícitamente, la lista está vacía. Esto también afecta al fetch de `events` (línea 153, 182) con el mismo error conceptual.
+## Propuesta: integrar Releases en el calendario
 
-## Solución
+Añadir los lanzamientos como una **nueva capa visual** del calendario, siguiendo el mismo patrón que ya usamos para `booking_offers`.
 
-Resolver los `artist_ids` reales a los que el usuario tiene acceso (vía `artist_role_bindings`) y usarlos como default en lugar de `profile.id`.
+### Qué se mostrará
 
-### Cambios en `src/pages/Calendar.tsx`
+Tres tipos de marcadores nuevos, visualmente diferenciados:
 
-1. **Cargar artistas accesibles al montar**: nuevo `useEffect` que consulta `artist_role_bindings` por `user_id = auth.uid()` y guarda `accessibleArtistIds: string[]`.
-   - Para `active_role === 'management'`: además incluir todos los artistas del workspace (consulta a `artists` filtrado por `workspace_id` del perfil) para mantener visión global.
-2. **Inicialización de `selectedArtists`** (línea 100-103): usar `accessibleArtistIds` en lugar de `[profile.id]`.
-3. **Defaults en `fetchBookingOffers`** (línea 332) y **`fetchEvents`** (líneas 153, 182): cuando `selectedArtists` esté vacío, hacer fallback a `accessibleArtistIds`, no a `[profile.id]`.
-4. **Guard** de la query `.or` actual de `events` cuando `selectedArtists` está vacío (genera SQL inválido `artist_id.in.()`).
+1. **💿 Fecha de lanzamiento** (`releases.release_date`)
+   Color/badge propio (p. ej. violeta). Click → abre el detalle del release.
+2. **🎯 Hitos del cronograma** (`release_milestones.due_date`)
+   Master, artwork, entrega a distribuidora, pre-save, etc. Color según `status` (pendiente / en progreso / completado / retrasado).
+3. **📨 Deadline de pitch** (`releases.pitch_deadline`) — opcional, si está definido.
 
-### Validación / seguridad
+Filtrables mediante un nuevo toggle en la barra de filtros: **"Mostrar lanzamientos"** (activo por defecto) con sub-opciones para hitos y pitch.
 
-- Las consultas usan parámetros de Supabase (sin concatenación de texto SQL crudo en zona sensible — el `.or(...)` de events ya concatenaba `selectedArtists.join(',')` con UUIDs validados por el backend, mantenemos ese patrón pero garantizamos array no vacío).
-- RLS de `booking_offers` y `events` sigue aplicándose: solo se devuelven filas a las que el usuario tiene acceso, así que ampliar el default no expone datos extra.
-- Edge case: usuario sin artistas asignados → `accessibleArtistIds=[]` → no se ejecuta query (igual que hoy con `length === 0`).
+### Cómo se integran con los filtros existentes
 
-## Resultado esperado
+- Se respetan los **artistas seleccionados** (los releases tienen `artist_id` y soportan multi-artista vía `release_artists`).
+- Se respeta el filtro **"Mi calendario"**: solo se muestran si el usuario tiene acceso al artista (mismas reglas RBAC que ya usamos).
+- Aparecen en las vistas **Semana, Mes y Año**.
 
-Al entrar a `/calendar` sin tocar filtros, aparecerán todos los bookings (incluidos los `facturado` de PLAYGRXVND del 19/2 y 27/3) de los artistas a los que el usuario tiene acceso.
+### UX / Interacciones
 
-## Archivos a tocar
+- Click en un release → popover con título, tipo (Album/EP/Single), artista, estado y enlace "Abrir lanzamiento".
+- Click en un hito → popover con título del hito, release al que pertenece, responsable y estado, con enlace al cronograma.
+- Los releases en estado `archived` se ocultan por defecto.
 
-- `src/pages/Calendar.tsx` — añadir hook de carga de `accessibleArtistIds`, cambiar inicialización y fallbacks (≈4 puntos de edición).
+### Tareas técnicas
 
-Sin cambios de BD, RLS ni UI.
+1. **Hook nuevo** `useCalendarReleases.ts`:
+   - Carga `releases` (campos: id, title, type, release_date, status, artist_id, cover_image_url) filtrados por `accessibleArtistIds`.
+   - Carga `release_milestones` con `due_date` no nulo, filtrados por `release_id` de los releases accesibles.
+   - Devuelve dos arrays normalizados.
+2. **`Calendar.tsx`**: añadir estado `releases`, `milestones` y toggles `showReleases` / `showMilestones`. Llamar al hook tras conocer `accessibleArtistIds`.
+3. **Helpers de render**: `getReleasesForDate`, `getMilestonesForDate`, análogos a `getBookingOffersForDate`.
+4. **Pintado en celdas** de Semana/Mes/Año: añadir badges con icono y color propios, debajo de los booking offers.
+5. **Popovers**: dos componentes pequeños `ReleaseDayPopover` y `MilestoneDayPopover` con enlace a `/releases/:id` y `/releases/:id?tab=cronograma`.
+6. **Filtro en `CalendarToolbar`**: añadir checkboxes "Lanzamientos" y "Hitos de cronograma".
+
+### Archivos a tocar
+
+- `src/hooks/useCalendarReleases.ts` (nuevo)
+- `src/pages/Calendar.tsx`
+- `src/components/calendar/CalendarToolbar.tsx`
+- `src/components/calendar/ReleaseDayPopover.tsx` (nuevo)
+- `src/components/calendar/MilestoneDayPopover.tsx` (nuevo)
+
+Sin cambios de base de datos — solo lectura de tablas existentes (`releases`, `release_milestones`).
