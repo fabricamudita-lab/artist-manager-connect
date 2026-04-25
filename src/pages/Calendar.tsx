@@ -26,6 +26,19 @@ import { useCalendarReleases, type CalendarRelease, type CalendarMilestone } fro
 import { ReleaseDayPopover } from '@/components/calendar/ReleaseDayPopover';
 import { MilestoneDayPopover } from '@/components/calendar/MilestoneDayPopover';
 import { Disc3, Target } from 'lucide-react';
+import {
+  applyProjectFilterToBookings,
+  applyProjectFilterToReleases,
+  applyProjectFilterToMilestones,
+  applyProjectFilterToEvents,
+  applyMemberFilterToEvents,
+  applyMemberFilterToBookings,
+  applyMemberFilterToMilestones,
+  applyDepartmentFilterToEvents,
+  applyDepartmentFilterToBookings,
+  applyDepartmentFilterToMilestones,
+  type CalendarTeamMember,
+} from '@/lib/calendar/filters';
 interface Event {
   id: string;
   title: string;
