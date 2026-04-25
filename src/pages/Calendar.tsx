@@ -178,10 +178,14 @@ export default function Calendar() {
   const fetchEvents = async () => {
     try {
       if (profile?.active_role === 'management') {
-        const {
-          data,
-          error
-        } = await supabase.from('events').select('*').or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`);
+        const artistIds = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
+        let query = supabase.from('events').select('*');
+        if (artistIds.length > 0) {
+          query = query.or(`created_by.eq.${profile.id},artist_id.in.(${artistIds.join(',')})`);
+        } else {
+          query = query.eq('created_by', profile.id);
+        }
+        const { data, error } = await query;
         if (error) {
           console.error('Error fetching events:', error);
         } else {
