@@ -50,7 +50,7 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
         // 1. Releases of accessible artists with a release_date and not archived
         const { data: directReleases, error: relErr } = await supabase
           .from('releases')
-          .select('id, title, type, release_date, status, artist_id, cover_image_url, pitch_deadline, artist:artists(name)')
+          .select('id, title, type, release_date, status, artist_id, project_id, cover_image_url, pitch_deadline, artist:artists(name)')
           .in('artist_id', artistIds)
           .neq('status', 'archived')
           .not('release_date', 'is', null);
@@ -71,7 +71,7 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
           if (missing.length > 0) {
             const { data } = await supabase
               .from('releases')
-              .select('id, title, type, release_date, status, artist_id, cover_image_url, pitch_deadline, artist:artists(name)')
+              .select('id, title, type, release_date, status, artist_id, project_id, cover_image_url, pitch_deadline, artist:artists(name)')
               .in('id', missing)
               .neq('status', 'archived')
               .not('release_date', 'is', null);
