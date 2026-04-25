@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderKanban, UserCircle, ChevronLeft, ChevronRight, Building, Disc3, Target, Check } from 'lucide-react';
+import { FolderKanban, ChevronLeft, ChevronRight, Disc3, Target, Check } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -96,20 +96,17 @@ export function CalendarToolbar({
   const departmentList = departments ?? TEAM_CATEGORIES;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card border rounded-lg">
-      {/* Left: Inline filters */}
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Left: Inline filters — same look & feel as Discografía */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Artists */}
-        <div className="flex items-center gap-1.5">
-          <Users className="h-3.5 w-3.5 text-muted-foreground" />
-          <div className="min-w-[180px]">
-            <ArtistSelector
-              selectedArtists={selectedArtists}
-              onSelectionChange={setSelectedArtists}
-              placeholder="Todos los artistas"
-              showSelfOption={true}
-            />
-          </div>
+        <div className="w-[180px]">
+          <ArtistSelector
+            selectedArtists={selectedArtists}
+            onSelectionChange={setSelectedArtists}
+            placeholder="Todos los artistas"
+            showSelfOption={true}
+          />
         </div>
 
         {/* Projects — multi-select */}
@@ -117,14 +114,11 @@ export function CalendarToolbar({
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              size="sm"
-              className="h-8 gap-2 text-sm font-normal min-w-[170px] justify-between"
+              className="w-[180px] justify-between font-normal"
               disabled={projects.length === 0}
             >
-              <span className="flex items-center gap-1.5 truncate">
-                <FolderKanban className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="truncate">{projectButtonLabel}</span>
-              </span>
+              <span className="truncate">{projectButtonLabel}</span>
+              <FolderKanban className="h-4 w-4 opacity-50 shrink-0" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-0" align="start">
@@ -173,8 +167,7 @@ export function CalendarToolbar({
 
         {/* Team Members */}
         <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-          <SelectTrigger className="h-8 text-sm min-w-[170px] gap-1.5">
-            <UserCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Todos los miembros" />
           </SelectTrigger>
           <SelectContent>
@@ -195,8 +188,7 @@ export function CalendarToolbar({
 
         {/* Department */}
         <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-          <SelectTrigger className="h-8 text-sm min-w-[160px] gap-1.5">
-            <Building className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Todos los departamentos" />
           </SelectTrigger>
           <SelectContent>
@@ -216,30 +208,30 @@ export function CalendarToolbar({
         </Select>
 
         {/* Divider */}
-        <div className="h-6 w-px bg-border mx-1" aria-hidden="true" />
+        <div className="h-8 w-px bg-border mx-1" aria-hidden="true" />
 
         {/* Layers */}
-        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none px-2">
           <Checkbox checked={showReleases} onCheckedChange={(v) => setShowReleases?.(!!v)} />
           <Disc3 className="h-3.5 w-3.5 text-violet-500" />
           <span>Lanzamientos</span>
         </label>
-        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none px-2">
           <Checkbox checked={showMilestones} onCheckedChange={(v) => setShowMilestones?.(!!v)} />
           <Target className="h-3.5 w-3.5 text-emerald-500" />
           <span>Hitos</span>
         </label>
       </div>
 
-      {/* Right: Views & Navigation */}
+      {/* Right: Navigation */}
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onNavigate('prev')}>
+        <Button variant="outline" size="icon" onClick={() => onNavigate('prev')}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="sm" onClick={onGoToToday}>
+        <Button variant="outline" onClick={onGoToToday}>
           Hoy
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onNavigate('next')}>
+        <Button variant="outline" size="icon" onClick={() => onNavigate('next')}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
