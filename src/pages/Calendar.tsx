@@ -113,11 +113,12 @@ export default function Calendar() {
         bindings?.forEach((b: any) => b.artist_id && ids.add(b.artist_id));
 
         // 2. For management role: include all artists in the workspace
-        if (profile.active_role === 'management' && profile.workspace_id) {
+        const wsId = (profile as any).workspace_id;
+        if (profile.active_role === 'management' && wsId) {
           const { data: wsArtists } = await supabase
             .from('artists')
             .select('id')
-            .eq('workspace_id', profile.workspace_id);
+            .eq('workspace_id', wsId);
           wsArtists?.forEach((a: any) => a.id && ids.add(a.id));
         }
 
