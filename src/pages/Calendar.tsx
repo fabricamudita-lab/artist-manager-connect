@@ -1139,7 +1139,7 @@ export default function Calendar() {
       <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
       {/* Unified Toolbar */}
-      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} showReleases={showReleases} setShowReleases={setShowReleases} showMilestones={showMilestones} setShowMilestones={setShowMilestones} />
+      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={visibleMembers} departments={visibleDepartments} showReleases={showReleases} setShowReleases={setShowReleases} showMilestones={showMilestones} setShowMilestones={setShowMilestones} />
 
       {/* Create Event Dialog V2 */}
       <CreateEventDialogV2 open={shouldOpenCreateDialog} onOpenChange={open => {
