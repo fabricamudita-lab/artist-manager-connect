@@ -37,8 +37,11 @@ import {
   applyDepartmentFilterToEvents,
   applyDepartmentFilterToBookings,
   applyDepartmentFilterToMilestones,
+  filterMembersByArtists,
+  pruneFilters,
   type CalendarTeamMember,
 } from '@/lib/calendar/filters';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 interface Event {
   id: string;
   title: string;
@@ -302,7 +305,6 @@ export default function Calendar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's workspace
       const { data: profileData } = await supabase
         .from('profiles')
         .select('workspace_id')
@@ -312,7 +314,6 @@ export default function Calendar() {
       const allMembers: CalendarTeamMember[] = [];
       const wsId = profileData?.workspace_id as string | undefined;
 
-      // Workspace members (with their team_category = department)
       if (wsId) {
         const { data: memberships } = await supabase
           .from('workspace_memberships')
@@ -321,22 +322,39 @@ export default function Calendar() {
 
         if (memberships && memberships.length > 0) {
           const userIds = memberships.map((m: any) => m.user_id);
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('user_id, full_name, stage_name')
-            .in('user_id', userIds);
+
+          const [{ data: profiles }, { data: bindings }] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('user_id, full_name, stage_name')
+              .in('user_id', userIds),
+            supabase
+              .from('artist_role_bindings')
+              .select('user_id, artist_id')
+              .in('user_id', userIds),
+          ]);
+
           const deptByUser = new Map(memberships.map((m: any) => [m.user_id, m.team_category]));
+          const artistsByUser = new Map<string, string[]>();
+          (bindings || []).forEach((b: any) => {
+            if (!b.user_id || !b.artist_id) return;
+            const arr = artistsByUser.get(b.user_id) || [];
+            arr.push(b.artist_id);
+            artistsByUser.set(b.user_id, arr);
+          });
+
           (profiles || []).forEach((p: any) => {
             allMembers.push({
               id: p.user_id,
               full_name: p.stage_name || p.full_name || 'Sin nombre',
               type: 'workspace',
               team_category: deptByUser.get(p.user_id) ?? null,
+              artist_ids: artistsByUser.get(p.user_id) || [],
             });
           });
         }
 
-        // Workspace-wide team contacts (not just current user's). Collaborators excluded.
+        // Workspace-wide team contacts. Collaborators excluded.
         const { data: contacts } = await supabase
           .from('contacts')
           .select('id, name, stage_name, category, field_config, artist_id')
@@ -350,11 +368,11 @@ export default function Calendar() {
             full_name: c.stage_name || c.name || 'Sin nombre',
             type: 'contact',
             team_category: c.category ?? null,
+            artist_ids: c.artist_id ? [c.artist_id] : [],
           });
         });
       }
 
-      // Deduplicate by id
       const seen = new Set<string>();
       const unique = allMembers.filter((m) => {
         if (seen.has(m.id)) return false;
@@ -428,6 +446,32 @@ export default function Calendar() {
     projects.forEach((p: any) => p?.id && p?.artist_id && m.set(p.id, p.artist_id));
     return m;
   })();
+
+  // Cascade: members visible given the artist selection (and visible departments).
+  const visibleMembers = filterMembersByArtists(teamMembers, selectedArtists);
+  const visibleDepartments = TEAM_CATEGORIES.filter((cat) =>
+    visibleMembers.some((m) => m.team_category === cat.value),
+  );
+
+  // Sync: when the artist selection (or members) changes, prune dependent filters
+  // that no longer match. Compares values to avoid render loops.
+  useEffect(() => {
+    const next = pruneFilters({
+      selectedProjects,
+      selectedTeam,
+      selectedDepartment,
+      members: teamMembers,
+      visibleMembers,
+      projectArtistMap,
+      selectedArtists,
+    });
+    if (next.projects.length !== selectedProjects.length || next.projects.some((p, i) => p !== selectedProjects[i])) {
+      setSelectedProjects(next.projects);
+    }
+    if (next.team !== selectedTeam) setSelectedTeam(next.team);
+    if (next.department !== selectedDepartment) setSelectedDepartment(next.department);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedArtists, teamMembers, projects]);
 
   const selectedMember =
     selectedTeam !== 'all' ? teamMembers.find((m) => m.id === selectedTeam) || null : null;
@@ -1095,7 +1139,7 @@ export default function Calendar() {
       <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
       {/* Unified Toolbar */}
-      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} showReleases={showReleases} setShowReleases={setShowReleases} showMilestones={showMilestones} setShowMilestones={setShowMilestones} />
+      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={visibleMembers} departments={visibleDepartments} showReleases={showReleases} setShowReleases={setShowReleases} showMilestones={showMilestones} setShowMilestones={setShowMilestones} />
 
       {/* Create Event Dialog V2 */}
       <CreateEventDialogV2 open={shouldOpenCreateDialog} onOpenChange={open => {
