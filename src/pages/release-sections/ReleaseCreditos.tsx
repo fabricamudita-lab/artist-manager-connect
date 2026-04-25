@@ -802,19 +802,68 @@ export default function ReleaseCreditos() {
   );
 }
 
-function SortableTrackRow({ track }: { track: Track }) {
+function SortableTrackRow({
+  track,
+  totalTracks,
+  onNumberChange,
+}: {
+  track: Track;
+  totalTracks: number;
+  onNumberChange: (newPos: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id });
+  const [numberDraft, setNumberDraft] = useState<string>(String(track.track_number));
+
+  useEffect(() => {
+    setNumberDraft(String(track.track_number));
+  }, [track.track_number]);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const commit = () => {
+    const parsed = parseInt(numberDraft, 10);
+    if (Number.isNaN(parsed) || parsed === track.track_number) {
+      setNumberDraft(String(track.track_number));
+      return;
+    }
+    onNumberChange(parsed);
+  };
+
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-3 p-3 rounded-lg border bg-card cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-      <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
-      <span className="text-muted-foreground w-6">{track.track_number}.</span>
-      <span className="font-medium">{track.title}</span>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+    >
+      <div
+        className="cursor-grab active:cursor-grabbing flex items-center"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+      </div>
+      <Input
+        type="number"
+        min={1}
+        max={totalTracks}
+        value={numberDraft}
+        onChange={(e) => setNumberDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="h-8 w-16 text-center"
+        aria-label={`Número de pista para ${track.title}`}
+      />
+      <span className="font-medium flex-1">{track.title}</span>
     </div>
   );
 }
