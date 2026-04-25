@@ -302,7 +302,6 @@ export default function Calendar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's workspace
       const { data: profileData } = await supabase
         .from('profiles')
         .select('workspace_id')
@@ -312,7 +311,6 @@ export default function Calendar() {
       const allMembers: CalendarTeamMember[] = [];
       const wsId = profileData?.workspace_id as string | undefined;
 
-      // Workspace members (with their team_category = department)
       if (wsId) {
         const { data: memberships } = await supabase
           .from('workspace_memberships')
@@ -321,22 +319,39 @@ export default function Calendar() {
 
         if (memberships && memberships.length > 0) {
           const userIds = memberships.map((m: any) => m.user_id);
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('user_id, full_name, stage_name')
-            .in('user_id', userIds);
+
+          const [{ data: profiles }, { data: bindings }] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('user_id, full_name, stage_name')
+              .in('user_id', userIds),
+            supabase
+              .from('artist_role_bindings')
+              .select('user_id, artist_id')
+              .in('user_id', userIds),
+          ]);
+
           const deptByUser = new Map(memberships.map((m: any) => [m.user_id, m.team_category]));
+          const artistsByUser = new Map<string, string[]>();
+          (bindings || []).forEach((b: any) => {
+            if (!b.user_id || !b.artist_id) return;
+            const arr = artistsByUser.get(b.user_id) || [];
+            arr.push(b.artist_id);
+            artistsByUser.set(b.user_id, arr);
+          });
+
           (profiles || []).forEach((p: any) => {
             allMembers.push({
               id: p.user_id,
               full_name: p.stage_name || p.full_name || 'Sin nombre',
               type: 'workspace',
               team_category: deptByUser.get(p.user_id) ?? null,
+              artist_ids: artistsByUser.get(p.user_id) || [],
             });
           });
         }
 
-        // Workspace-wide team contacts (not just current user's). Collaborators excluded.
+        // Workspace-wide team contacts. Collaborators excluded.
         const { data: contacts } = await supabase
           .from('contacts')
           .select('id, name, stage_name, category, field_config, artist_id')
@@ -350,11 +365,11 @@ export default function Calendar() {
             full_name: c.stage_name || c.name || 'Sin nombre',
             type: 'contact',
             team_category: c.category ?? null,
+            artist_ids: c.artist_id ? [c.artist_id] : [],
           });
         });
       }
 
-      // Deduplicate by id
       const seen = new Set<string>();
       const unique = allMembers.filter((m) => {
         if (seen.has(m.id)) return false;
