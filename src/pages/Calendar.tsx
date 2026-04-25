@@ -214,7 +214,7 @@ export default function Calendar() {
           setEvents(filteredEvents);
         }
       } else {
-        const artistFilter = selectedArtists.length > 0 ? selectedArtists : [profile.id];
+        const artistFilter = selectedArtists.length > 0 ? selectedArtists : (accessibleArtistIds.length > 0 ? accessibleArtistIds : [profile.id]);
         const {
           data,
           error
