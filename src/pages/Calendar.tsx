@@ -101,6 +101,10 @@ export default function Calendar() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [selectedBookingOffer, setSelectedBookingOffer] = useState<any | null>(null);
   const [accessibleArtistIds, setAccessibleArtistIds] = useState<string[]>([]);
+  const [showReleases, setShowReleases] = useState(true);
+  const [showMilestones, setShowMilestones] = useState(true);
+  const [selectedRelease, setSelectedRelease] = useState<CalendarRelease | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = useState<CalendarMilestone | null>(null);
 
   // Load artist_ids the user has access to (real artists, not profile.id)
   useEffect(() => {
