@@ -37,8 +37,11 @@ import {
   applyDepartmentFilterToEvents,
   applyDepartmentFilterToBookings,
   applyDepartmentFilterToMilestones,
+  filterMembersByArtists,
+  pruneFilters,
   type CalendarTeamMember,
 } from '@/lib/calendar/filters';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 interface Event {
   id: string;
   title: string;
