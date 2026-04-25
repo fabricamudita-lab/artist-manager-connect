@@ -447,6 +447,32 @@ export default function Calendar() {
     return m;
   })();
 
+  // Cascade: members visible given the artist selection (and visible departments).
+  const visibleMembers = filterMembersByArtists(teamMembers, selectedArtists);
+  const visibleDepartments = TEAM_CATEGORIES.filter((cat) =>
+    visibleMembers.some((m) => m.team_category === cat.value),
+  );
+
+  // Sync: when the artist selection (or members) changes, prune dependent filters
+  // that no longer match. Compares values to avoid render loops.
+  useEffect(() => {
+    const next = pruneFilters({
+      selectedProjects,
+      selectedTeam,
+      selectedDepartment,
+      members: teamMembers,
+      visibleMembers,
+      projectArtistMap,
+      selectedArtists,
+    });
+    if (next.projects.length !== selectedProjects.length || next.projects.some((p, i) => p !== selectedProjects[i])) {
+      setSelectedProjects(next.projects);
+    }
+    if (next.team !== selectedTeam) setSelectedTeam(next.team);
+    if (next.department !== selectedDepartment) setSelectedDepartment(next.department);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedArtists, teamMembers, projects]);
+
   const selectedMember =
     selectedTeam !== 'all' ? teamMembers.find((m) => m.id === selectedTeam) || null : null;
 
