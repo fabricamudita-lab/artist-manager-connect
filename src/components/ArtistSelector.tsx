@@ -23,6 +23,7 @@ interface Artist {
   id: string;
   name: string;
   stage_name?: string;
+  artist_type?: string | null;
 }
 
 interface ArtistSelectorProps {
@@ -51,17 +52,25 @@ export function ArtistSelector({
 
   const fetchArtists = async () => {
     try {
-      console.log('Fetching artists from management...');
       const { data, error } = await supabase
         .from('artists')
-        .select('id, name, stage_name')
+        .select('id, name, stage_name, artist_type')
+        .neq('artist_type', 'collaborator')
         .order('name', { ascending: true });
-      
-      console.log('Artists fetched:', data, 'Error:', error);
-      
+
       if (error) throw error;
-      
-      setArtists(data || []);
+
+      // Deduplicate by display name (stage_name || name), keep first occurrence
+      const seen = new Set<string>();
+      const unique = (data || []).filter((a: any) => {
+        const key = (a.stage_name || a.name || '').trim().toLowerCase();
+        if (!key) return true;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      setArtists(unique);
     } catch (error) {
       console.error('Error fetching artists:', error);
     } finally {
