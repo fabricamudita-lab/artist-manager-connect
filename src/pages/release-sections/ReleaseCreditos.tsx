@@ -562,16 +562,29 @@ export default function ReleaseCreditos() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Canciones y Autoría</CardTitle>
-              {tracks && tracks.length > 1 && (
-                <Button
-                  variant={isReorderMode ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsReorderMode(!isReorderMode)}
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
-                  {isReorderMode ? 'Listo' : 'Cambiar orden'}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {tracks && tracks.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsRenumberConfirmOpen(true)}
+                    title="Reasignar números de pista como 1, 2, 3..."
+                  >
+                    <ListOrdered className="w-3.5 h-3.5 mr-1.5" />
+                    Renumerar
+                  </Button>
+                )}
+                {tracks && tracks.length > 1 && (
+                  <Button
+                    variant={isReorderMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setIsReorderMode(!isReorderMode)}
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
+                    {isReorderMode ? 'Listo' : 'Cambiar orden'}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             {isReorderMode && release?.status === 'released' && (
               <div className="mx-4 mb-2">
