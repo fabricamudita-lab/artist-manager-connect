@@ -23,6 +23,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useRelease, useTracks, useTrackCredits, Track, TrackCredit } from '@/hooks/useReleases';
 import { renumberTracks, reorderTracks } from '@/lib/releases/trackOrdering';
+import { getReorderImpact } from '@/lib/releases/trackOrderingGuards';
+import { useReorderImpact } from '@/hooks/useReorderImpact';
+import { ReorderImpactNotice } from '@/components/releases/ReorderImpactNotice';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -110,6 +115,8 @@ export default function ReleaseCreditos() {
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [isRenumberConfirmOpen, setIsRenumberConfirmOpen] = useState(false);
   const [isRenumbering, setIsRenumbering] = useState(false);
+  const [renumberAcknowledged, setRenumberAcknowledged] = useState(false);
+  const { data: reorderImpact } = useReorderImpact(id);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
   const { data: allReleaseCredits = [] } = useQuery({
@@ -448,10 +455,19 @@ export default function ReleaseCreditos() {
     if (!id) return;
     setIsRenumbering(true);
     try {
+      // Re-validar el impacto justo antes de actuar (race condition guard).
+      const fresh = await getReorderImpact(id);
+      if (fresh.blocked) {
+        toast.error('Hay contratos firmados que dependen del orden actual. No se puede renumerar.');
+        queryClient.invalidateQueries({ queryKey: ['reorder-impact', id] });
+        return;
+      }
       await renumberTracks(id);
       queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      queryClient.invalidateQueries({ queryKey: ['reorder-impact', id] });
       toast.success('Pistas renumeradas correctamente (1..N)');
       setIsRenumberConfirmOpen(false);
+      setRenumberAcknowledged(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Error al renumerar');
@@ -564,36 +580,62 @@ export default function ReleaseCreditos() {
               <CardTitle>Canciones y Autoría</CardTitle>
               <div className="flex items-center gap-2">
                 {tracks && tracks.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsRenumberConfirmOpen(true)}
-                    title="Reasignar números de pista como 1, 2, 3..."
-                  >
-                    <ListOrdered className="w-3.5 h-3.5 mr-1.5" />
-                    Renumerar
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={reorderImpact?.blocked ? 0 : -1}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!!reorderImpact?.blocked}
+                            onClick={() => setIsRenumberConfirmOpen(true)}
+                            title="Reasignar números de pista como 1, 2, 3..."
+                          >
+                            <ListOrdered className="w-3.5 h-3.5 mr-1.5" />
+                            Renumerar
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {reorderImpact?.blocked && (
+                        <TooltipContent>
+                          Bloqueado: hay {reorderImpact.signedContracts + reorderImpact.signedLicenses} documento(s) firmado(s) que dependen del orden actual.
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {tracks && tracks.length > 1 && (
-                  <Button
-                    variant={isReorderMode ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setIsReorderMode(!isReorderMode)}
-                  >
-                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
-                    {isReorderMode ? 'Listo' : 'Cambiar orden'}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={reorderImpact?.blocked && !isReorderMode ? 0 : -1}>
+                          <Button
+                            variant={isReorderMode ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={!isReorderMode && !!reorderImpact?.blocked}
+                            onClick={() => setIsReorderMode(!isReorderMode)}
+                          >
+                            <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
+                            {isReorderMode ? 'Listo' : 'Cambiar orden'}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {reorderImpact?.blocked && !isReorderMode && (
+                        <TooltipContent>
+                          Bloqueado por contratos firmados. Mira el detalle abajo.
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             </CardHeader>
-            {isReorderMode && release?.status === 'released' && (
+            {reorderImpact && (
               <div className="mx-4 mb-2">
-                <Alert className="border-amber-500/30 bg-amber-500/10">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertDescription className="text-sm">
-                    Este lanzamiento ya está publicado. Reordenar las canciones puede afectar a metadatos enviados a distribución.
-                  </AlertDescription>
-                </Alert>
+                <ReorderImpactNotice
+                  impact={reorderImpact}
+                  action={isReorderMode ? 'reordenar' : 'renumerar'}
+                />
               </div>
             )}
             {showCreditsBanner && (
@@ -799,22 +841,46 @@ export default function ReleaseCreditos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isRenumberConfirmOpen} onOpenChange={setIsRenumberConfirmOpen}>
+      <AlertDialog
+        open={isRenumberConfirmOpen}
+        onOpenChange={(o) => {
+          setIsRenumberConfirmOpen(o);
+          if (!o) setRenumberAcknowledged(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Renumerar pistas?</AlertDialogTitle>
             <AlertDialogDescription>
               Se reasignarán los números de pista como 1, 2, 3… respetando el orden actual de las canciones. Útil para corregir huecos (por ejemplo, si la lista empieza en 2).
-              {release?.status === 'released' && (
-                <span className="block mt-2 text-amber-600 font-medium">
-                  Este lanzamiento ya está publicado. Renumerar puede afectar a metadatos enviados a distribución.
-                </span>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {reorderImpact && (
+            <div className="my-2">
+              <ReorderImpactNotice impact={reorderImpact} action="renumerar" />
+            </div>
+          )}
+          {reorderImpact && !reorderImpact.blocked && (reorderImpact.publishedToDistro || reorderImpact.pitches > 0 || reorderImpact.draftContracts > 0) && (
+            <label className="flex items-start gap-2 text-sm cursor-pointer mt-1">
+              <Checkbox
+                checked={renumberAcknowledged}
+                onCheckedChange={(v) => setRenumberAcknowledged(v === true)}
+              />
+              <span>Entiendo las consecuencias y quiero continuar.</span>
+            </label>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isRenumbering}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRenumber} disabled={isRenumbering}>
+            <AlertDialogAction
+              onClick={handleRenumber}
+              disabled={
+                isRenumbering ||
+                !!reorderImpact?.blocked ||
+                (!!reorderImpact && !reorderImpact.blocked &&
+                  (reorderImpact.publishedToDistro || reorderImpact.pitches > 0 || reorderImpact.draftContracts > 0) &&
+                  !renumberAcknowledged)
+              }
+            >
               {isRenumbering ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
