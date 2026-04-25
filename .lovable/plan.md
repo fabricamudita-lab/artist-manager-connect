@@ -1,71 +1,75 @@
 ## Problema
 
-En `Créditos y Autoría` (`/releases/:id/creditos`) y en `Audio` (`/releases/:id/audio`) los tracks comparten el campo `tracks.track_number`. Hoy presenta dos defectos:
+En la captura los tracks aparecen como **2, continuuM** / **3, prisM** / **4, spectruM**. Falta el 1 porque en algún momento se borró un track antes de que existiera la renumeración automática, y nunca se ha vuelto a tocar la lista (ni borrado, ni reordenado), así que `renumberTracks` no se ha disparado.
 
-1. **Numeración con huecos**: al eliminar el track 1, los restantes mantienen 2, 3, 4 en lugar de renumerarse a 1, 2, 3.
-2. **No se puede reordenar**: el botón "Cambiar orden" solo aparece si `tracks.length > 1` **y** `release.status !== 'released'`. Si el lanzamiento está marcado como publicado, el botón desaparece y el usuario pierde la capacidad de reordenar (algo legítimo en muchos casos: corregir el orden tras la publicación).
+Hoy el usuario sólo tiene dos vías para arreglarlo:
+- Entrar en "Cambiar orden" y arrastrar (lo cual al guardar dispara `reorderTracks` → renumera a 1..N).
+- Borrar y recrear (peligroso).
 
-Ambas operaciones tocan la misma columna (`tracks.track_number`), conviven con `track_credits`, `track_artists`, `track_versions` y la sección Audio. No tocan auth ni el panel de usuario: las RLS existentes sobre `tracks` siguen siendo la autorización; sólo escribimos `track_number` y respetamos el `release_id` que ya filtra el query.
+Falta una acción **directa y explícita** para:
+1. Renumerar la lista completa a 1..N de un solo clic (arregla este caso exacto).
+2. Editar manualmente el número de un track concreto (por si el usuario quiere asignar un número específico, p. ej. mover el 4 a la posición 1).
 
 ## Solución
 
-### 1. Renumeración automática tras borrar (y tras crear)
+### 1. Botón "Renumerar (1..N)" junto a "Cambiar orden"
 
-Centralizar la lógica en una utilidad `renumberTracks(releaseId)` separada del componente:
+En la cabecera de "Canciones y Autoría" añadir un botón secundario **"Renumerar"** (icono `ListOrdered`). Al pulsarlo:
 
-- Carga todos los tracks del release **paginados** (`range(0, 999)` por bloque) ordenados por `track_number` ascendente.
-- Calcula el nuevo número secuencial 1..N.
-- Para los que cambian, ejecuta `UPDATE` en lote (`upsert` con `onConflict: 'id'`), todos dentro del mismo `release_id` validado por RLS.
-- Se invoca desde:
-  - el `onSuccess` real del `deleteTrack` (después del undo expirado),
-  - el final del `handleDragEnd` (refuerzo idempotente),
-  - opcionalmente tras crear si el formulario permitió un número manual con hueco.
+- Pide confirmación con `AlertDialog`: *"Se reasignarán los números de pista como 1, 2, 3… respetando el orden actual. ¿Continuar?"*.
+- Llama a `renumberTracks(releaseId)` (ya existe en `src/lib/releases/trackOrdering.ts`, hace exactamente esto de forma idempotente y con dos fases para evitar colisiones).
+- Invalida `['tracks', id]` y muestra toast de éxito.
 
-Ventaja: la UI nunca calcula nada, solo invalida `['tracks', id]`.
+Esto resuelve el caso de la captura con un único clic.
 
-### 2. Reordenar siempre disponible
+### 2. Edición manual del número de pista
 
-- Mantener el modo "Cambiar orden" con DnD (ya existe e integra `@dnd-kit`).
-- Quitar la restricción `release?.status !== 'released'` del botón. Mostrarlo siempre que haya `>= 2` tracks.
-- Si el release está `released`, mostrar al activar el modo un `Alert` ámbar: "Este lanzamiento ya está publicado. Reordenar puede afectar a metadatos enviados a distribución." El usuario puede continuar.
-- Reutilizar `handleDragEnd` actual, pero después del `Promise.all` llamar a `renumberTracks(releaseId)` para garantizar 1..N consecutivos.
+Dentro del modo **"Cambiar orden"** (que ya existe), junto a cada fila con el `GripVertical`, mostrar un input numérico pequeño (`w-16`, `type="number"`, min 1, max = total de tracks) con el `track_number` actual.
 
-### 3. Validación estricta y seguridad
+Comportamiento:
+- El usuario edita el número y pulsa Enter o sale del input (`onBlur`).
+- Validación con Zod: entero entre 1 y `tracks.length`. Si está fuera de rango → toast de error y revertir.
+- Internamente se traduce a un **reordenamiento**: se reconstruye el array de IDs colocando el track editado en la nueva posición y desplazando los demás, y se llama a `reorderTracks(releaseId, newOrder)` (ya existente). Esto garantiza siempre 1..N consecutivos sin huecos ni duplicados.
+- Si el usuario escribe un número ya ocupado, el otro track se desplaza (no se sobrescribe ni colisiona).
 
-Añadir Zod en la capa de datos (no en la UI):
+### 3. Capa de datos: nada nuevo
+
+`renumberTracks` y `reorderTracks` ya cubren todo lo necesario:
+- Validación Zod estricta (UUIDs, rango 1–999).
+- Escrituras parametrizadas (sin SQL concat → sin inyección).
+- Doble fase con offset +10000 para evitar colisiones de índice único.
+- Paginación de 1000 en 1000.
+- Idempotente: reintentar nunca corrompe el estado.
+
+Sólo añadimos una función helper local en el componente:
 
 ```ts
-const TrackNumberSchema = z.number().int().min(1).max(999);
-const ReorderInputSchema = z.object({
-  releaseId: z.string().uuid(),
-  orderedTrackIds: z.array(z.string().uuid()).min(1).max(500),
-});
+function moveTrackToPosition(tracks: Track[], trackId: string, newPos: number): string[] {
+  const ids = tracks.map(t => t.id);
+  const from = ids.indexOf(trackId);
+  if (from === -1) return ids;
+  const target = Math.max(1, Math.min(newPos, ids.length)) - 1;
+  ids.splice(target, 0, ids.splice(from, 1)[0]);
+  return ids;
+}
 ```
 
-- Toda escritura pasa por `supabase.from('tracks').update(...)` parametrizado → sin SQL string concat → sin inyección.
-- Los IDs se validan como UUID antes de ir al cliente.
-- Los textos (títulos, ISRC) ya se renderizan con React (escape automático) → sin XSS. ISRC se valida con regex `/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/i`.
+### 4. UX y avisos
 
-### 4. Edge cases cubiertos
-
-- Borrado del último track → no hay nada que renumerar.
-- Dos tracks con el mismo `track_number` por estado heredado → la renumeración los desempata por `created_at`.
-- Fallo de red a mitad del `Promise.all` → toast de error y refetch (no se queda en estado inconsistente porque la renumeración es idempotente al reintentar).
-- Release con cientos de tracks → la utilidad usa paginación de 1000 en 1000 (límite Supabase por defecto).
-- Undo del borrado → al restaurar el track vuelve con su número antiguo, así que `renumberTracks` se ejecuta también en el callback de "deshacer" para reabsorberlo correctamente.
-
-### 5. Separación de capas
-
-Crear `src/lib/releases/trackOrdering.ts` con:
-- `renumberTracks(releaseId: string): Promise<void>`
-- `reorderTracks(releaseId: string, orderedIds: string[]): Promise<void>`
-
-`ReleaseCreditos.tsx` y futuros consumidores (Audio, etc.) llaman a estas funciones puras. Cambiar de Supabase a otro backend mañana sólo afecta a este archivo.
+- Si el release está `released`, el aviso ámbar ya existente sobre "puede afectar a metadatos enviados a distribución" se muestra también al activar la edición manual (es la misma condición).
+- El botón **"Renumerar"** se muestra siempre que haya al menos 1 track. No requiere entrar en modo edición.
+- Tras renumerar, la cabecera de la lista refresca automáticamente vía React Query invalidation, así que los números se actualizan en pantalla sin recargar.
 
 ## Archivos a tocar
 
-- `src/lib/releases/trackOrdering.ts` (nuevo) — lógica + Zod.
-- `src/pages/release-sections/ReleaseCreditos.tsx` — quitar el guard de `status !== 'released'`, llamar a `renumberTracks` en `deleteTrack.onSuccess` y al final de `handleDragEnd`, mostrar el aviso si está released.
-- (Opcional) `src/pages/release-sections/ReleaseAudio.tsx` — solo consume `track_number`; al renumerarse en Créditos se refleja aquí automáticamente vía React Query invalidation.
+- `src/pages/release-sections/ReleaseCreditos.tsx`:
+  - Añadir botón "Renumerar" + `AlertDialog` de confirmación en la cabecera.
+  - Añadir input de número editable en cada fila del modo "Cambiar orden", con validación Zod y llamada a `reorderTracks`.
+  - Helper `moveTrackToPosition` local.
 
-No se requiere migración de base de datos ni cambios en RLS.
+No se requieren cambios en base de datos, RLS, hooks ni en `trackOrdering.ts`.
+
+## Resultado para el caso de la captura
+
+- Opción rápida: clic en **Renumerar** → confirmar → los tracks pasan a ser **1. continuuM / 2. prisM / 3. spectruM**.
+- Opción manual: entrar en "Cambiar orden", escribir `1` en el input de continuuM (o el orden que se quiera) → guarda y renumera consecutivamente.
