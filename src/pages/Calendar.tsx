@@ -420,31 +420,74 @@ export default function Calendar() {
       console.error('Error fetching booking offers:', error);
     }
   };
-  const getEventsForDate = (date: Date) => {
-    return events.filter(event => isSameDay(new Date(event.start_date), date));
-  };
-  
-  const getBookingOffersForDate = (date: Date) => {
-    return bookingOffers.filter(offer => {
-      if (!offer.fecha) return false;
-      return isSameDay(new Date(offer.fecha), date);
-    });
-  };
+  // ----- Project / member / department filters wiring -----
+  // Map projectId → artistId so we can derive the project filter for entities that
+  // don't have a native `project_id` (events, milestones via release).
+  const projectArtistMap = (() => {
+    const m = new Map<string, string>();
+    projects.forEach((p: any) => p?.id && p?.artist_id && m.set(p.id, p.artist_id));
+    return m;
+  })();
 
-  // Releases & milestones layer
+  const selectedMember =
+    selectedTeam !== 'all' ? teamMembers.find((m) => m.id === selectedTeam) || null : null;
+
+  // Releases & milestones layer (must be declared before the getters use it).
   const releaseArtistIds = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
   const { releases: calendarReleases, milestones: calendarMilestones } = useCalendarReleases({
     artistIds: releaseArtistIds,
     enabled: !!profile,
   });
 
+  // Apply project / member / department filters once, then memoize via the per-date getters.
+  const filteredEvents = (() => {
+    let out = events;
+    out = applyProjectFilterToEvents(out, selectedProjects, projectArtistMap);
+    out = applyMemberFilterToEvents(out, selectedMember);
+    out = applyDepartmentFilterToEvents(out, teamMembers, selectedDepartment);
+    return out;
+  })();
+
+  const filteredBookings = (() => {
+    let out = bookingOffers;
+    out = applyProjectFilterToBookings(out, selectedProjects);
+    out = applyMemberFilterToBookings(out, selectedMember);
+    out = applyDepartmentFilterToBookings(out, teamMembers, selectedDepartment);
+    return out;
+  })();
+
+  const filteredReleases = (() => {
+    let out = calendarReleases;
+    out = applyProjectFilterToReleases(out, selectedProjects);
+    return out;
+  })();
+
+  const filteredMilestones = (() => {
+    let out = calendarMilestones;
+    out = applyProjectFilterToMilestones(out, selectedProjects);
+    out = applyMemberFilterToMilestones(out, selectedMember);
+    out = applyDepartmentFilterToMilestones(out, teamMembers, selectedDepartment);
+    return out;
+  })();
+
+  const getEventsForDate = (date: Date) => {
+    return filteredEvents.filter((event) => isSameDay(new Date(event.start_date), date));
+  };
+
+  const getBookingOffersForDate = (date: Date) => {
+    return filteredBookings.filter((offer) => {
+      if (!offer.fecha) return false;
+      return isSameDay(new Date(offer.fecha), date);
+    });
+  };
+
   const getReleasesForDate = (date: Date) => {
     if (!showReleases) return [] as CalendarRelease[];
-    return calendarReleases.filter(r => r.release_date && isSameDay(new Date(r.release_date), date));
+    return filteredReleases.filter((r) => r.release_date && isSameDay(new Date(r.release_date), date));
   };
   const getMilestonesForDate = (date: Date) => {
     if (!showMilestones) return [] as CalendarMilestone[];
-    return calendarMilestones.filter(m => m.due_date && isSameDay(new Date(m.due_date), date));
+    return filteredMilestones.filter((m) => m.due_date && isSameDay(new Date(m.due_date), date));
   };
   
   const formatBookingTitle = (offer: any) => {
