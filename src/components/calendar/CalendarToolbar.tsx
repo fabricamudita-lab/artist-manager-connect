@@ -183,6 +183,21 @@ export function CalendarToolbar({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Layers: releases & milestones */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="text-xs text-muted-foreground">Capas adicionales</div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={showReleases} onCheckedChange={(v) => setShowReleases?.(!!v)} />
+                  <Disc3 className="h-3.5 w-3.5 text-violet-500" />
+                  Lanzamientos
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={showMilestones} onCheckedChange={(v) => setShowMilestones?.(!!v)} />
+                  <Target className="h-3.5 w-3.5 text-emerald-500" />
+                  Hitos del cronograma
+                </label>
+              </div>
             </div>
           </PopoverContent>
         </Popover>
