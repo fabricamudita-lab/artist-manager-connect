@@ -404,6 +404,22 @@ export default function Calendar() {
       return isSameDay(new Date(offer.fecha), date);
     });
   };
+
+  // Releases & milestones layer
+  const releaseArtistIds = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
+  const { releases: calendarReleases, milestones: calendarMilestones } = useCalendarReleases({
+    artistIds: releaseArtistIds,
+    enabled: !!profile,
+  });
+
+  const getReleasesForDate = (date: Date) => {
+    if (!showReleases) return [] as CalendarRelease[];
+    return calendarReleases.filter(r => r.release_date && isSameDay(new Date(r.release_date), date));
+  };
+  const getMilestonesForDate = (date: Date) => {
+    if (!showMilestones) return [] as CalendarMilestone[];
+    return calendarMilestones.filter(m => m.due_date && isSameDay(new Date(m.due_date), date));
+  };
   
   const formatBookingTitle = (offer: any) => {
     const eventName = offer.festival_ciclo || offer.venue || offer.lugar || 'Evento';
