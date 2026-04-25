@@ -275,14 +275,21 @@ export default function Calendar() {
   };
   const fetchProjects = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('projects').select('id, name, artist_id').order('name', {
-        ascending: true
-      });
+      // Restrict to artists the user can see (RBAC) — coherent with the artists filter.
+      const artistScope = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
+      if (artistScope.length === 0) {
+        setProjects([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, artist_id, is_folder')
+        .in('artist_id', artistScope)
+        .or('is_folder.is.null,is_folder.eq.false')
+        .order('name', { ascending: true });
       if (error) {
         console.error('Error fetching projects:', error);
+        setProjects([]);
       } else {
         setProjects(data || []);
       }
@@ -302,54 +309,59 @@ export default function Calendar() {
         .eq('user_id', user.id)
         .single();
 
-      const allMembers: { id: string; full_name: string; type?: 'workspace' | 'contact' }[] = [];
+      const allMembers: CalendarTeamMember[] = [];
+      const wsId = profileData?.workspace_id as string | undefined;
 
-      // Fetch workspace members
-      if (profileData?.workspace_id) {
+      // Workspace members (with their team_category = department)
+      if (wsId) {
         const { data: memberships } = await supabase
           .from('workspace_memberships')
-          .select('user_id')
-          .eq('workspace_id', profileData.workspace_id);
+          .select('user_id, team_category')
+          .eq('workspace_id', wsId);
 
         if (memberships && memberships.length > 0) {
-          const userIds = memberships.map(m => m.user_id);
+          const userIds = memberships.map((m: any) => m.user_id);
           const { data: profiles } = await supabase
             .from('profiles')
             .select('user_id, full_name, stage_name')
             .in('user_id', userIds);
-
-          if (profiles) {
-            profiles.forEach(p => {
-              allMembers.push({
-                id: p.user_id,
-                full_name: p.stage_name || p.full_name || 'Sin nombre',
-                type: 'workspace'
-              });
-            });
-          }
-        }
-      }
-
-      // Fetch team contacts
-      const { data: contacts } = await supabase
-        .from('contacts')
-        .select('id, name, stage_name, field_config')
-        .eq('created_by', user.id);
-
-      if (contacts) {
-        contacts.forEach(c => {
-          const config = c.field_config as Record<string, any> | null;
-          if (config?.is_team_member) {
+          const deptByUser = new Map(memberships.map((m: any) => [m.user_id, m.team_category]));
+          (profiles || []).forEach((p: any) => {
             allMembers.push({
-              id: c.id,
-              full_name: c.stage_name || c.name,
-              type: 'contact'
+              id: p.user_id,
+              full_name: p.stage_name || p.full_name || 'Sin nombre',
+              type: 'workspace',
+              team_category: deptByUser.get(p.user_id) ?? null,
             });
-          }
+          });
+        }
+
+        // Workspace-wide team contacts (not just current user's). Collaborators excluded.
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name, category, field_config, artist_id')
+          .neq('category', 'colaborador');
+
+        (contacts || []).forEach((c: any) => {
+          const config = c.field_config as Record<string, any> | null;
+          if (!config?.is_team_member) return;
+          allMembers.push({
+            id: c.id,
+            full_name: c.stage_name || c.name || 'Sin nombre',
+            type: 'contact',
+            team_category: c.category ?? null,
+          });
         });
       }
 
-      setTeamMembers(allMembers);
+      // Deduplicate by id
+      const seen = new Set<string>();
+      const unique = allMembers.filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+      setTeamMembers(unique);
     } catch (error) {
       console.error('Error fetching team members:', error);
     }
