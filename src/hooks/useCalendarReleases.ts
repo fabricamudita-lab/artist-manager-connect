@@ -8,6 +8,7 @@ export interface CalendarRelease {
   release_date: string;
   status: string;
   artist_id: string | null;
+  project_id: string | null;
   cover_image_url: string | null;
   pitch_deadline: string | null;
   artist?: { name: string } | null;
@@ -21,7 +22,7 @@ export interface CalendarMilestone {
   status: string;
   category: string | null;
   responsible: string | null;
-  release?: { id: string; title: string; artist_id: string | null } | null;
+  release?: { id: string; title: string; artist_id: string | null; project_id: string | null } | null;
 }
 
 interface Options {
