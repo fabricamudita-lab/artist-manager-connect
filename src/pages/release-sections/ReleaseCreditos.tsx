@@ -798,6 +798,35 @@ export default function ReleaseCreditos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isRenumberConfirmOpen} onOpenChange={setIsRenumberConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Renumerar pistas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se reasignarán los números de pista como 1, 2, 3… respetando el orden actual de las canciones. Útil para corregir huecos (por ejemplo, si la lista empieza en 2).
+              {release?.status === 'released' && (
+                <span className="block mt-2 text-amber-600 font-medium">
+                  Este lanzamiento ya está publicado. Renumerar puede afectar a metadatos enviados a distribución.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRenumbering}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRenumber} disabled={isRenumbering}>
+              {isRenumbering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Renumerando...
+                </>
+              ) : (
+                'Renumerar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
