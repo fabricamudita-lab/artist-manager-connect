@@ -1,31 +1,18 @@
-## Objetivo
+## Ocultar badges de artistas seleccionados en el calendario
 
-Convertir el botón "Filtrar" desplegable del calendario en una **fila horizontal de filtros siempre visibles**, sin perder ninguna funcionalidad existente (interconexión entre artistas, proyectos, equipo, departamento, multi-selección de proyectos, capas de lanzamientos e hitos).
+En la barra de filtros del calendario, debajo del selector "Todos los artistas" se están mostrando badges en violeta con cada artista seleccionado (Eudald Payés, PLAYGRXVND, etc.). Esa información ya aparece dentro del propio menú desplegable, así que sobra.
 
-## Cambios
+Como `ArtistSelector` es un componente compartido que se usa en otros módulos (donde sí queremos seguir viendo los badges), añadiré una opción para ocultarlos solo donde haga falta.
 
-### Archivo único: `src/components/calendar/CalendarToolbar.tsx`
+### Cambios
 
-Reestructurar el bloque "Left: Filters" para eliminar el `Popover` exterior "Filtrar" y mostrar todos los controles directamente en línea.
+1. **`src/components/ArtistSelector.tsx`**
+   - Añadir prop opcional `showSelectedBadges?: boolean` (por defecto `true`, para no romper el resto del proyecto).
+   - Renderizar el bloque de badges (`<div className="flex flex-wrap gap-1 mt-2">…`) solo cuando `showSelectedBadges` sea `true`.
 
-**Layout propuesto (responsive, con `flex-wrap`):**
+2. **`src/components/calendar/CalendarToolbar.tsx`**
+   - Pasar `showSelectedBadges={false}` al `<ArtistSelector />` de la barra de filtros del calendario.
 
-```text
-[Artistas ▾] [Proyectos ▾ (multi)] [Equipo ▾] [Departamento ▾] | ☑ Lanzamientos  ☑ Hitos
-```
+### Resultado
 
-- Cada control mantiene su icono pequeño (Users, FolderKanban, UserCircle, Building) como prefijo visual dentro del trigger, no como label superior.
-- Anchos compactos y consistentes (`h-8`, ancho mínimo ~160–200px) para que quepan en una sola fila en pantallas medianas/grandes y se envuelvan limpiamente en móvil gracias a `flex-wrap`.
-- Las "Capas adicionales" (Lanzamientos / Hitos) pasan a ser dos checkboxes inline al final, separadas por un divisor vertical sutil.
-- Se elimina el contador "Filtrar (1)" porque los filtros activos ya son visibles.
-- Se conserva intacta toda la lógica: `ArtistSelector`, popover interno de multi-selección de proyectos, `Select` de equipo y departamento, sincronización en cascada existente, y la lista pruneada por artista.
-
-**Contenedor exterior:**
-- Mantener el `flex flex-wrap items-center justify-between gap-3` actual del toolbar; los filtros ocuparán la zona izquierda y los controles de navegación (Hoy, ‹, ›) la derecha como hasta ahora.
-- En viewports estrechos (~865px del usuario), `flex-wrap` enviará controles a una segunda línea de forma natural.
-
-## Fuera de alcance
-
-- No se cambia la lógica de filtrado, ni el hook `useCalendarReleases`, ni `src/lib/calendar/filters.ts`.
-- No se tocan `Calendar.tsx` ni los popovers de hitos/lanzamientos.
-- No se modifica el esquema de base de datos (este cambio es puramente de presentación UI).
+En `/calendar` el filtro de artistas se queda como un único botón compacto ("Todos los artistas" / "N artistas seleccionados"), sin la lista de chips violetas debajo. El comportamiento del selector (multi-selección, "Todos los artistas", búsqueda) se mantiene intacto, y el resto de pantallas que usan `ArtistSelector` siguen mostrando los badges como hasta ahora.

@@ -32,6 +32,7 @@ interface ArtistSelectorProps {
   placeholder?: string;
   className?: string;
   showSelfOption?: boolean;
+  showSelectedBadges?: boolean;
 }
 
 export function ArtistSelector({ 
@@ -39,7 +40,8 @@ export function ArtistSelector({
   onSelectionChange, 
   placeholder = "Seleccionar artistas...",
   className,
-  showSelfOption = true 
+  showSelfOption = true,
+  showSelectedBadges = true,
 }: ArtistSelectorProps) {
   const [open, setOpen] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -176,7 +178,7 @@ export function ArtistSelector({
         </PopoverContent>
       </Popover>
       
-      {selectedArtists.length > 0 && (
+      {showSelectedBadges && selectedArtists.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {artists
             .filter(artist => selectedArtists.includes(artist.id))

@@ -106,6 +106,7 @@ export function CalendarToolbar({
             onSelectionChange={setSelectedArtists}
             placeholder="Todos los artistas"
             showSelfOption={true}
+            showSelectedBadges={false}
           />
         </div>
 
