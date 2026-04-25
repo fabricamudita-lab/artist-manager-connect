@@ -1,75 +1,90 @@
 ## Problema
 
-En la captura los tracks aparecen como **2, continuuM** / **3, prisM** / **4, spectruM**. Falta el 1 porque en algún momento se borró un track antes de que existiera la renumeración automática, y nunca se ha vuelto a tocar la lista (ni borrado, ni reordenado), así que `renumberTracks` no se ha disparado.
+El aviso actual ("puede afectar a metadatos enviados a distribución") es demasiado vago. El usuario no sabe:
+1. Qué metadatos cambian exactamente.
+2. Qué consecuencias reales tiene en distribución, contratos, splits, pitches o licencias.
+3. Cuándo es seguro hacerlo y cuándo no.
 
-Hoy el usuario sólo tiene dos vías para arreglarlo:
-- Entrar en "Cambiar orden" y arrastrar (lo cual al guardar dispara `reorderTracks` → renumera a 1..N).
-- Borrar y recrear (peligroso).
-
-Falta una acción **directa y explícita** para:
-1. Renumerar la lista completa a 1..N de un solo clic (arregla este caso exacto).
-2. Editar manualmente el número de un track concreto (por si el usuario quiere asignar un número específico, p. ej. mover el 4 a la posición 1).
+Además, si hay **contratos firmados** (licencias IP, splits firmados) que referencian un track con su número de pista, renumerar/reordenar puede invalidar esos documentos.
 
 ## Solución
 
-### 1. Botón "Renumerar (1..N)" junto a "Cambiar orden"
+### 1. Detección de bloqueos reales (capa de datos)
 
-En la cabecera de "Canciones y Autoría" añadir un botón secundario **"Renumerar"** (icono `ListOrdered`). Al pulsarlo:
-
-- Pide confirmación con `AlertDialog`: *"Se reasignarán los números de pista como 1, 2, 3… respetando el orden actual. ¿Continuar?"*.
-- Llama a `renumberTracks(releaseId)` (ya existe en `src/lib/releases/trackOrdering.ts`, hace exactamente esto de forma idempotente y con dos fases para evitar colisiones).
-- Invalida `['tracks', id]` y muestra toast de éxito.
-
-Esto resuelve el caso de la captura con un único clic.
-
-### 2. Edición manual del número de pista
-
-Dentro del modo **"Cambiar orden"** (que ya existe), junto a cada fila con el `GripVertical`, mostrar un input numérico pequeño (`w-16`, `type="number"`, min 1, max = total de tracks) con el `track_number` actual.
-
-Comportamiento:
-- El usuario edita el número y pulsa Enter o sale del input (`onBlur`).
-- Validación con Zod: entero entre 1 y `tracks.length`. Si está fuera de rango → toast de error y revertir.
-- Internamente se traduce a un **reordenamiento**: se reconstruye el array de IDs colocando el track editado en la nueva posición y desplazando los demás, y se llama a `reorderTracks(releaseId, newOrder)` (ya existente). Esto garantiza siempre 1..N consecutivos sin huecos ni duplicados.
-- Si el usuario escribe un número ya ocupado, el otro track se desplaza (no se sobrescribe ni colisiona).
-
-### 3. Capa de datos: nada nuevo
-
-`renumberTracks` y `reorderTracks` ya cubren todo lo necesario:
-- Validación Zod estricta (UUIDs, rango 1–999).
-- Escrituras parametrizadas (sin SQL concat → sin inyección).
-- Doble fase con offset +10000 para evitar colisiones de índice único.
-- Paginación de 1000 en 1000.
-- Idempotente: reintentar nunca corrompe el estado.
-
-Sólo añadimos una función helper local en el componente:
+Crear `src/lib/releases/trackOrderingGuards.ts` con una función pura `getReorderImpact(releaseId)` que devuelve un informe estructurado:
 
 ```ts
-function moveTrackToPosition(tracks: Track[], trackId: string, newPos: number): string[] {
-  const ids = tracks.map(t => t.id);
-  const from = ids.indexOf(trackId);
-  if (from === -1) return ids;
-  const target = Math.max(1, Math.min(newPos, ids.length)) - 1;
-  ids.splice(target, 0, ids.splice(from, 1)[0]);
-  return ids;
-}
+type ReorderImpact = {
+  blocked: boolean;          // hay firmas; bloqueamos por defecto
+  signedContracts: number;   // contract_drafts.status = 'signed' que referencian tracks del release
+  signedLicenses: number;    // ip_licenses firmadas vinculadas a tracks
+  pitches: number;           // pitches con track_id apuntando a tracks del release
+  publishedToDistro: boolean;// release.status = 'released' o distribución enviada
+  details: { trackId: string; title: string; refs: string[] }[];
+};
 ```
 
-### 4. UX y avisos
+- Validación Zod del `releaseId` (UUID).
+- Consulta paginada (bloques de 1000) sobre `tracks`, `contract_drafts`/`signed_contracts`, `ip_licenses`, `pitches` filtrando por `release_id` o `track_id IN (...)`.
+- Solo lectura, parametrizada (sin SQL concat → sin inyección).
+- Idempotente y testeable; la UI no toca Supabase directamente para esto.
 
-- Si el release está `released`, el aviso ámbar ya existente sobre "puede afectar a metadatos enviados a distribución" se muestra también al activar la edición manual (es la misma condición).
-- El botón **"Renumerar"** se muestra siempre que haya al menos 1 track. No requiere entrar en modo edición.
-- Tras renumerar, la cabecera de la lista refresca automáticamente vía React Query invalidation, así que los números se actualizan en pantalla sin recargar.
+### 2. Política de bloqueo
+
+- **Bloqueo duro** (botón Renumerar/Cambiar orden deshabilitado, con tooltip explicativo): si `signedContracts > 0` o `signedLicenses > 0`. Razón: esos documentos citan número de pista y artista; cambiarlos rompe la trazabilidad legal.
+- **Aviso fuerte (permitido tras confirmación explícita)**: si `release.status = 'released'` o hay pitches asociados. Es reversible.
+- **Sin aviso**: si nada de lo anterior aplica.
+
+### 3. UI: aviso claro con "Ver más"
+
+En `ReleaseCreditos.tsx`:
+
+- Sustituir el `Alert` ámbar y el texto del `AlertDialog` de Renumerar por un componente nuevo `<ReorderImpactNotice impact={impact} />` que muestra:
+  - Resumen de una línea: *"Hay 2 contratos firmados que citan números de pista. No se puede renumerar."* o *"Lanzamiento publicado: la renumeración puede afectar a metadatos enviados a distribución."*
+  - Botón **"Ver más"** que abre un `Collapsible` (o `Dialog` si la lista es larga) con:
+    - Qué metadatos cambian: `track_number` en la BD; afecta a la portada de distribución (orden), tracklist en pitches enviados, créditos en contratos generados, splits exportados, ficheros DDEX/CSV ya generados.
+    - Qué NO cambia: ISRC, título, audio, derechos.
+    - Lista de elementos vinculados: contratos firmados (con enlace), licencias IP, pitches, distribuidoras notificadas.
+    - Recomendación: *"Si el lanzamiento ya está en tiendas, contacta a tu distribuidora para reenviar el tracklist actualizado."*
+- Si `impact.blocked`: el botón Renumerar y la entrada al modo "Cambiar orden" quedan deshabilitados con tooltip explicando el motivo y enlazando al contrato bloqueante.
+- Si no está bloqueado pero hay impacto: el `AlertDialog` requiere checkbox *"Entiendo las consecuencias"* antes de habilitar el botón final.
+
+### 4. Separación de capas
+
+- **Datos** (`trackOrderingGuards.ts`, `trackOrdering.ts`): puro TypeScript + Supabase, validado con Zod, paginado.
+- **Hook** (`useReorderImpact(releaseId)`): React Query, cacheado por release.
+- **UI** (`ReleaseCreditos.tsx`, `ReorderImpactNotice.tsx`): solo presentación; recibe el impacto como prop.
+
+Esto permite reusar el guard desde otras pantallas (p.ej. acción "Eliminar track") y cambiar la fuente de datos sin tocar la UI.
+
+### 5. Compatibilidad con auth y panel de usuario
+
+- No se cambian roles ni permisos. La consulta respeta RLS existente: el usuario solo ve contratos/pitches a los que ya tiene acceso, así que el conteo de bloqueo es coherente con su contexto.
+- No se introducen rutas nuevas, no se toca `useAuth` ni el sidebar.
+
+### 6. Edge cases cubiertos
+
+- Release sin tracks → no se muestran botones (ya existente).
+- Release con tracks pero sin contratos/pitches → comportamiento actual sin avisos.
+- Tracks borrados con `undoableDelete` pendiente → el guard ignora tracks no presentes; la renumeración usa `loadAllTracks` ya paginado.
+- Fallo de red al cargar el impacto → botones deshabilitados con mensaje *"No se ha podido verificar el impacto"* y opción de reintentar (no permitir acción ciega).
+- Race condition: si entre cargar el impacto y confirmar aparece un nuevo contrato firmado, el guard se vuelve a ejecutar justo antes de `renumberTracks`/`reorderTracks` y aborta si `blocked` cambió a `true`.
 
 ## Archivos a tocar
 
-- `src/pages/release-sections/ReleaseCreditos.tsx`:
-  - Añadir botón "Renumerar" + `AlertDialog` de confirmación en la cabecera.
-  - Añadir input de número editable en cada fila del modo "Cambiar orden", con validación Zod y llamada a `reorderTracks`.
-  - Helper `moveTrackToPosition` local.
+- **Crear** `src/lib/releases/trackOrderingGuards.ts` — lógica pura de detección de impacto, Zod, paginación.
+- **Crear** `src/hooks/useReorderImpact.ts` — wrapper React Query.
+- **Crear** `src/components/releases/ReorderImpactNotice.tsx` — UI del aviso con "Ver más".
+- **Editar** `src/pages/release-sections/ReleaseCreditos.tsx`:
+  - Consumir `useReorderImpact`.
+  - Reemplazar los dos avisos ámbar y el `AlertDialog` de Renumerar por el nuevo componente + checkbox de confirmación.
+  - Deshabilitar botones cuando `impact.blocked`.
+  - Re-validar el impacto en el handler antes de ejecutar.
 
-No se requieren cambios en base de datos, RLS, hooks ni en `trackOrdering.ts`.
+No se requieren migraciones de BD ni cambios en RLS.
 
-## Resultado para el caso de la captura
+## Resultado para el usuario
 
-- Opción rápida: clic en **Renumerar** → confirmar → los tracks pasan a ser **1. continuuM / 2. prisM / 3. spectruM**.
-- Opción manual: entrar en "Cambiar orden", escribir `1` en el input de continuuM (o el orden que se quiera) → guarda y renumera consecutivamente.
+- Si tiene contratos firmados que citan tracks: ve **"No se puede renumerar: 2 contratos firmados dependen del orden actual"**, botón "Ver más" lista cuáles, y los botones quedan deshabilitados.
+- Si solo está publicado: ve un aviso claro con "Ver más" que explica exactamente qué metadatos cambian, qué hacer con la distribuidora, y debe marcar el checkbox para continuar.
+- Si nada está en riesgo: experiencia actual sin fricción.
