@@ -6,7 +6,7 @@ import { CreditNotesEditor } from '@/components/credits/CreditNotesEditor';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle, Calendar as CalendarIcon, ListOrdered } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -108,6 +108,8 @@ export default function ReleaseCreditos() {
   const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
   const [isExportingSplits, setIsExportingSplits] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isRenumberConfirmOpen, setIsRenumberConfirmOpen] = useState(false);
+  const [isRenumbering, setIsRenumbering] = useState(false);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
   const { data: allReleaseCredits = [] } = useQuery({
@@ -442,6 +444,47 @@ export default function ReleaseCreditos() {
     }
   };
 
+  const handleRenumber = async () => {
+    if (!id) return;
+    setIsRenumbering(true);
+    try {
+      await renumberTracks(id);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Pistas renumeradas correctamente (1..N)');
+      setIsRenumberConfirmOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Error al renumerar');
+    } finally {
+      setIsRenumbering(false);
+    }
+  };
+
+  const handleManualNumberChange = async (trackId: string, newPos: number) => {
+    if (!tracks || !id) return;
+    const PositionSchema = z.number().int().min(1).max(tracks.length);
+    const parsed = PositionSchema.safeParse(newPos);
+    if (!parsed.success) {
+      toast.error(`El número debe estar entre 1 y ${tracks.length}`);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      return;
+    }
+    const ids = tracks.map((t) => t.id);
+    const from = ids.indexOf(trackId);
+    if (from === -1) return;
+    const target = parsed.data - 1;
+    if (from === target) return;
+    ids.splice(target, 0, ids.splice(from, 1)[0]);
+    try {
+      await reorderTracks(id, ids);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Orden actualizado');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Error al actualizar el número');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -519,16 +562,29 @@ export default function ReleaseCreditos() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Canciones y Autoría</CardTitle>
-              {tracks && tracks.length > 1 && (
-                <Button
-                  variant={isReorderMode ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsReorderMode(!isReorderMode)}
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
-                  {isReorderMode ? 'Listo' : 'Cambiar orden'}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {tracks && tracks.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsRenumberConfirmOpen(true)}
+                    title="Reasignar números de pista como 1, 2, 3..."
+                  >
+                    <ListOrdered className="w-3.5 h-3.5 mr-1.5" />
+                    Renumerar
+                  </Button>
+                )}
+                {tracks && tracks.length > 1 && (
+                  <Button
+                    variant={isReorderMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setIsReorderMode(!isReorderMode)}
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
+                    {isReorderMode ? 'Listo' : 'Cambiar orden'}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             {isReorderMode && release?.status === 'released' && (
               <div className="mx-4 mb-2">
@@ -559,7 +615,12 @@ export default function ReleaseCreditos() {
                     <SortableContext items={tracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-1">
                         {tracks.map((track) => (
-                          <SortableTrackRow key={track.id} track={track} />
+                          <SortableTrackRow
+                            key={track.id}
+                            track={track}
+                            totalTracks={tracks.length}
+                            onNumberChange={(newPos) => handleManualNumberChange(track.id, newPos)}
+                          />
                         ))}
                       </div>
                     </SortableContext>
@@ -737,23 +798,101 @@ export default function ReleaseCreditos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isRenumberConfirmOpen} onOpenChange={setIsRenumberConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Renumerar pistas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se reasignarán los números de pista como 1, 2, 3… respetando el orden actual de las canciones. Útil para corregir huecos (por ejemplo, si la lista empieza en 2).
+              {release?.status === 'released' && (
+                <span className="block mt-2 text-amber-600 font-medium">
+                  Este lanzamiento ya está publicado. Renumerar puede afectar a metadatos enviados a distribución.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRenumbering}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRenumber} disabled={isRenumbering}>
+              {isRenumbering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Renumerando...
+                </>
+              ) : (
+                'Renumerar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function SortableTrackRow({ track }: { track: Track }) {
+function SortableTrackRow({
+  track,
+  totalTracks,
+  onNumberChange,
+}: {
+  track: Track;
+  totalTracks: number;
+  onNumberChange: (newPos: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id });
+  const [numberDraft, setNumberDraft] = useState<string>(String(track.track_number));
+
+  useEffect(() => {
+    setNumberDraft(String(track.track_number));
+  }, [track.track_number]);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const commit = () => {
+    const parsed = parseInt(numberDraft, 10);
+    if (Number.isNaN(parsed) || parsed === track.track_number) {
+      setNumberDraft(String(track.track_number));
+      return;
+    }
+    onNumberChange(parsed);
+  };
+
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-3 p-3 rounded-lg border bg-card cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-      <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
-      <span className="text-muted-foreground w-6">{track.track_number}.</span>
-      <span className="font-medium">{track.title}</span>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+    >
+      <div
+        className="cursor-grab active:cursor-grabbing flex items-center"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+      </div>
+      <Input
+        type="number"
+        min={1}
+        max={totalTracks}
+        value={numberDraft}
+        onChange={(e) => setNumberDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="h-8 w-16 text-center"
+        aria-label={`Número de pista para ${track.title}`}
+      />
+      <span className="font-medium flex-1">{track.title}</span>
     </div>
   );
 }
