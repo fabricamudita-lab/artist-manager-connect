@@ -22,7 +22,13 @@ export interface CalendarMilestone {
   status: string;
   category: string | null;
   responsible: string | null;
-  release?: { id: string; title: string; artist_id: string | null; project_id: string | null } | null;
+  notes: string | null;
+  metadata: Record<string, any> | null;
+  // Derived "phase" range for the milestone's category in this release.
+  phase_start: string | null;
+  phase_end: string | null;
+  phase_count: number;
+  release?: { id: string; title: string; artist_id: string | null; project_id: string | null; release_date: string | null } | null;
 }
 
 interface Options {
