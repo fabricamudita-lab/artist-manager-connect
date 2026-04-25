@@ -340,7 +340,7 @@ export default function Calendar() {
           artist_id, artists!booking_offers_artist_id_fkey(name, stage_name)
         `)
         .in('artist_id', artistFilter)
-        .or('estado.in.(confirmado,pendiente,negociacion,interes,oferta),phase.in.(interes,negociacion,preconfirmado,confirmado,realizado)');
+        .or('estado.in.(confirmado,pendiente,negociacion,interes,oferta,facturado,realizado,cerrado),phase.in.(interes,oferta,negociacion,preconfirmado,confirmado,realizado,facturado,cerrado)');
       
       if (error) {
         console.error('Error fetching booking offers:', error);
