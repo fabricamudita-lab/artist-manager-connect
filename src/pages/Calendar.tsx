@@ -1263,5 +1263,9 @@ export default function Calendar() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Release & milestone popovers */}
+      <ReleaseDayPopover release={selectedRelease} open={!!selectedRelease} onOpenChange={(o) => !o && setSelectedRelease(null)} />
+      <MilestoneDayPopover milestone={selectedMilestone} open={!!selectedMilestone} onOpenChange={(o) => !o && setSelectedMilestone(null)} />
     </div>;
 }
