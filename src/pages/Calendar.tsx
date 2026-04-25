@@ -96,10 +96,41 @@ export default function Calendar() {
   const [savedPopupPositions, setSavedPopupPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [selectedBookingOffer, setSelectedBookingOffer] = useState<any | null>(null);
+  const [accessibleArtistIds, setAccessibleArtistIds] = useState<string[]>([]);
+
+  // Load artist_ids the user has access to (real artists, not profile.id)
   useEffect(() => {
-    if (profile) {
-      setSelectedArtists([profile.id]);
-    }
+    const loadAccessibleArtists = async () => {
+      if (!profile) return;
+      try {
+        const ids = new Set<string>();
+
+        // 1. Artists via role bindings
+        const { data: bindings } = await supabase
+          .from('artist_role_bindings')
+          .select('artist_id')
+          .eq('user_id', profile.user_id);
+        bindings?.forEach((b: any) => b.artist_id && ids.add(b.artist_id));
+
+        // 2. For management role: include all artists in the workspace
+        const wsId = (profile as any).workspace_id;
+        if (profile.active_role === 'management' && wsId) {
+          const { data: wsArtists } = await supabase
+            .from('artists')
+            .select('id')
+            .eq('workspace_id', wsId);
+          wsArtists?.forEach((a: any) => a.id && ids.add(a.id));
+        }
+
+        const arr = Array.from(ids);
+        setAccessibleArtistIds(arr);
+        // Initialize selection with all accessible artists by default
+        setSelectedArtists(prev => (prev.length === 0 ? arr : prev));
+      } catch (err) {
+        console.error('Error loading accessible artists:', err);
+      }
+    };
+    loadAccessibleArtists();
   }, [profile]);
   useEffect(() => {
     // Check if we should create an event from solicitud
@@ -147,10 +178,14 @@ export default function Calendar() {
   const fetchEvents = async () => {
     try {
       if (profile?.active_role === 'management') {
-        const {
-          data,
-          error
-        } = await supabase.from('events').select('*').or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`);
+        const artistIds = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
+        let query = supabase.from('events').select('*');
+        if (artistIds.length > 0) {
+          query = query.or(`created_by.eq.${profile.id},artist_id.in.(${artistIds.join(',')})`);
+        } else {
+          query = query.eq('created_by', profile.id);
+        }
+        const { data, error } = await query;
         if (error) {
           console.error('Error fetching events:', error);
         } else {
@@ -179,7 +214,7 @@ export default function Calendar() {
           setEvents(filteredEvents);
         }
       } else {
-        const artistFilter = selectedArtists.length > 0 ? selectedArtists : [profile.id];
+        const artistFilter = selectedArtists.length > 0 ? selectedArtists : (accessibleArtistIds.length > 0 ? accessibleArtistIds : [profile.id]);
         const {
           data,
           error
@@ -329,7 +364,7 @@ export default function Calendar() {
   };
   const fetchBookingOffers = async () => {
     try {
-      const artistFilter = selectedArtists.length > 0 ? selectedArtists : (profile ? [profile.id] : []);
+      const artistFilter = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
       if (artistFilter.length === 0) return;
       
       const { data, error } = await supabase
