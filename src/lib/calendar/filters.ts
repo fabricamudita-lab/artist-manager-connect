@@ -16,6 +16,7 @@ export type CalendarTeamMember = {
   full_name: string;
   type?: 'workspace' | 'contact';
   team_category?: string | null; // workspace_memberships.team_category | contacts.category
+  artist_ids?: string[]; // artists this member is linked to (role bindings or contact.artist_id)
 };
 
 export type FilterableEvent = {
