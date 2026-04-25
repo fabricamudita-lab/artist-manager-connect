@@ -364,7 +364,7 @@ export default function Calendar() {
   };
   const fetchBookingOffers = async () => {
     try {
-      const artistFilter = selectedArtists.length > 0 ? selectedArtists : (profile ? [profile.id] : []);
+      const artistFilter = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
       if (artistFilter.length === 0) return;
       
       const { data, error } = await supabase
