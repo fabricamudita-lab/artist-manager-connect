@@ -23,6 +23,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useRelease, useTracks, useTrackCredits, Track, TrackCredit } from '@/hooks/useReleases';
 import { renumberTracks, reorderTracks } from '@/lib/releases/trackOrdering';
+import { getReorderImpact } from '@/lib/releases/trackOrderingGuards';
+import { useReorderImpact } from '@/hooks/useReorderImpact';
+import { ReorderImpactNotice } from '@/components/releases/ReorderImpactNotice';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -110,6 +115,8 @@ export default function ReleaseCreditos() {
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [isRenumberConfirmOpen, setIsRenumberConfirmOpen] = useState(false);
   const [isRenumbering, setIsRenumbering] = useState(false);
+  const [renumberAcknowledged, setRenumberAcknowledged] = useState(false);
+  const { data: reorderImpact } = useReorderImpact(id);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
   const { data: allReleaseCredits = [] } = useQuery({
@@ -448,10 +455,19 @@ export default function ReleaseCreditos() {
     if (!id) return;
     setIsRenumbering(true);
     try {
+      // Re-validar el impacto justo antes de actuar (race condition guard).
+      const fresh = await getReorderImpact(id);
+      if (fresh.blocked) {
+        toast.error('Hay contratos firmados que dependen del orden actual. No se puede renumerar.');
+        queryClient.invalidateQueries({ queryKey: ['reorder-impact', id] });
+        return;
+      }
       await renumberTracks(id);
       queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      queryClient.invalidateQueries({ queryKey: ['reorder-impact', id] });
       toast.success('Pistas renumeradas correctamente (1..N)');
       setIsRenumberConfirmOpen(false);
+      setRenumberAcknowledged(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Error al renumerar');
