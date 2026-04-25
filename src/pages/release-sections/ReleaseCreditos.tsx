@@ -444,6 +444,47 @@ export default function ReleaseCreditos() {
     }
   };
 
+  const handleRenumber = async () => {
+    if (!id) return;
+    setIsRenumbering(true);
+    try {
+      await renumberTracks(id);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Pistas renumeradas correctamente (1..N)');
+      setIsRenumberConfirmOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Error al renumerar');
+    } finally {
+      setIsRenumbering(false);
+    }
+  };
+
+  const handleManualNumberChange = async (trackId: string, newPos: number) => {
+    if (!tracks || !id) return;
+    const PositionSchema = z.number().int().min(1).max(tracks.length);
+    const parsed = PositionSchema.safeParse(newPos);
+    if (!parsed.success) {
+      toast.error(`El número debe estar entre 1 y ${tracks.length}`);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      return;
+    }
+    const ids = tracks.map((t) => t.id);
+    const from = ids.indexOf(trackId);
+    if (from === -1) return;
+    const target = parsed.data - 1;
+    if (from === target) return;
+    ids.splice(target, 0, ids.splice(from, 1)[0]);
+    try {
+      await reorderTracks(id, ids);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Orden actualizado');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Error al actualizar el número');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
