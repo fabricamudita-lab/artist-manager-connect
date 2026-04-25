@@ -22,6 +22,10 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { CalendarToolbar } from '@/components/calendar/CalendarToolbar';
 import { CreateEventDialogV2 } from '@/components/calendar/CreateEventDialogV2';
+import { useCalendarReleases, type CalendarRelease, type CalendarMilestone } from '@/hooks/useCalendarReleases';
+import { ReleaseDayPopover } from '@/components/calendar/ReleaseDayPopover';
+import { MilestoneDayPopover } from '@/components/calendar/MilestoneDayPopover';
+import { Disc3, Target } from 'lucide-react';
 interface Event {
   id: string;
   title: string;
@@ -97,6 +101,10 @@ export default function Calendar() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [selectedBookingOffer, setSelectedBookingOffer] = useState<any | null>(null);
   const [accessibleArtistIds, setAccessibleArtistIds] = useState<string[]>([]);
+  const [showReleases, setShowReleases] = useState(true);
+  const [showMilestones, setShowMilestones] = useState(true);
+  const [selectedRelease, setSelectedRelease] = useState<CalendarRelease | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = useState<CalendarMilestone | null>(null);
 
   // Load artist_ids the user has access to (real artists, not profile.id)
   useEffect(() => {
@@ -396,6 +404,22 @@ export default function Calendar() {
       return isSameDay(new Date(offer.fecha), date);
     });
   };
+
+  // Releases & milestones layer
+  const releaseArtistIds = selectedArtists.length > 0 ? selectedArtists : accessibleArtistIds;
+  const { releases: calendarReleases, milestones: calendarMilestones } = useCalendarReleases({
+    artistIds: releaseArtistIds,
+    enabled: !!profile,
+  });
+
+  const getReleasesForDate = (date: Date) => {
+    if (!showReleases) return [] as CalendarRelease[];
+    return calendarReleases.filter(r => r.release_date && isSameDay(new Date(r.release_date), date));
+  };
+  const getMilestonesForDate = (date: Date) => {
+    if (!showMilestones) return [] as CalendarMilestone[];
+    return calendarMilestones.filter(m => m.due_date && isSameDay(new Date(m.due_date), date));
+  };
   
   const formatBookingTitle = (offer: any) => {
     const eventName = offer.festival_ciclo || offer.venue || offer.lugar || 'Evento';
@@ -670,6 +694,8 @@ export default function Calendar() {
           {weekDays.map((day, dayIndex) => {
           const allDayEvents = getAllDayEventsForDate(day);
           const dayBookings = getBookingOffersForDate(day);
+          const dayReleases = getReleasesForDate(day);
+          const dayMilestones = getMilestonesForDate(day);
           return <div key={dayIndex} className="border-l min-h-16 p-2 space-y-1">
                 {allDayEvents.map((event) => <div key={event.id} className={`text-xs px-2 py-1 rounded truncate font-medium relative ${event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' : event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' : event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
                     <div className="flex items-center justify-between">
@@ -697,6 +723,20 @@ export default function Calendar() {
                       })()}
                     </div>
                   </div>)}
+                {dayReleases.map((release) => (
+                  <div key={`rel-${release.id}`} className="text-xs px-2 py-1 rounded truncate font-medium bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-700 cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50 flex items-center gap-1"
+                    onClick={e => { e.stopPropagation(); setSelectedRelease(release); }}>
+                    <Disc3 className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{release.title}</span>
+                  </div>
+                ))}
+                {dayMilestones.map((m) => (
+                  <div key={`ms-${m.id}`} className="text-xs px-2 py-1 rounded truncate font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1"
+                    onClick={e => { e.stopPropagation(); setSelectedMilestone(m); }}>
+                    <Target className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{m.title}</span>
+                  </div>
+                ))}
               </div>;
         })}
         </div>
@@ -822,11 +862,15 @@ export default function Calendar() {
           {monthWeeks.map((week, weekIndex) => week.map((day: Date, dayIndex: number) => {
           const dayEvents = getEventsForDate(day);
           const dayBookings = getBookingOffersForDate(day);
+          const dayReleases = getReleasesForDate(day);
+          const dayMilestones = getMilestonesForDate(day);
           const isCurrentMonth = isSameMonth(day, monthDate);
           const isToday = isSameDay(day, new Date());
           const allItems = [
             ...dayEvents.map(e => ({ type: 'event' as const, data: e })),
-            ...dayBookings.map(b => ({ type: 'booking' as const, data: b }))
+            ...dayBookings.map(b => ({ type: 'booking' as const, data: b })),
+            ...dayReleases.map(r => ({ type: 'release' as const, data: r })),
+            ...dayMilestones.map(m => ({ type: 'milestone' as const, data: m })),
           ];
           return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
                 <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -848,8 +892,8 @@ export default function Calendar() {
                           {event.title}
                         </div>
                       );
-                    } else {
-                      const booking = item.data;
+                    } else if (item.type === 'booking') {
+                      const booking = item.data as any;
                       return (
                         <div 
                           key={booking.id} 
@@ -860,6 +904,30 @@ export default function Calendar() {
                           }}
                         >
                           {formatBookingTitle(booking)}
+                        </div>
+                      );
+                    } else if (item.type === 'release') {
+                      const release = item.data as CalendarRelease;
+                      return (
+                        <div
+                          key={`rel-${release.id}`}
+                          className="text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50 flex items-center gap-1"
+                          onClick={e => { e.stopPropagation(); setSelectedRelease(release); }}
+                        >
+                          <Disc3 className="h-2.5 w-2.5 flex-shrink-0" />
+                          <span className="truncate">{release.title}</span>
+                        </div>
+                      );
+                    } else {
+                      const m = item.data as CalendarMilestone;
+                      return (
+                        <div
+                          key={`ms-${m.id}`}
+                          className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1"
+                          onClick={e => { e.stopPropagation(); setSelectedMilestone(m); }}
+                        >
+                          <Target className="h-2.5 w-2.5 flex-shrink-0" />
+                          <span className="truncate">{m.title}</span>
                         </div>
                       );
                     }
@@ -958,7 +1026,7 @@ export default function Calendar() {
       <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
       {/* Unified Toolbar */}
-      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} />
+      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} showReleases={showReleases} setShowReleases={setShowReleases} showMilestones={showMilestones} setShowMilestones={setShowMilestones} />
 
       {/* Create Event Dialog V2 */}
       <CreateEventDialogV2 open={shouldOpenCreateDialog} onOpenChange={open => {
@@ -1195,5 +1263,9 @@ export default function Calendar() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Release & milestone popovers */}
+      <ReleaseDayPopover release={selectedRelease} open={!!selectedRelease} onOpenChange={(o) => !o && setSelectedRelease(null)} />
+      <MilestoneDayPopover milestone={selectedMilestone} open={!!selectedMilestone} onOpenChange={(o) => !o && setSelectedMilestone(null)} />
     </div>;
 }
