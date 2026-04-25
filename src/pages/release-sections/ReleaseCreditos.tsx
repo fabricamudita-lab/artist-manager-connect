@@ -580,36 +580,62 @@ export default function ReleaseCreditos() {
               <CardTitle>Canciones y Autoría</CardTitle>
               <div className="flex items-center gap-2">
                 {tracks && tracks.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsRenumberConfirmOpen(true)}
-                    title="Reasignar números de pista como 1, 2, 3..."
-                  >
-                    <ListOrdered className="w-3.5 h-3.5 mr-1.5" />
-                    Renumerar
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={reorderImpact?.blocked ? 0 : -1}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!!reorderImpact?.blocked}
+                            onClick={() => setIsRenumberConfirmOpen(true)}
+                            title="Reasignar números de pista como 1, 2, 3..."
+                          >
+                            <ListOrdered className="w-3.5 h-3.5 mr-1.5" />
+                            Renumerar
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {reorderImpact?.blocked && (
+                        <TooltipContent>
+                          Bloqueado: hay {reorderImpact.signedContracts + reorderImpact.signedLicenses} documento(s) firmado(s) que dependen del orden actual.
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {tracks && tracks.length > 1 && (
-                  <Button
-                    variant={isReorderMode ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setIsReorderMode(!isReorderMode)}
-                  >
-                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
-                    {isReorderMode ? 'Listo' : 'Cambiar orden'}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={reorderImpact?.blocked && !isReorderMode ? 0 : -1}>
+                          <Button
+                            variant={isReorderMode ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={!isReorderMode && !!reorderImpact?.blocked}
+                            onClick={() => setIsReorderMode(!isReorderMode)}
+                          >
+                            <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
+                            {isReorderMode ? 'Listo' : 'Cambiar orden'}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {reorderImpact?.blocked && !isReorderMode && (
+                        <TooltipContent>
+                          Bloqueado por contratos firmados. Mira el detalle abajo.
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             </CardHeader>
-            {isReorderMode && release?.status === 'released' && (
+            {reorderImpact && (
               <div className="mx-4 mb-2">
-                <Alert className="border-amber-500/30 bg-amber-500/10">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertDescription className="text-sm">
-                    Este lanzamiento ya está publicado. Reordenar las canciones puede afectar a metadatos enviados a distribución.
-                  </AlertDescription>
-                </Alert>
+                <ReorderImpactNotice
+                  impact={reorderImpact}
+                  action={isReorderMode ? 'reordenar' : 'renumerar'}
+                />
               </div>
             )}
             {showCreditsBanner && (
