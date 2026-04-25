@@ -108,6 +108,8 @@ export default function ReleaseCreditos() {
   const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
   const [isExportingSplits, setIsExportingSplits] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isRenumberConfirmOpen, setIsRenumberConfirmOpen] = useState(false);
+  const [isRenumbering, setIsRenumbering] = useState(false);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
   const { data: allReleaseCredits = [] } = useQuery({
