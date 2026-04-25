@@ -99,6 +99,7 @@ export function useCalendarReleases({ artistIds, enabled }: Options) {
                   id: m.release_id,
                   title: releasesById.get(m.release_id)!.title,
                   artist_id: releasesById.get(m.release_id)!.artist_id,
+                  project_id: releasesById.get(m.release_id)!.project_id,
                 }
               : null,
           }));
