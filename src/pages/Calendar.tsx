@@ -22,6 +22,10 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { CalendarToolbar } from '@/components/calendar/CalendarToolbar';
 import { CreateEventDialogV2 } from '@/components/calendar/CreateEventDialogV2';
+import { useCalendarReleases, type CalendarRelease, type CalendarMilestone } from '@/hooks/useCalendarReleases';
+import { ReleaseDayPopover } from '@/components/calendar/ReleaseDayPopover';
+import { MilestoneDayPopover } from '@/components/calendar/MilestoneDayPopover';
+import { Disc3, Target } from 'lucide-react';
 interface Event {
   id: string;
   title: string;
