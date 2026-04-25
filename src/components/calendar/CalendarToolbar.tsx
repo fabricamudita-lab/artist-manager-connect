@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderKanban, Filter, UserCircle, ChevronLeft, ChevronRight, Building } from 'lucide-react';
+import { Users, FolderKanban, Filter, UserCircle, ChevronLeft, ChevronRight, Building, Disc3, Target } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArtistSelector } from '@/components/ArtistSelector';
@@ -36,6 +37,10 @@ interface CalendarToolbarProps {
     full_name: string;
     type?: 'workspace' | 'contact';
   }[];
+  showReleases?: boolean;
+  setShowReleases?: (v: boolean) => void;
+  showMilestones?: boolean;
+  setShowMilestones?: (v: boolean) => void;
 }
 
 export function CalendarToolbar({
@@ -55,7 +60,11 @@ export function CalendarToolbar({
   selectedDepartment,
   setSelectedDepartment,
   projects,
-  teamMembers
+  teamMembers,
+  showReleases = true,
+  setShowReleases,
+  showMilestones = true,
+  setShowMilestones,
 }: CalendarToolbarProps) {
   const getDateLabel = () => {
     switch (viewMode) {
