@@ -1156,7 +1156,7 @@ export default function Calendar() {
         <div className="text-center">Error: No se pudo cargar el perfil</div>
       </div>;
   }
-  return <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
+  return <div className="container-moodita py-4 space-y-4">
       {/* Compact Header */}
       <CalendarHeader onCreateEvent={() => setShouldOpenCreateDialog(true)} onImportCsv={handleImportCsvClick} onSyncGoogle={() => {}} isImporting={isImporting} />
       <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
@@ -1174,7 +1174,7 @@ export default function Calendar() {
     }} onEventCreated={fetchEvents} prefilledData={prefilledData} />
 
       {/* Calendar Views */}
-      <div className="flex-1">
+      <div>
         {viewMode === 'year' ? renderYearView() : viewMode === 'week' ? renderWeekView() : renderMonthView()}
       </div>
 
