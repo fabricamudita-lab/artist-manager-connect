@@ -1,71 +1,32 @@
+## Objetivo
 
-## Diagnóstico
+Reubicar el botón "Formulario" del diálogo de Editar Contacto para que aparezca junto al nombre del contacto en la cabecera (lado derecho), replicando el patrón ya usado en `ArtistInfoDialog` (perfil del artista del roster).
 
-Tras revisar `ProjectDetail.tsx`, `ProjectPulseTab.tsx` y `ProjectChecklistManager.tsx`, encontré la causa raíz:
+## Estado actual
 
-**El array `tasks` del proyecto está hardcoded** (7 tareas seed en líneas 207-280 de `ProjectDetail.tsx`). Eso explica todo lo que ves en tu captura:
-- "Checklist 6" → 6 de las 7 tareas seed no completadas
-- "1 tarea urgente", "1 bloqueada", "72% salud" → calculados sobre los seeds
-- "Próximas acciones URGENTE 28 feb" → tarea seed #2
+- `EditContactDialog.tsx` (línea 937-950): el botón "Formulario" vive en el `DialogFooter`, junto a "Cancelar" y "Guardar Cambios".
+- `ArtistInfoDialog.tsx` (línea 446-478): muestra el botón "Formulario" como `Button variant="outline" size="sm"` alineado a la derecha del bloque de avatar+nombre, dentro de un `flex items-center justify-between`.
 
-Pero `ProjectChecklistManager` (la pestaña Checklist) lee de la tabla **real** `project_checklists` / `project_checklist_items`, que para este proyecto está **vacía**. Por eso ves estado vacío "No hay checklists".
+## Cambios
 
-**Finanzas** usa `budgets` reales pero ignora cobros, gastos efectivos y pagos. **Notas** es un placeholder con texto "Próximamente". El bloque "Cobrado vs pendiente: 50%" en Pulso también está hardcoded.
+**Archivo único:** `src/components/EditContactDialog.tsx`
 
-## Plan
+1. **Cabecera del formulario (línea 627-647):** convertir el contenedor en un `flex items-start justify-between gap-4`:
+   - Mantener el bloque actual de avatar + nombre + rol + chips a la izquierda (envuelto en un `div className="flex items-start gap-4 flex-1 min-w-0"`).
+   - Añadir a la derecha el botón "Formulario" (`variant="outline"`, `size="sm"`, icono `Share2`, con estado `generatingFormLink` y handler `handleGenerateFormLink` ya existentes).
 
-### 1. Unificar tareas: Pulso y badges leen de la tabla real
+2. **Footer (línea 937-957):** eliminar el `<Button>` de Formulario y la clase `sm:mr-auto`. El `DialogFooter` queda solo con "Cancelar" y "Guardar Cambios".
 
-- Eliminar el array `tasks` seed en `ProjectDetail.tsx` (líneas 191-280).
-- Cargar tareas reales desde `project_checklist_items` filtradas por los `project_checklists` del proyecto en un nuevo `useEffect`.
-- Mapear los campos al shape que esperan Pulso y los badges:
-  - `estado` ← derivado de `status` (`PENDING/IN_PROGRESS` → `pendiente`, `BLOCKED` → `bloqueada`, `COMPLETED` → `completada`, etc.)
-  - `is_urgent` ← derivado de `priority === 'URGENT'` o flag equivalente
-  - `fecha_vencimiento` ← `due_date`
-  - `titulo` ← `title`
-- Resultado: si el proyecto no tiene checklists, los KPIs de Pulso muestran 0 tareas reales (no datos falsos), y al crear una checklist en la pestaña Checklist, todo se actualiza automáticamente.
+## Resultado visual
 
-### 2. Pulso: completar datos económicos reales
+```text
+┌─────────────────────────────────────────────────────────┐
+│ [Avatar] Nombre Contacto              [⌁ Formulario]    │
+│          Rol · categoría · email                        │
+└─────────────────────────────────────────────────────────┘
+[ Nombre * ] ...
+...
+                                  [ Cancelar ] [ Guardar ]
+```
 
-- Reemplazar el "Cobrado vs pendiente: 50%" hardcoded por cálculo real:
-  - Total facturado / cobrado desde `cobros` vinculados a los `budgets` del proyecto.
-  - Mostrar `cobrado / confirmado` como porcentaje y monto.
-- Añadir KPIs adicionales en Pulso: días hasta `end_date_estimada`, próximos hitos del cronograma.
-
-### 3. Pestaña Finanzas: alinear con módulo Finanzas
-
-Actualizar `TabsContent value="finanzas"` (líneas 2295-2418) para:
-
-- **Ingresos**: separar confirmados / negociación / cobrado real (consultando `cobros`).
-- **Gastos**: añadir gastos reales pagados desde `pagos` o `booking_expenses` vinculados a este proyecto, no solo partidas de presupuesto.
-- **Balance**: `cobrado real − gastos pagados` y `proyectado`.
-- **IRPF / IVA**: mostrar el neto a transferir como en el hub Finanzas para coherencia.
-- Añadir un botón "Ver en Finanzas" que abra el hub filtrado por este proyecto/artista.
-
-### 4. Activar Notas colaborativas
-
-Reemplazar el placeholder por un editor funcional:
-
-- Crear nueva tabla `project_notes` (id, project_id, content, created_by, updated_at) con RLS basada en pertenencia al proyecto.
-- Componente `ProjectNotesTab`:
-  - Editor de texto enriquecido (reutilizar el patrón de `Textarea` con autosave debounced ya usado en otras partes).
-  - Lista de versiones / última edición + autor.
-  - Realtime opcional: suscripción Supabase para que varios miembros vean cambios en vivo.
-- Cargar y guardar usando el cliente Supabase con RLS.
-
-### 5. Limpieza
-
-- Eliminar imports y helpers asociados al seed de tareas que queden huérfanos.
-- Verificar que la pestaña "Vista General" y "Cronograma" siguen funcionando con `tasks` reales (ajustar si esperaban el campo `etapa` del seed).
-
-## Archivos a modificar
-
-- `src/pages/ProjectDetail.tsx` (tareas reales, Finanzas mejorada, montaje de `ProjectNotesTab`)
-- `src/components/project-detail/ProjectPulseTab.tsx` (cobrado real, KPIs de fechas)
-- `src/components/project-detail/ProjectNotesTab.tsx` (nuevo)
-- Migración SQL para tabla `project_notes` + políticas RLS
-
-## Notas
-
-- No se toca `ProjectChecklistManager`: ya funciona, solo necesita que el usuario cree una checklist (o que reutilicemos sus mismos datos para Pulso, que es lo que hace el plan).
-- Si prefieres que la pestaña "Checklist" muestre directamente plantillas sugeridas en lugar del estado vacío actual, dímelo y lo añado.
+Sin cambios en lógica, handlers, ni en otros diálogos.
