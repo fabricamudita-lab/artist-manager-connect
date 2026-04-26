@@ -922,12 +922,23 @@ export default function ProjectDetail() {
       }
     };
 
+    const loadCobros = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cobros')
+          .select('*')
+          .eq('project_id', id);
+        if (!error) setCobros(data || []);
+      } catch (e) { console.error('Error loading cobros', e); }
+    };
+
     load();
     loadLinked();
     loadLinkedEntities();
     loadIncidents();
     loadQuestions();
     loadTasks();
+    loadCobros();
   }, [id]);
 
   // Team member management functions
