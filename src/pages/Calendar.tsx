@@ -585,6 +585,14 @@ export default function Calendar() {
     setSelectedDate(undefined);
     setSelectedMonth(null);
   };
+  const selectDay = (day: Date) => {
+    setSelectedDate(day);
+    setSelectedMonth(null);
+  };
+  const selectMonth = (monthDate: Date) => {
+    setSelectedMonth(startOfMonth(monthDate));
+    setSelectedDate(undefined);
+  };
   const getWeekDays = () => {
     const weekStart = startOfWeek(currentDate, {
       weekStartsOn: 1
