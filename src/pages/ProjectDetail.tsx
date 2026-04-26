@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { AddTeamMemberDialog } from "@/components/AddTeamMemberDialog";
@@ -82,6 +82,7 @@ import { ProjectPulseTab } from "@/components/project-detail/ProjectPulseTab";
 import { ProjectWorkflowsTab } from "@/components/project-detail/ProjectWorkflowsTab";
 import { ProjectIncidentsTab } from "@/components/project-detail/ProjectIncidentsTab";
 import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestionsTab";
+import { ProjectNotesTab } from "@/components/project-detail/ProjectNotesTab";
 import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
 import { ProjectLinkedBudgets } from "@/components/project-detail/ProjectLinkedBudgets";
 import { ProjectLinkedBookings } from "@/components/project-detail/ProjectLinkedBookings";
@@ -112,6 +113,7 @@ interface Workspace {
 
 export default function ProjectDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { renderIf } = useConditionalRender();
   
@@ -157,6 +159,7 @@ export default function ProjectDetail() {
   const [linkedEntities, setLinkedEntities] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
+  const [cobros, setCobros] = useState<any[]>([]);
   
   // Document upload state
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
@@ -187,11 +190,12 @@ export default function ProjectDetail() {
     localStorage.setItem('taskPanel-collapsedSections', JSON.stringify(newState));
   };
 
-  // Tasks state
+  // Tasks state — cargadas desde project_checklist_items (tabla real)
   const [tasks, setTasks] = useState<Array<{
     id: string;
     etapa: string;
     nombre: string;
+    titulo?: string;
     categoria: string;
     responsables: string[];
     prioridad: string;
@@ -203,83 +207,7 @@ export default function ProjectDetail() {
     subtasks?: ProjectSubtask[];
     expanded?: boolean;
     [key: string]: any;
-  }>>([
-    // Seed data for testing
-    {
-      id: "1",
-      etapa: "PREPARATIVOS",
-      nombre: "Confirmar disponibilidad de fechas",
-      categoria: "Planificación",
-      responsables: ["María García"],
-      prioridad: "Alta",
-      estado: "completada",
-      comentarios: "",
-      fecha_vencimiento: "2026-03-15"
-    },
-    {
-      id: "2", 
-      etapa: "PREPARATIVOS",
-      nombre: "Solicitar riders técnicos",
-      categoria: "Documentación",
-      responsables: ["Juan López", "Ana Martín"],
-      prioridad: "Media",
-      estado: "en_progreso",
-      comentarios: "",
-      is_urgent: true,
-      fecha_vencimiento: "2026-02-28"
-    },
-    {
-      id: "3",
-      etapa: "PREPARATIVOS", 
-      nombre: "Contratar seguro del evento",
-      categoria: "Legal",
-      responsables: ["Carlos Ruiz"],
-      prioridad: "Alta",
-      estado: "pendiente",
-      comentarios: ""
-    },
-    {
-      id: "4",
-      etapa: "PRODUCCIÓN",
-      nombre: "Montaje del escenario",
-      categoria: "Técnico",
-      responsables: ["Equipo Técnico"],
-      prioridad: "Alta",
-      estado: "pendiente",
-      comentarios: "",
-      fecha_vencimiento: "2026-04-10"
-    },
-    {
-      id: "5",
-      etapa: "PRODUCCIÓN",
-      nombre: "Prueba de sonido",
-      categoria: "Técnico", 
-      responsables: ["Técnico de sonido"],
-      prioridad: "Media",
-      estado: "bloqueada",
-      comentarios: ""
-    },
-    {
-      id: "6",
-      etapa: "CIERRE",
-      nombre: "Liquidación económica",
-      categoria: "Financiero",
-      responsables: ["Administración"],
-      prioridad: "Alta",
-      estado: "pendiente",
-      comentarios: ""
-    },
-    {
-      id: "7",
-      etapa: "CIERRE",
-      nombre: "Evaluación post-evento",
-      categoria: "Análisis",
-      responsables: ["Director de proyecto"],
-      prioridad: "Baja",
-      estado: "cancelada",
-      comentarios: ""
-    }
-  ]);
+  }>>([]);
 
   // Filter state - will be initialized after user and project are loaded
   const [activeFilters, setActiveFilters] = useState(new Set([
@@ -946,11 +874,72 @@ export default function ProjectDetail() {
       } catch (e) { console.error('Error loading questions', e); }
     };
 
+    const loadTasks = async () => {
+      try {
+        // Cargar tareas reales desde project_checklist_items
+        const { data: checklists } = await supabase
+          .from('project_checklists')
+          .select('id, name')
+          .eq('project_id', id);
+        const checklistIds = (checklists || []).map((c: any) => c.id);
+        if (checklistIds.length === 0) {
+          setTasks([]);
+          return;
+        }
+        const { data: items, error } = await supabase
+          .from('project_checklist_items')
+          .select('*')
+          .in('checklist_id', checklistIds)
+          .order('sort_order', { ascending: true });
+        if (error) throw error;
+
+        const statusMap: Record<string, string> = {
+          PENDING: 'pendiente',
+          IN_PROGRESS: 'en_progreso',
+          BLOCKED: 'bloqueada',
+          IN_REVIEW: 'en_progreso',
+          COMPLETED: 'completada',
+          CANCELLED: 'cancelada',
+        };
+        const checklistsById = Object.fromEntries((checklists || []).map((c: any) => [c.id, c.name]));
+
+        const mapped = (items || []).map((it: any) => ({
+          id: it.id,
+          etapa: (it.section || checklistsById[it.checklist_id] || 'GENERAL').toUpperCase(),
+          nombre: it.title,
+          titulo: it.title,
+          categoria: it.section || '',
+          responsables: [],
+          prioridad: 'Media',
+          estado: it.is_completed ? 'completada' : (statusMap[it.status] || 'pendiente'),
+          comentarios: it.description || '',
+          is_urgent: false,
+          fecha_vencimiento: undefined,
+        }));
+        setTasks(mapped);
+      } catch (e) {
+        console.error('Error loading tasks', e);
+        setTasks([]);
+      }
+    };
+
+    const loadCobros = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cobros')
+          .select('*')
+          .eq('project_id', id);
+        if (!error) setCobros(data || []);
+      } catch (e) { console.error('Error loading cobros', e); }
+    };
+
     load();
     loadLinked();
     loadLinkedEntities();
     loadIncidents();
     loadQuestions();
+    loadTasks();
+    loadCobros();
   }, [id]);
 
   // Team member management functions
@@ -2280,15 +2269,7 @@ export default function ProjectDetail() {
             </TabsContent>
 
             <TabsContent value="notas" className="mt-0">
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="text-lg font-medium mb-2">Notas colaborativas</h3>
-                <p className="text-sm text-muted-foreground">
-                  Próximamente podrás añadir notas colaborativas para este proyecto.
-                  <br />
-                  Mientras tanto, usa "Documentos" para adjuntar ficheros.
-                </p>
-              </div>
+              <ProjectNotesTab projectId={id!} userId={profile?.user_id} />
             </TabsContent>
 
             {/* ── FINANZAS ─────────────────────────────────────────── */}
@@ -2305,8 +2286,21 @@ export default function ProjectDetail() {
                   return sum + items.reduce((s: number, item: any) => s + ((item.quantity || 0) * (item.unit_price || 0)), 0);
                 }, 0);
                 const totalAprobado = ingresosConfirmados + enNegociacion;
-                const balance = ingresosConfirmados - gastosEjecutados;
                 const execPercent = totalAprobado > 0 ? Math.round((gastosEjecutados / totalAprobado) * 100) : 0;
+
+                // Cobros reales
+                const cobrosFacturado = cobros.reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                const cobrosCobrado = cobros
+                  .filter((c: any) => c.status === 'cobrado' || c.received_date)
+                  .reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                const cobrosPendiente = cobrosFacturado - cobrosCobrado;
+                const netoTransferir = cobros
+                  .filter((c: any) => c.status === 'cobrado' || c.received_date)
+                  .reduce((s: number, c: any) => s + Number(c.amount_net ?? c.amount_gross ?? 0), 0);
+                const cobradoPct = cobrosFacturado > 0 ? Math.round((cobrosCobrado / cobrosFacturado) * 100) : 0;
+
+                const balanceReal = cobrosCobrado - gastosEjecutados;
+                const artistId = (project as any)?.artist_id;
 
                 // Linked entities with economic value
                 const entitiesWithValue = linkedEntities.filter((e: any) => e.entity_status);
@@ -2344,16 +2338,67 @@ export default function ProjectDetail() {
                           <p className="text-xs text-muted-foreground mt-1">Total partidas</p>
                         </CardContent>
                       </Card>
-                      <Card className={cn("border-l-4", balance >= 0 ? "border-l-green-500" : "border-l-red-500")}>
+                      <Card className={cn("border-l-4", balanceReal >= 0 ? "border-l-green-500" : "border-l-red-500")}>
                         <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Balance proyectado</p>
-                          <p className={cn("text-2xl font-bold mt-1", balance >= 0 ? "text-green-600" : "text-red-600")}>
-                            {balance >= 0 ? '+' : ''}{balance.toLocaleString('es-ES')} €
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Balance real</p>
+                          <p className={cn("text-2xl font-bold mt-1", balanceReal >= 0 ? "text-green-600" : "text-red-600")}>
+                            {balanceReal >= 0 ? '+' : ''}{balanceReal.toLocaleString('es-ES')} €
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">Ingresos − Gastos</p>
+                          <p className="text-xs text-muted-foreground mt-1">Cobrado − Gastos</p>
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Cobros reales */}
+                    <Card>
+                      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-semibold">Cobros del proyecto</CardTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/finanzas?artist=${artistId || ''}&project=${id}`)}
+                        >
+                          Ver en Finanzas
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Facturado</p>
+                            <p className="text-lg font-bold mt-1">{cobrosFacturado.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{cobros.length} cobros</p>
+                          </div>
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cobrado</p>
+                            <p className="text-lg font-bold text-green-600 mt-1">{cobrosCobrado.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{cobradoPct}% del total</p>
+                          </div>
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendiente</p>
+                            <p className="text-lg font-bold text-amber-600 mt-1">{cobrosPendiente.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">por cobrar</p>
+                          </div>
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Neto a transferir</p>
+                            <p className="text-lg font-bold text-violet-600 mt-1">{netoTransferir.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">después de IRPF</p>
+                          </div>
+                        </div>
+                        {cobrosFacturado > 0 && (
+                          <>
+                            <Progress value={cobradoPct} className="h-2" />
+                            <p className="text-xs text-muted-foreground text-center">
+                              {cobradoPct}% cobrado · {(100 - cobradoPct)}% pendiente
+                            </p>
+                          </>
+                        )}
+                        {cobros.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-2">
+                            Sin cobros registrados todavía. Crea uno desde el hub de Finanzas.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
 
                     {/* Budget Execution Bar */}
                     <Card>
@@ -2419,15 +2464,25 @@ export default function ProjectDetail() {
 
             {/* ── PULSO (Dashboard) ──────────────────────────────────── */}
             <TabsContent value="pulso" className="mt-0">
-              <ProjectPulseTab
-                tasks={tasks}
-                budgets={budgets}
-                solicitudes={solicitudes}
-                incidents={incidents}
-                questions={questions}
-                linkedEntities={linkedEntities}
-                project={project}
-              />
+              {(() => {
+                const cobrosTotal = cobros.reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                const cobradoTotal = cobros
+                  .filter((c: any) => c.status === 'cobrado' || c.received_date)
+                  .reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                return (
+                  <ProjectPulseTab
+                    tasks={tasks}
+                    budgets={budgets}
+                    solicitudes={solicitudes}
+                    incidents={incidents}
+                    questions={questions}
+                    linkedEntities={linkedEntities}
+                    project={project}
+                    cobrosTotal={cobrosTotal}
+                    cobradoTotal={cobradoTotal}
+                  />
+                );
+              })()}
             </TabsContent>
 
             {/* ── WORKFLOWS ──────────────────────────────────────────── */}

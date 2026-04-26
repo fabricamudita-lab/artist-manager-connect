@@ -16,6 +16,8 @@ interface ProjectPulseTabProps {
     start_date?: string | null;
     end_date_estimada?: string | null;
   };
+  cobrosTotal?: number;
+  cobradoTotal?: number;
 }
 
 const ENTITY_TYPE_META: Record<string, { emoji: string; label: string; colorClass: string; bgClass: string }> = {
@@ -47,6 +49,8 @@ export function ProjectPulseTab({
   questions,
   linkedEntities,
   project,
+  cobrosTotal = 0,
+  cobradoTotal = 0,
 }: ProjectPulseTabProps) {
   const stats = useMemo(() => {
     const totalTasks = tasks.length;
@@ -345,7 +349,14 @@ export function ProjectPulseTab({
               { label: "Fee confirmado",       val: `${financials.feeConfirmado.toLocaleString("es-ES")}€`, color: "text-green-500", sub: `${financials.confirmedShowCount} shows` },
               { label: "Syncs en negociación",  val: `${financials.syncPotencial.toLocaleString("es-ES")}€`, color: "text-amber-500", sub: "potencial, no confirmado" },
               { label: "En negociación",        val: `${financials.totalNeg.toLocaleString("es-ES")}€`,      color: "text-blue-500",  sub: "total en negociación" },
-              { label: "Cobrado vs. pendiente", val: "50%",                                                   color: "text-violet-500",sub: "de los confirmados facturado" },
+              {
+                label: "Cobrado vs facturado",
+                val: cobrosTotal > 0 ? `${Math.round((cobradoTotal / cobrosTotal) * 100)}%` : "—",
+                color: "text-violet-500",
+                sub: cobrosTotal > 0
+                  ? `${cobradoTotal.toLocaleString("es-ES")}€ de ${cobrosTotal.toLocaleString("es-ES")}€`
+                  : "Sin cobros registrados",
+              },
             ].map((k) => (
               <div key={k.label} className="p-3 bg-background rounded-lg border">
                 <p className={cn("text-[22px] font-black", k.color)}>{k.val}</p>
