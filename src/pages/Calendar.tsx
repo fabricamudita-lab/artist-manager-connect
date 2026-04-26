@@ -807,7 +807,7 @@ export default function Calendar() {
         {/* Week header */}
         <div className="grid grid-cols-8 border-b bg-muted/20">
           <div className="p-3 text-xs font-medium text-muted-foreground">GMT+02</div>
-          {weekDays.map((day, index) => <div key={index} className={`p-3 text-center border-l cursor-pointer hover:bg-muted/30 transition-colors ${selectedDate && isSameDay(day, selectedDate) ? 'bg-primary/10' : ''}`} onClick={() => setSelectedDate(day)}>
+          {weekDays.map((day, index) => <div key={index} className={`p-3 text-center border-l cursor-pointer hover:bg-muted/30 transition-colors ${selectedDate && isSameDay(day, selectedDate) ? 'bg-primary/10' : ''}`} onClick={() => selectDay(day)}>
               <div className="text-xs font-medium text-muted-foreground mb-1">
                 {format(day, 'EEE', {
               locale: es
@@ -1003,7 +1003,7 @@ export default function Calendar() {
             ...dayReleases.map(r => ({ type: 'release' as const, data: r })),
             ...dayMilestones.map(m => ({ type: 'milestone' as const, data: m })),
           ];
-          return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
+          return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => selectDay(day)}>
                 <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {format(day, 'd')}
                 </div>
@@ -1136,7 +1136,7 @@ export default function Calendar() {
           </div>
           
           <YearlyCalendar year={currentDate.getFullYear()} events={events} bookings={bookingOffers} onDateSelect={date => {
-          setSelectedDate(date);
+          selectDay(date);
         }} onEventClick={handleEventClick} selectedDate={selectedDate} />
         </CardContent>
       </div>;
