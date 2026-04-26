@@ -1,29 +1,38 @@
-## Diagnóstico
+## Problema
 
-El panel "Eventos para…" no ha desaparecido del código — sigue renderizándose en `src/pages/Calendar.tsx` (línea 1182). El problema es de **layout**: en cambios anteriores el contenedor raíz se quedó con:
+En el PDF del presupuesto (página de notas), el glosario se imprime como una sola línea continua:
 
-```tsx
-<div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
-  ...
-  <div className="flex-1">
-    {/* vista del calendario */}
-  </div>
-  {/* Panel de eventos del rango */}
-  ...
-</div>
+> `Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto − IRPF`
+
+Visualmente queda apretado y ambiguo (las palabras "Neto", "Bruto", "Líquido", "IRPF" se mezclan al leerse en línea). Está en `src/components/BudgetDetailsDialog.tsx` líneas 2562–2573, dentro del bloque de exportación PDF (`exportToPDF`).
+
+## Cambio propuesto
+
+Reemplazar ese bloque por un glosario estructurado, con título en negrita y cada término en una línea independiente, definición alineada en columna.
+
+### Archivo único: `src/components/BudgetDetailsDialog.tsx` (líneas 2562–2573)
+
+Resultado en el PDF (pág. 2):
+
+```
+Glosario de términos
+Neto:     Precio base sin impuestos.
+IVA:      Impuesto sobre el Valor Añadido aplicado al neto.
+Bruto:    Neto + IVA.
+IRPF:     Retención fiscal aplicada sobre el neto.
+Líquido:  Bruto − IRPF. Importe final a transferir.
+
+* Total a Facturar = Neto + IVA − IRPF (Líquido, importe final a transferir).
+Generado el …
 ```
 
-`min-h-screen flex flex-col` + `flex-1` en la vista hacen que el calendario estire verticalmente para llenar la pantalla, empujando el panel **debajo del fold** (fuera de la vista). El panel sigue existiendo si haces scroll, pero ya no se ve sin desplazarse. Antes ese panel iba inmediatamente debajo del calendario.
+### Detalles técnicos
 
-## Cambio
+- Título "Glosario de términos" en negrita 8pt, color gris oscuro.
+- Cada entrada: término en negrita + definición en regular, alineados en dos columnas (≈18 mm para la etiqueta).
+- Interlineado 3.6 mm para mantener compacto pero legible.
+- Mantener nota `*` y fecha de generación al final, en cursiva.
+- `checkPage(32)` en lugar de `25` para asegurar que cabe el bloque completo sin partirse.
+- No se cambia el CSV, solo el PDF (que es donde el usuario detectó el problema).
 
-**Archivo único: `src/pages/Calendar.tsx`**
-
-1. Quitar `min-h-screen flex flex-col` del contenedor raíz (línea 1159) — el layout ya gestiona altura desde el shell de la app.
-2. Quitar `flex-1` del wrapper de la vista del calendario (línea 1177).
-
-Resultado: la vista del calendario ocupa su altura natural y el panel "Eventos para…" queda visible justo debajo, como antes.
-
-## Sobre tus instrucciones de proceso
-
-No aplican aquí: no hay tabla nueva, ni endpoint, ni input de usuario. Es un fix de CSS/layout en una sola página front. No requiere migración, índices, validación Zod, ni paginación. Si quieres que aplique esos principios al añadir una **nueva** funcionalidad, indícamela y los aplico ahí.
+Aplica a todos los presupuestos exportados desde ahora — el de Curtcircuit y los siguientes.
