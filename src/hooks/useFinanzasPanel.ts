@@ -591,6 +591,8 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
     pipelineIngresos, pipelineCount,
     // KPI 5
     pagosPendientes, facturasPendientes,
+    // KPI 5b — pagos sin justificante (pendientes de regularizar con gestoría)
+    pagosSinJustificante, pagosSinJustificanteCount,
     // KPI 6
     irpfTotal, quarterLabel,
     // Alerts
