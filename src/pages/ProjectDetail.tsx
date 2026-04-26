@@ -2285,8 +2285,21 @@ export default function ProjectDetail() {
                   return sum + items.reduce((s: number, item: any) => s + ((item.quantity || 0) * (item.unit_price || 0)), 0);
                 }, 0);
                 const totalAprobado = ingresosConfirmados + enNegociacion;
-                const balance = ingresosConfirmados - gastosEjecutados;
                 const execPercent = totalAprobado > 0 ? Math.round((gastosEjecutados / totalAprobado) * 100) : 0;
+
+                // Cobros reales
+                const cobrosFacturado = cobros.reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                const cobrosCobrado = cobros
+                  .filter((c: any) => c.status === 'cobrado' || c.received_date)
+                  .reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                const cobrosPendiente = cobrosFacturado - cobrosCobrado;
+                const netoTransferir = cobros
+                  .filter((c: any) => c.status === 'cobrado' || c.received_date)
+                  .reduce((s: number, c: any) => s + Number(c.amount_net ?? c.amount_gross ?? 0), 0);
+                const cobradoPct = cobrosFacturado > 0 ? Math.round((cobrosCobrado / cobrosFacturado) * 100) : 0;
+
+                const balanceReal = cobrosCobrado - gastosEjecutados;
+                const artistId = (project as any)?.artist_id;
 
                 // Linked entities with economic value
                 const entitiesWithValue = linkedEntities.filter((e: any) => e.entity_status);
@@ -2324,16 +2337,67 @@ export default function ProjectDetail() {
                           <p className="text-xs text-muted-foreground mt-1">Total partidas</p>
                         </CardContent>
                       </Card>
-                      <Card className={cn("border-l-4", balance >= 0 ? "border-l-green-500" : "border-l-red-500")}>
+                      <Card className={cn("border-l-4", balanceReal >= 0 ? "border-l-green-500" : "border-l-red-500")}>
                         <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Balance proyectado</p>
-                          <p className={cn("text-2xl font-bold mt-1", balance >= 0 ? "text-green-600" : "text-red-600")}>
-                            {balance >= 0 ? '+' : ''}{balance.toLocaleString('es-ES')} €
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Balance real</p>
+                          <p className={cn("text-2xl font-bold mt-1", balanceReal >= 0 ? "text-green-600" : "text-red-600")}>
+                            {balanceReal >= 0 ? '+' : ''}{balanceReal.toLocaleString('es-ES')} €
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">Ingresos − Gastos</p>
+                          <p className="text-xs text-muted-foreground mt-1">Cobrado − Gastos</p>
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Cobros reales */}
+                    <Card>
+                      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-semibold">Cobros del proyecto</CardTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/finanzas?artist=${artistId || ''}&project=${id}`)}
+                        >
+                          Ver en Finanzas
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Facturado</p>
+                            <p className="text-lg font-bold mt-1">{cobrosFacturado.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{cobros.length} cobros</p>
+                          </div>
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cobrado</p>
+                            <p className="text-lg font-bold text-green-600 mt-1">{cobrosCobrado.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{cobradoPct}% del total</p>
+                          </div>
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendiente</p>
+                            <p className="text-lg font-bold text-amber-600 mt-1">{cobrosPendiente.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">por cobrar</p>
+                          </div>
+                          <div className="p-3 bg-muted/40 rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Neto a transferir</p>
+                            <p className="text-lg font-bold text-violet-600 mt-1">{netoTransferir.toLocaleString('es-ES')} €</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">después de IRPF</p>
+                          </div>
+                        </div>
+                        {cobrosFacturado > 0 && (
+                          <>
+                            <Progress value={cobradoPct} className="h-2" />
+                            <p className="text-xs text-muted-foreground text-center">
+                              {cobradoPct}% cobrado · {(100 - cobradoPct)}% pendiente
+                            </p>
+                          </>
+                        )}
+                        {cobros.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-2">
+                            Sin cobros registrados todavía. Crea uno desde el hub de Finanzas.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
 
                     {/* Budget Execution Bar */}
                     <Card>
