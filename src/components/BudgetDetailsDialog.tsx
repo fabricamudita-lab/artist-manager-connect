@@ -2559,19 +2559,45 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
-    // ── NOTAS ──
-    checkPage(25);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100);
-    doc.text('* Total a Facturar = Neto + IVA − IRPF (Líquido, importe final a transferir)', margin, yPos);
+    // ── NOTAS / GLOSARIO ──
+    checkPage(32);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60);
+    doc.text('Glosario de términos', margin, yPos);
     yPos += 4;
-    doc.text('Neto = Precio base sin impuestos | Bruto = Neto + IVA | Líquido = Bruto − IRPF', margin, yPos);
+
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80);
+
+    const glossary: Array<[string, string]> = [
+      ['Neto', 'Precio base sin impuestos.'],
+      ['IVA', 'Impuesto sobre el Valor Añadido aplicado al neto.'],
+      ['Bruto', 'Neto + IVA.'],
+      ['IRPF', 'Retención fiscal aplicada sobre el neto.'],
+      ['Líquido', 'Bruto − IRPF. Importe final a transferir.'],
+    ];
+
+    const labelWidth = 18; // mm reservado para el término en negrita
+    glossary.forEach(([term, def]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${term}:`, margin, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(def, margin + labelWidth, yPos);
+      yPos += 3.6;
+    });
+
+    yPos += 2;
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(110);
+    doc.text('* Total a Facturar = Neto + IVA − IRPF (Líquido, importe final a transferir).', margin, yPos);
     yPos += 4;
     doc.text(`Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin, yPos);
     doc.setTextColor(0);
+    doc.setFont('helvetica', 'normal');
     yPos += 12;
-    
+
     // ── ANEXO: GRÁFICO DONUT ──
     const chartDataRaw = getGroupedChartData();
     const grandChartTotal = chartDataRaw.reduce((s, d) => s + d.value, 0);
