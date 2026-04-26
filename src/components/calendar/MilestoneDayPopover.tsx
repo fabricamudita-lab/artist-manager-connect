@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
 import { Link } from 'react-router-dom';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 import type { CalendarMilestone } from '@/hooks/useCalendarReleases';
 
 interface Props {
@@ -76,7 +77,12 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
     }));
     const subtasksDone = subtasks.filter((s) => s.done).length;
 
-    const anchoredTo: string | null = meta.anchoredTo || null;
+    const rawAnchored = meta.anchoredTo;
+    const anchoredIds: string[] = Array.isArray(rawAnchored)
+      ? rawAnchored.filter(Boolean).map(String)
+      : rawAnchored
+        ? [String(rawAnchored)]
+        : [];
 
     const referenceDate = clickedDate ?? new Date();
     const releaseDate = milestone.release?.release_date || null;
@@ -98,7 +104,7 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
       estimatedDays,
       subtasks,
       subtasksDone,
-      anchoredTo,
+      anchoredIds,
       releaseDate,
       daysToRelease,
       isPhase,
@@ -106,6 +112,32 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
       referenceDate,
     };
   }, [milestone, clickedDate]);
+
+  // Resolve anchored milestone IDs → titles
+  const [anchorTitles, setAnchorTitles] = useState<Record<string, string>>({});
+  const [anchorsLoaded, setAnchorsLoaded] = useState(false);
+  const anchorKey = (data?.anchoredIds || []).join(',');
+  useEffect(() => {
+    const ids = data?.anchoredIds || [];
+    if (ids.length === 0) {
+      setAnchorTitles({});
+      setAnchorsLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setAnchorsLoaded(false);
+    supabase
+      .from('release_milestones')
+      .select('id, title')
+      .in('id', ids)
+      .then(({ data: rows }) => {
+        if (cancelled) return;
+        setAnchorTitles(Object.fromEntries((rows || []).map((m: any) => [m.id, m.title])));
+        setAnchorsLoaded(true);
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchorKey]);
 
   if (!milestone || !data) return null;
 
@@ -196,10 +228,20 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
           )}
 
           {/* Anchor */}
-          {data.anchoredTo && (
-            <p className="flex items-center gap-1.5 text-muted-foreground">
-              <Anchor className="h-3.5 w-3.5" /> Anclado a:{' '}
-              <span className="text-foreground">{String(data.anchoredTo)}</span>
+          {data.anchoredIds.length > 0 && (
+            <p className="flex items-start gap-1.5 text-muted-foreground">
+              <Anchor className="h-3.5 w-3.5 mt-0.5 shrink-0" /> Anclado a:{' '}
+              <span className="text-foreground break-words">
+                {data.anchoredIds
+                  .map((id) =>
+                    anchorTitles[id]
+                      ? anchorTitles[id]
+                      : anchorsLoaded
+                        ? 'Hito eliminado'
+                        : 'Cargando…',
+                  )
+                  .join(', ')}
+              </span>
             </p>
           )}
 
