@@ -902,16 +902,16 @@ export default function ProjectDetail() {
 
         const mapped = (items || []).map((it: any) => ({
           id: it.id,
-          etapa: (it.section_es || it.section || checklistsById[it.checklist_id] || 'GENERAL').toUpperCase(),
+          etapa: (it.section || checklistsById[it.checklist_id] || 'GENERAL').toUpperCase(),
           nombre: it.title,
           titulo: it.title,
-          categoria: it.section_es || it.section || '',
-          responsables: it.owner_label_es ? [it.owner_label_es] : [],
-          prioridad: it.priority === 'URGENT' ? 'Alta' : it.priority === 'HIGH' ? 'Alta' : it.priority === 'LOW' ? 'Baja' : 'Media',
-          estado: statusMap[it.status] || 'pendiente',
+          categoria: it.section || '',
+          responsables: [],
+          prioridad: 'Media',
+          estado: it.is_completed ? 'completada' : (statusMap[it.status] || 'pendiente'),
           comentarios: it.description || '',
-          is_urgent: it.priority === 'URGENT' || it.is_urgent === true,
-          fecha_vencimiento: it.due_date || undefined,
+          is_urgent: false,
+          fecha_vencimiento: undefined,
         }));
         setTasks(mapped);
       } catch (e) {
