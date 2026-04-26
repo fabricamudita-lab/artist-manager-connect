@@ -8504,6 +8504,22 @@ export type Database = {
         }
         Returns: Json
       }
+      user_can_edit_artist: {
+        Args: { _artist_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_edit_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_see_artist: {
+        Args: { _artist_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_see_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_project_access: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -8552,7 +8568,15 @@ export type Database = {
         | "ASSIGN_CHANGED"
       approval_status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
       approval_type: "BUDGET" | "PR_REQUEST" | "LOGISTICS"
-      artist_role: "ARTIST_MANAGER" | "ARTIST_OBSERVER"
+      artist_role:
+        | "ARTIST_MANAGER"
+        | "ARTIST_OBSERVER"
+        | "LABEL"
+        | "BOOKING_AGENT"
+        | "PRODUCER"
+        | "PUBLISHER"
+        | "AR"
+        | "ROADIE_TECH"
       availability_request_status: "open" | "closed" | "cancelled"
       availability_response_status:
         | "pending"
@@ -8797,7 +8821,16 @@ export const Constants = {
       ],
       approval_status: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"],
       approval_type: ["BUDGET", "PR_REQUEST", "LOGISTICS"],
-      artist_role: ["ARTIST_MANAGER", "ARTIST_OBSERVER"],
+      artist_role: [
+        "ARTIST_MANAGER",
+        "ARTIST_OBSERVER",
+        "LABEL",
+        "BOOKING_AGENT",
+        "PRODUCER",
+        "PUBLISHER",
+        "AR",
+        "ROADIE_TECH",
+      ],
       availability_request_status: ["open", "closed", "cancelled"],
       availability_response_status: [
         "pending",
