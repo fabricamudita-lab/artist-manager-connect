@@ -187,11 +187,12 @@ export default function ProjectDetail() {
     localStorage.setItem('taskPanel-collapsedSections', JSON.stringify(newState));
   };
 
-  // Tasks state
+  // Tasks state — cargadas desde project_checklist_items (tabla real)
   const [tasks, setTasks] = useState<Array<{
     id: string;
     etapa: string;
     nombre: string;
+    titulo?: string;
     categoria: string;
     responsables: string[];
     prioridad: string;
@@ -203,83 +204,7 @@ export default function ProjectDetail() {
     subtasks?: ProjectSubtask[];
     expanded?: boolean;
     [key: string]: any;
-  }>>([
-    // Seed data for testing
-    {
-      id: "1",
-      etapa: "PREPARATIVOS",
-      nombre: "Confirmar disponibilidad de fechas",
-      categoria: "Planificación",
-      responsables: ["María García"],
-      prioridad: "Alta",
-      estado: "completada",
-      comentarios: "",
-      fecha_vencimiento: "2026-03-15"
-    },
-    {
-      id: "2", 
-      etapa: "PREPARATIVOS",
-      nombre: "Solicitar riders técnicos",
-      categoria: "Documentación",
-      responsables: ["Juan López", "Ana Martín"],
-      prioridad: "Media",
-      estado: "en_progreso",
-      comentarios: "",
-      is_urgent: true,
-      fecha_vencimiento: "2026-02-28"
-    },
-    {
-      id: "3",
-      etapa: "PREPARATIVOS", 
-      nombre: "Contratar seguro del evento",
-      categoria: "Legal",
-      responsables: ["Carlos Ruiz"],
-      prioridad: "Alta",
-      estado: "pendiente",
-      comentarios: ""
-    },
-    {
-      id: "4",
-      etapa: "PRODUCCIÓN",
-      nombre: "Montaje del escenario",
-      categoria: "Técnico",
-      responsables: ["Equipo Técnico"],
-      prioridad: "Alta",
-      estado: "pendiente",
-      comentarios: "",
-      fecha_vencimiento: "2026-04-10"
-    },
-    {
-      id: "5",
-      etapa: "PRODUCCIÓN",
-      nombre: "Prueba de sonido",
-      categoria: "Técnico", 
-      responsables: ["Técnico de sonido"],
-      prioridad: "Media",
-      estado: "bloqueada",
-      comentarios: ""
-    },
-    {
-      id: "6",
-      etapa: "CIERRE",
-      nombre: "Liquidación económica",
-      categoria: "Financiero",
-      responsables: ["Administración"],
-      prioridad: "Alta",
-      estado: "pendiente",
-      comentarios: ""
-    },
-    {
-      id: "7",
-      etapa: "CIERRE",
-      nombre: "Evaluación post-evento",
-      categoria: "Análisis",
-      responsables: ["Director de proyecto"],
-      prioridad: "Baja",
-      estado: "cancelada",
-      comentarios: ""
-    }
-  ]);
+  }>>([]);
 
   // Filter state - will be initialized after user and project are loaded
   const [activeFilters, setActiveFilters] = useState(new Set([
