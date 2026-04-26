@@ -5669,6 +5669,47 @@ export type Database = {
           },
         ]
       }
+      project_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          project_id: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          project_id: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          project_id?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_questions: {
         Row: {
           answer: string | null
@@ -8462,6 +8503,10 @@ export type Database = {
           p_token: string
         }
         Returns: Json
+      }
+      user_has_project_access: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
       }
       user_has_workspace_permission: {
         Args: {
