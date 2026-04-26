@@ -8672,7 +8672,7 @@ export type Database = {
         | "cancelled"
       transaction_type: "income" | "expense" | "transfer" | "refund"
       user_role: "artist" | "management"
-      workspace_role: "OWNER" | "TEAM_MANAGER"
+      workspace_role: "OWNER" | "TEAM_MANAGER" | "MEMBER"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -8931,7 +8931,7 @@ export const Constants = {
       ],
       transaction_type: ["income", "expense", "transfer", "refund"],
       user_role: ["artist", "management"],
-      workspace_role: ["OWNER", "TEAM_MANAGER"],
+      workspace_role: ["OWNER", "TEAM_MANAGER", "MEMBER"],
     },
   },
 } as const
