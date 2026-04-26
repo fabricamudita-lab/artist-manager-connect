@@ -624,26 +624,42 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Header */}
-              <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border border-border/50">
-                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 text-primary font-bold text-lg shrink-0">
-                  {(formData.name || 'C').charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold truncate">{formData.name || 'Nuevo contacto'}</h3>
-                  {formData.role && (
-                    <p className="text-sm text-muted-foreground truncate">{formData.role}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    {formData.category && formData.category !== 'general' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {formData.category}
-                      </span>
+              <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border/50">
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                  <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 text-primary font-bold text-lg shrink-0">
+                    {(formData.name || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold truncate">{formData.name || 'Nuevo contacto'}</h3>
+                    {formData.role && (
+                      <p className="text-sm text-muted-foreground truncate">{formData.role}</p>
                     )}
-                    {formData.email && (
-                      <span className="text-xs text-muted-foreground">{formData.email}</span>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {formData.category && formData.category !== 'general' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                          {formData.category}
+                        </span>
+                      )}
+                      {formData.email && (
+                        <span className="text-xs text-muted-foreground">{formData.email}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateFormLink}
+                  disabled={generatingFormLink}
+                  className="shrink-0"
+                >
+                  {generatingFormLink ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <><Share2 className="h-4 w-4 mr-2" />Formulario</>
+                  )}
+                </Button>
               </div>
 
               {/* Basic Info - Always Required */}
@@ -935,19 +951,6 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               </div>
               
               <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleGenerateFormLink}
-                  disabled={generatingFormLink}
-                  className="sm:mr-auto"
-                >
-                  {generatingFormLink ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generando...</>
-                  ) : (
-                    <><Share2 className="h-4 w-4 mr-2" />Formulario</>
-                  )}
-                </Button>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancelar
                 </Button>
