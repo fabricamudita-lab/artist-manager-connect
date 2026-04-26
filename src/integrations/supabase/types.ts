@@ -8508,12 +8508,20 @@ export type Database = {
         Args: { _artist_id: string; _user_id: string }
         Returns: boolean
       }
+      user_can_edit_contact: {
+        Args: { _contact_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_can_edit_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       user_can_see_artist: {
         Args: { _artist_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_see_contact: {
+        Args: { _contact_id: string; _user_id: string }
         Returns: boolean
       }
       user_can_see_project: {
