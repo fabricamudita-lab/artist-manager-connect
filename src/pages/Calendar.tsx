@@ -974,11 +974,16 @@ export default function Calendar() {
     const renderSingleMonth = (monthDate: Date, monthWeeks: any[]) => <div className="flex-1 min-w-0">
         {/* Month header */}
         <div className="bg-muted/20 p-3 border-b text-center">
-          <h3 className="text-lg font-semibold capitalize">
+          <button
+            type="button"
+            onClick={() => selectMonth(monthDate)}
+            className={`text-lg font-semibold capitalize hover:text-primary transition-colors ${selectedMonth && isSameMonth(monthDate, selectedMonth) ? 'text-primary underline underline-offset-4' : ''}`}
+            title="Ver eventos de este mes"
+          >
             {format(monthDate, 'MMMM yyyy', {
             locale: es
           })}
-          </h3>
+          </button>
         </div>
 
         {/* Days of week header */}
