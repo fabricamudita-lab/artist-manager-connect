@@ -1,70 +1,101 @@
 ## Objetivo
 
-El panel "Eventos para …" debe mostrar contenido aunque no haya un día concreto seleccionado, adaptándose al modo de calendario y, en Mes/Año, también a un mes seleccionado en el encabezado.
+Añadir un nuevo estado **"Pagado (sin justificante)"** al selector de `billing_status`, que cuente como pagado en cashflow pero quede marcado como "pendiente de regularizar" para que la gestoría pueda revisarlo.
 
-## Comportamiento por vista
+## Etiqueta y semántica
 
-| Vista | Sin selección | Click en mes (encabezado) | Click en día concreto |
-|---|---|---|---|
-| **Semana** | Todos los eventos de la semana visible (`currentDate`) | — | Solo de ese día (igual que ahora) |
-| **Mes** | Todos los eventos de los **dos meses visibles** (`currentDate` y `currentDate + 1 mes`) | Solo eventos del mes clicado | Solo de ese día |
-| **Año** | Todos los eventos del año (`currentDate.getFullYear()`) | Solo eventos del mes clicado | Solo de ese día |
+- **Valor en BD**: `pagado_sin_factura`
+- **Etiqueta UI**: `Pagado (sin justificante)`
+- **Tooltip / descripción corta**: "Salida de dinero sin factura/recibo. Pendiente de regularizar con gestoría."
+- **Color**: tono ámbar/naranja (distinto del verde de "Pagada" para que destaque visualmente como algo a revisar).
 
-Regla: al cambiar de vista o navegar (prev/next/today), se limpian `selectedDate` y `selectedMonth` para que el panel vuelva al modo "rango completo" de la nueva vista.
+## Comportamiento contable
 
-## Cambios técnicos
+| Métrica | Cuenta como… |
+|---|---|
+| Total pagado (cashflow, salidas) | **Sí**, suma como pagado |
+| Pendiente de pago | **No**, ya está fuera |
+| Pendiente de regularizar (nuevo contador / aviso) | **Sí**, aparece destacado |
+| Filtros "Solo pagadas" | Incluido |
+| Filtros "Pendiente de factura" | Incluido como sub-categoría |
 
-### 1. `src/pages/Calendar.tsx` — Estado nuevo
+Helper único `isPaidStatus(s)` que devuelve `true` para `'pagado'`, `'pagada'` y `'pagado_sin_factura'`. Se reemplazan todas las comparaciones literales `=== 'pagado'` por este helper en los puntos críticos.
 
-- Cambiar `selectedDate` para que arranque como `undefined` (hoy en día se inicializa con `new Date()` en línea 63 — esto fuerza que siempre haya día seleccionado).
-- Añadir `const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)` (representa el primer día del mes seleccionado).
-- En `setViewMode` (los 3 botones de las 3 vistas), `navigateWeek/Month/Year` y "Hoy": resetear `setSelectedDate(undefined)` y `setSelectedMonth(null)`. (Hoy `navigateWeek/Month` setean `selectedDate = newDate` — eliminar esa línea.)
-- Al hacer click en un día del calendario: `setSelectedMonth(null)` además de `setSelectedDate(day)`.
+## Cambios en código
 
-### 2. Encabezados de mes clicables
-
-- **Vista Mes** (`renderSingleMonth`, línea 956-964): envolver el `<h3>` en un botón que haga `setSelectedMonth(startOfMonth(monthDate))` y `setSelectedDate(undefined)`. Resaltar visualmente el mes activo (`selectedMonth && isSameMonth(monthDate, selectedMonth)` → `text-primary underline`).
-- **Vista Año** (`YearlyCalendar.tsx`, línea 84): añadir prop `onMonthSelect?: (date: Date) => void` y `selectedMonth?: Date | null`. El `<h3>{monthNames[monthIndex]}</h3>` se vuelve clicable (con `e.stopPropagation()` para no chocar con clicks de día). Resaltar mes activo con `ring-2 ring-white` o similar. Pasar las props desde Calendar.tsx en línea 1120.
-
-### 3. Helpers nuevos en `Calendar.tsx`
+### 1. Nuevo helper `src/lib/billingStatus.ts` (nuevo archivo)
 
 ```ts
-const getEventsInRange = (start: Date, end: Date) =>
-  filteredEvents.filter(e => {
-    const d = new Date(e.start_date);
-    return d >= start && d <= end;
-  });
+export const BILLING_STATUS_OPTIONS = [
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'factura_solicitada', label: 'Factura solicitada' },
+  { value: 'factura_recibida', label: 'Factura recibida' },
+  { value: 'pagada', label: 'Pagada' },
+  { value: 'pagado_sin_factura', label: 'Pagado (sin justificante)' },
+  { value: 'agrupada', label: 'Agrupada en factura' },
+] as const;
 
-const getBookingsInRange = (start: Date, end: Date) =>
-  filteredBookings.filter(b => {
-    if (!b.fecha) return false;
-    const d = new Date(b.fecha);
-    return d >= start && d <= end;
-  });
+export const PAID_STATUSES = ['pagado', 'pagada', 'pagado_sin_factura'] as const;
+export const isPaidStatus = (s?: string | null) => !!s && PAID_STATUSES.includes(s as any);
+export const needsRegularization = (s?: string | null) => s === 'pagado_sin_factura';
+export const billingStatusLabel = (s?: string | null) => { /* mapeo */ };
 ```
 
-### 4. Lógica del panel "Eventos para …" (líneas 1158-1265)
+### 2. `src/components/BudgetDetailsDialog.tsx`
 
-Reemplazar el actual `selectedDate && <Card>…</Card>` por una lógica que calcule `{ rangeLabel, rangeEvents, rangeBookings }` según prioridad:
+- Añadir `<SelectItem value="pagado_sin_factura">Pagado (sin justificante)</SelectItem>` en los dos selectores (líneas 4034 y 4604).
+- Ampliar el mapa de etiquetas (líneas 3037-3042 y 4622-4625) para incluir la nueva opción.
+- En la función PDF/CSV (líneas 2464, 2792) tratar `pagado_sin_factura` como "Pagado (sin justificante)".
+- Actualizar la lógica `data.pendiente === 0` para que `isPaidStatus` reconozca el nuevo estado.
 
-1. Si `selectedDate` → comportamiento actual (un día).
-2. Else si `selectedMonth` → rango = mes completo. Título: `"Eventos de {MMMM yyyy}"`.
-3. Else según `viewMode`:
-   - `week`: rango = `startOfWeek(currentDate, {weekStartsOn:1})` … `endOfWeek(...)`. Título: `"Eventos de la semana del {d} al {d MMM yyyy}"`.
-   - `month`: rango = `startOfMonth(currentDate)` … `endOfMonth(addMonths(currentDate,1))`. Título: `"Eventos de {MMM} – {MMM yyyy}"`.
-   - `year`: rango = año entero (`startOfYear`/`endOfYear`). Título: `"Eventos de {yyyy}"`.
-4. Si `quarter` (existe en el type union) → tratarlo como `month`.
+### 3. `src/components/EnhancedBudgetItemsView.tsx`
 
-El panel se renderiza siempre (no condicionado por `selectedDate`). La lista de bookings y eventos se ordena por fecha ascendente. Cada evento/booking muestra ya su fecha (formato corto) además de la hora, dado que ahora pueden ser de días distintos.
+- Ampliar el type `billing_status` (línea 46) para incluir `'pagado_sin_factura'`.
+- Añadir el SelectItem y el color del badge (`statusColors`, `statusLabels`).
 
-El bloque "No hay eventos programados…" se mantiene cuando ambos arrays están vacíos, adaptando el texto al rango (p. ej. "No hay eventos en este rango").
+### 4. `src/components/finanzas/CashflowView.tsx` y `CashflowPanel.tsx`
 
-### 5. Reusar el render
+- Reemplazar `.neq('billing_status', 'pagado')` por filtro que excluya **todos** los estados pagados:
+  ```ts
+  .not('billing_status', 'in', '(pagado,pagada,pagado_sin_factura)')
+  ```
+- Añadir un badge "Sin justificante" cuando una línea aparece marcada como `pagado_sin_factura`, para que se distinga visualmente.
 
-Extraer las tarjetas actuales de booking y de evento (líneas 1172-1257) sin cambios estructurales — solo iteran sobre los nuevos arrays `rangeBookings` y `rangeEvents`. Añadir un pequeño `<span>` con la fecha (`format(date, 'd MMM', {locale: es})`) junto a la hora cuando el rango cubra más de un día.
+### 5. `src/hooks/useFinanzasPanel.ts`
 
-### Imports adicionales
+- Reemplazar las 4 comparaciones `i.billing_status === 'pagado'` (líneas 266, 322, 363, 527) por `isPaidStatus(i.billing_status)`.
+- Añadir un nuevo agregado `pendienteRegularizar` (suma de items `pagado_sin_factura`) y exportarlo del hook.
 
-`startOfYear`, `endOfYear` desde `date-fns` (ya se usan `startOfMonth`, `endOfMonth`, `startOfWeek`, `endOfWeek`, `addMonths`, `isSameMonth`).
+### 6. `src/components/booking-detail/BookingPresupuestoTab.tsx`
 
-Sin cambios de base de datos.
+- Línea 173: usar `isPaidStatus` en lugar de `=== 'pagado'`.
+
+### 7. `src/components/LiquidarFacturasDialog.tsx`
+
+- Línea 63: el filtro `.in('billing_status', [...])` no incluye `pagado_sin_factura` (correcto: ya no se puede facturar después). Sin cambios.
+- Línea 293: mostrar etiqueta legible vía `billingStatusLabel`.
+
+### 8. `src/utils/budgetCrewLoader.ts` y `src/utils/generateProjectDocumentation.ts`
+
+- Añadir mapeo de la nueva opción si listan etiquetas.
+
+### 9. Aviso "Pendiente de regularizar"
+
+- En `BudgetSummaryCards`, si `pendienteRegularizar > 0`, mostrar una tarjeta ámbar:
+  > "Pagos sin justificante: €XXX,XX (N líneas) — pendientes de regularizar con gestoría."
+
+## Cambios en base de datos
+
+**Ninguno.** El campo `billing_status` ya es `text` libre (no es un `enum` PostgreSQL). Confirmado por los selects existentes que usan strings arbitrarios. Se añade el nuevo valor sin migración.
+
+## Fuera de alcance (responder a "también en cobros del booking")
+
+Los cobros del booking (anticipo/liquidación) usan otro modelo (`anticipo_estado`, `liquidacion_estado`, `cobro_estado`) con solo dos estados (cobrado/pendiente), no el sistema `billing_status`. Para introducir "cobrado sin factura emitida" allí se necesitan columnas nuevas (`anticipo_sin_factura`, `liquidacion_sin_factura` boolean) y modificar `PagoDialog`. Lo abordaré en un cambio aparte si confirmas que también lo quieres allí — aviso para no mezclar dos arquitecturas en el mismo paso.
+
+## Resumen ejecutable
+
+1. Crear `src/lib/billingStatus.ts` con catálogo y helpers.
+2. Actualizar selectores y badges en BudgetDetailsDialog y EnhancedBudgetItemsView.
+3. Sustituir `=== 'pagado'` por `isPaidStatus(...)` en hooks y vistas (Cashflow, FinanzasPanel, BookingPresupuestoTab).
+4. Añadir agregado `pendienteRegularizar` y aviso visual en BudgetSummaryCards.
+5. Sin migración SQL.

@@ -43,7 +43,7 @@ interface BudgetItem {
   iva_percentage: number;
   irpf_percentage: number;
   is_attendee: boolean;
-  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' | 'pagado' | 'facturado';
+  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' | 'pagado' | 'facturado' | 'pagado_sin_factura';
   invoice_link?: string;
   observations?: string;
   category_id?: string;
@@ -84,6 +84,7 @@ const statusLabels = {
   factura_recibida: 'Factura Recibida',
   pagada: 'Pagada',
   pagado: 'Pagada',
+  pagado_sin_factura: 'Pagado (sin justificante)',
   facturado: 'Facturada',
   cancelado: 'Cancelado'
 };
@@ -94,6 +95,7 @@ const statusColors = {
   factura_recibida: 'bg-purple-100 text-purple-800',
   pagada: 'bg-green-100 text-green-800',
   pagado: 'bg-green-100 text-green-800',
+  pagado_sin_factura: 'bg-amber-100 text-amber-800 border border-amber-300',
   facturado: 'bg-emerald-100 text-emerald-800',
   cancelado: 'bg-red-100 text-red-800'
 };
@@ -397,6 +399,7 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
                 <SelectItem value="factura_recibida">Factura Recibida</SelectItem>
                 <SelectItem value="pagada">Pagada</SelectItem>
                 <SelectItem value="pagado">Pagada</SelectItem>
+                <SelectItem value="pagado_sin_factura">Pagado (sin justificante)</SelectItem>
                 <SelectItem value="facturado">Facturada</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>

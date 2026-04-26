@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { billingStatusLabel } from '@/lib/billingStatus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -290,7 +291,7 @@ export default function LiquidarFacturasDialog({
                         </TableCell>
                         <TableCell>
                           <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                            {item.billing_status}
+                            {billingStatusLabel(item.billing_status)}
                           </span>
                         </TableCell>
                       </TableRow>

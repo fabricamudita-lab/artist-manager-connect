@@ -110,12 +110,12 @@ export function CashflowView({ artistId }: CashflowViewProps) {
       return;
     }
 
-    // Fetch unpaid items with contact info
+    // Fetch unpaid items with contact info (excluye todos los estados pagados)
     const { data: itemsData } = await supabase
       .from('budget_items')
       .select('id, name, unit_price, quantity, category, is_provisional, billing_status, iva_percentage, irpf_percentage, budget_id, contact_id, contacts:contact_id(name)')
       .in('budget_id', activeIds)
-      .neq('billing_status', 'pagado');
+      .not('billing_status', 'in', '(pagado,pagada,pagado_sin_factura)');
 
     const budgetMap = new Map(activeBudgets.map(b => [b.id, b]));
 

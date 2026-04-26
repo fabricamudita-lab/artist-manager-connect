@@ -89,7 +89,7 @@ export function CashflowPanel({ open, onOpenChange, budgets }: CashflowPanelProp
       .from('budget_items')
       .select('id, name, unit_price, quantity, category, is_provisional, billing_status, iva_percentage, irpf_percentage, budget_id')
       .in('budget_id', activeIds)
-      .neq('billing_status', 'pagado');
+      .not('billing_status', 'in', '(pagado,pagada,pagado_sin_factura)');
 
     const budgetMap = new Map(activeBudgets.map(b => [b.id, b]));
 

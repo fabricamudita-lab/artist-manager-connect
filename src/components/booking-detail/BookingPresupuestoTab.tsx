@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isPaidStatus } from '@/lib/billingStatus';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -170,7 +171,7 @@ export function BookingPresupuestoTab({
     items.forEach(item => {
       const base = (item.unit_price || 0) * (item.quantity || 1);
       comprometido += base;
-      if (item.billing_status === 'pagado') pagado += base;
+      if (isPaidStatus(item.billing_status)) pagado += base;
       if (item.is_provisional) provisional += base;
       else confirmado += base;
     });
