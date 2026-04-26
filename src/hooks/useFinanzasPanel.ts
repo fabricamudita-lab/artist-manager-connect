@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { isPaidStatus } from '@/lib/billingStatus';
 import {
   startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear,
   subMonths, subDays, subQuarters, subYears, format, formatDistanceToNow,
@@ -268,7 +269,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
   const facturasPendientes = unpaidItems.length;
 
   // ══ KPI 5b: Pagos sin justificante (pendientes de regularizar con gestoría) ══
-  const sinJustificanteItems = activeItems.filter(i => i.billing_status === 'pagado_sin_factura');
+  const sinJustificanteItems = activeItems.filter(i => (i.billing_status as string) === 'pagado_sin_factura');
   const pagosSinJustificante = sumItems(sinJustificanteItems);
   const pagosSinJustificanteCount = sinJustificanteItems.length;
 
