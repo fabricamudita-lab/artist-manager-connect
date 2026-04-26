@@ -16,6 +16,8 @@ interface ProjectPulseTabProps {
     start_date?: string | null;
     end_date_estimada?: string | null;
   };
+  cobrosTotal?: number;
+  cobradoTotal?: number;
 }
 
 const ENTITY_TYPE_META: Record<string, { emoji: string; label: string; colorClass: string; bgClass: string }> = {
