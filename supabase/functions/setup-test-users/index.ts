@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
 
           console.log(`✅ User ${testUser.email} set up successfully`);
           
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Error setting up user ${testUser.email}:`, error);
           createdUsers.push({
             email: testUser.email,
@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
               console.log(`✅ User ${profile.email} deleted successfully`);
             }
             
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Error cleaning up user ${profile.email}:`, error);
             cleanupResults.push({
               email: profile.email,
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
       );
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Edge function error:', error);
     return new Response(
       JSON.stringify({

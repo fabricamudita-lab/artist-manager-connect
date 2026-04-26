@@ -80,11 +80,11 @@ async function fetchArtistAlbums(token: string, artistId: string): Promise<Spoti
     `${SPOTIFY_API_BASE}/artists/${artistId}/albums?include_groups=album,single,appears_on,compilation&limit=50&market=ES`;
 
   while (url) {
-    const res = await fetch(url, {
+    const res: Response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`Spotify API error: ${res.status}`);
-    const data = await res.json();
+    const data: any = await res.json();
     albums.push(...data.items);
     url = data.next;
   }

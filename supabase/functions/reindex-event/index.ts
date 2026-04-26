@@ -41,7 +41,7 @@ const extractTextFromDOCX = async (file: Blob): Promise<string> => {
     const arrayBuffer = await file.arrayBuffer();
     const result = await extractRawText({ arrayBuffer });
     return result.value || '';
-  } catch (error) {
+  } catch (error: any) {
     console.error('DOCX extraction error:', error);
     return `DOCX extraction failed: ${error.message}`;
   }
@@ -66,7 +66,7 @@ const extractTextFromExcel = async (file: Blob): Promise<{ text: string; sheetNa
     });
     
     return sheets;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Excel extraction error:', error);
     return [{ text: `Excel extraction failed: ${error.message}`, sheetName: 'error' }];
   }
@@ -185,7 +185,7 @@ const extractTextFromFile = async (file: Blob, fileName: string): Promise<{
           };
         }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error extracting text from ${fileName}:`, error);
     return {
       fragments: [{
@@ -548,23 +548,27 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Reindex error:', error);
+    const err = error as any;
     
     // Update status with error
     const { eventId } = await req.json().catch(() => ({}));
     if (eventId) {
-      await supabase
-        .from('event_index_status')
-        .update({
-          status: 'error',
-          error_message: error.message,
-          last_indexed_at: new Date().toISOString()
-        })
-        .eq('event_id', eventId)
-        .catch(console.error);
+      try {
+        await supabase
+          .from('event_index_status')
+          .update({
+            status: 'error',
+            error_message: err.message,
+            last_indexed_at: new Date().toISOString()
+          })
+          .eq('event_id', eventId);
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     return new Response(JSON.stringify({
-      error: error.message,
+      error: err.message,
       success: false
     }), {
       status: 500,
