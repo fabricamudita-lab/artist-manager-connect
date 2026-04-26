@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { AddTeamMemberDialog } from "@/components/AddTeamMemberDialog";
@@ -113,6 +113,7 @@ interface Workspace {
 
 export default function ProjectDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { renderIf } = useConditionalRender();
   
