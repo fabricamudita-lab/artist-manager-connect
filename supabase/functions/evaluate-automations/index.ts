@@ -26,7 +26,7 @@ interface MatchedEntity {
 }
 
 type Evaluator = (
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   config: AutomationConfig
 ) => Promise<MatchedEntity[]>;
 

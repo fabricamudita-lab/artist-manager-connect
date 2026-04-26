@@ -168,7 +168,7 @@ async function searchEventIndex(eventId: string, query: string, topK = 8, minSco
       results: filteredResults,
       indexStatus: 'completed'
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in searchEventIndex:', error);
     return { results: [], error: error.message };
   }
@@ -491,7 +491,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in search-event-ai function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),

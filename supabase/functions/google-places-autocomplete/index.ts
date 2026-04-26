@@ -72,7 +72,7 @@ serve(async (req) => {
       throw new Error(data.error_message || `API error: ${data.status}`);
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in google-places-autocomplete:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
