@@ -49,6 +49,8 @@ export function ProjectPulseTab({
   questions,
   linkedEntities,
   project,
+  cobrosTotal = 0,
+  cobradoTotal = 0,
 }: ProjectPulseTabProps) {
   const stats = useMemo(() => {
     const totalTasks = tasks.length;
