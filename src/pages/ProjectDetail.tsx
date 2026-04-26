@@ -2255,15 +2255,7 @@ export default function ProjectDetail() {
             </TabsContent>
 
             <TabsContent value="notas" className="mt-0">
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="text-lg font-medium mb-2">Notas colaborativas</h3>
-                <p className="text-sm text-muted-foreground">
-                  Próximamente podrás añadir notas colaborativas para este proyecto.
-                  <br />
-                  Mientras tanto, usa "Documentos" para adjuntar ficheros.
-                </p>
-              </div>
+              <ProjectNotesTab projectId={id!} userId={profile?.user_id} />
             </TabsContent>
 
             {/* ── FINANZAS ─────────────────────────────────────────── */}
