@@ -82,6 +82,7 @@ import { ProjectPulseTab } from "@/components/project-detail/ProjectPulseTab";
 import { ProjectWorkflowsTab } from "@/components/project-detail/ProjectWorkflowsTab";
 import { ProjectIncidentsTab } from "@/components/project-detail/ProjectIncidentsTab";
 import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestionsTab";
+import { ProjectNotesTab } from "@/components/project-detail/ProjectNotesTab";
 import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
 import { ProjectLinkedBudgets } from "@/components/project-detail/ProjectLinkedBudgets";
 import { ProjectLinkedBookings } from "@/components/project-detail/ProjectLinkedBookings";
