@@ -248,6 +248,17 @@ export function FinanzasPanelTab({ artistId }: Props) {
             <p className="text-xs text-muted-foreground">
               {data.facturasPendientes} factura{data.facturasPendientes !== 1 ? 's' : ''} sin liquidar
             </p>
+            {data.pagosSinJustificanteCount > 0 && (
+              <div
+                className="mt-2 text-[11px] rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-2 py-1 flex items-start gap-1"
+                title="Pagos realizados sin factura ni recibo. Pendientes de regularizar con la gestoría."
+              >
+                <span>⚠</span>
+                <span>
+                  Sin justificante: <strong>{fmt(data.pagosSinJustificante)}</strong> ({data.pagosSinJustificanteCount} línea{data.pagosSinJustificanteCount !== 1 ? 's' : ''}) — pendiente de regularizar
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
