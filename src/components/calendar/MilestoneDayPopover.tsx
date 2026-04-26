@@ -23,6 +23,7 @@ interface Props {
   milestone: CalendarMilestone | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  clickedDate?: Date;
 }
 
 const statusLabel: Record<string, string> = {
@@ -52,7 +53,7 @@ interface Subtask {
   completed?: boolean;
 }
 
-export function MilestoneDayPopover({ milestone, open, onOpenChange }: Props) {
+export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate }: Props) {
   const data = useMemo(() => {
     if (!milestone) return null;
     const meta = milestone.metadata || {};
@@ -77,9 +78,10 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange }: Props) {
 
     const anchoredTo: string | null = meta.anchoredTo || null;
 
+    const referenceDate = clickedDate ?? new Date();
     const releaseDate = milestone.release?.release_date || null;
     const daysToRelease = releaseDate
-      ? differenceInCalendarDays(parseISO(releaseDate), new Date())
+      ? differenceInCalendarDays(parseISO(releaseDate), referenceDate)
       : null;
 
     const isPhase = (milestone.phase_count || 1) > 1;
@@ -101,8 +103,9 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange }: Props) {
       daysToRelease,
       isPhase,
       isOverdue,
+      referenceDate,
     };
-  }, [milestone]);
+  }, [milestone, clickedDate]);
 
   if (!milestone || !data) return null;
 
