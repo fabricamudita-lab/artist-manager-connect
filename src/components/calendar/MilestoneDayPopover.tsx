@@ -120,6 +120,16 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
+          {/* Selected date highlight */}
+          {clickedDate && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+              <CalendarDays className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-base font-semibold text-foreground capitalize">
+                {format(clickedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+              </span>
+            </div>
+          )}
+
           {/* Badges */}
           <div className="flex flex-wrap gap-2">
             <Badge variant={statusVariant[milestone.status] || 'outline'}>
@@ -193,15 +203,15 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
             </p>
           )}
 
-          {/* Countdown to release */}
+          {/* Countdown to release (relative to clicked date if provided) */}
           {data.daysToRelease !== null && (
             <p className="flex items-center gap-1.5 text-muted-foreground">
               <Rocket className="h-3.5 w-3.5" />
               {data.daysToRelease > 0
-                ? <>Faltan <span className="text-foreground font-medium">{data.daysToRelease} días</span> para el lanzamiento</>
+                ? <>Faltan <span className="text-foreground font-medium">{data.daysToRelease} {data.daysToRelease === 1 ? 'día' : 'días'}</span> para el lanzamiento{clickedDate ? ' desde esta fecha' : ''}</>
                 : data.daysToRelease === 0
-                  ? <span className="text-foreground font-medium">El lanzamiento es hoy</span>
-                  : <>Lanzamiento publicado hace <span className="text-foreground font-medium">{Math.abs(data.daysToRelease)} días</span></>
+                  ? <span className="text-foreground font-medium">{clickedDate ? 'El lanzamiento es este día' : 'El lanzamiento es hoy'}</span>
+                  : <>Lanzamiento publicado hace <span className="text-foreground font-medium">{Math.abs(data.daysToRelease)} {Math.abs(data.daysToRelease) === 1 ? 'día' : 'días'}</span>{clickedDate ? ' antes de esta fecha' : ''}</>
               }
             </p>
           )}
