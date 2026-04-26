@@ -113,6 +113,32 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
     };
   }, [milestone, clickedDate]);
 
+  // Resolve anchored milestone IDs → titles
+  const [anchorTitles, setAnchorTitles] = useState<Record<string, string>>({});
+  const [anchorsLoaded, setAnchorsLoaded] = useState(false);
+  const anchorKey = (data?.anchoredIds || []).join(',');
+  useEffect(() => {
+    const ids = data?.anchoredIds || [];
+    if (ids.length === 0) {
+      setAnchorTitles({});
+      setAnchorsLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setAnchorsLoaded(false);
+    supabase
+      .from('release_milestones')
+      .select('id, title')
+      .in('id', ids)
+      .then(({ data: rows }) => {
+        if (cancelled) return;
+        setAnchorTitles(Object.fromEntries((rows || []).map((m: any) => [m.id, m.title])));
+        setAnchorsLoaded(true);
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchorKey]);
+
   if (!milestone || !data) return null;
 
   return (
@@ -202,10 +228,20 @@ export function MilestoneDayPopover({ milestone, open, onOpenChange, clickedDate
           )}
 
           {/* Anchor */}
-          {data.anchoredTo && (
-            <p className="flex items-center gap-1.5 text-muted-foreground">
-              <Anchor className="h-3.5 w-3.5" /> Anclado a:{' '}
-              <span className="text-foreground">{String(data.anchoredTo)}</span>
+          {data.anchoredIds.length > 0 && (
+            <p className="flex items-start gap-1.5 text-muted-foreground">
+              <Anchor className="h-3.5 w-3.5 mt-0.5 shrink-0" /> Anclado a:{' '}
+              <span className="text-foreground break-words">
+                {data.anchoredIds
+                  .map((id) =>
+                    anchorTitles[id]
+                      ? anchorTitles[id]
+                      : anchorsLoaded
+                        ? 'Hito eliminado'
+                        : 'Cargando…',
+                  )
+                  .join(', ')}
+              </span>
             </p>
           )}
 
