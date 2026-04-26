@@ -1179,20 +1179,59 @@ export default function Calendar() {
       </div>
 
       {/* Event Details */}
-      {selectedDate && <Card className="card-moodita">
+      {(() => {
+        // Compute the active range (single day, selected month, or default by viewMode)
+        let rangeStart: Date;
+        let rangeEnd: Date;
+        let rangeLabel: string;
+        let isSingleDay = false;
+
+        if (selectedDate) {
+          rangeStart = startOfDay(selectedDate);
+          rangeEnd = endOfWeek(rangeStart, { weekStartsOn: 1 }); // overwritten below
+          rangeEnd = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate(), 23, 59, 59, 999);
+          rangeLabel = `Eventos para ${format(selectedDate, 'PPPP', { locale: es })}`;
+          isSingleDay = true;
+        } else if (selectedMonth) {
+          rangeStart = startOfMonth(selectedMonth);
+          rangeEnd = endOfMonth(selectedMonth);
+          rangeLabel = `Eventos de ${format(selectedMonth, 'MMMM yyyy', { locale: es })}`;
+        } else if (viewMode === 'week') {
+          rangeStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+          rangeEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+          rangeLabel = `Eventos de la semana del ${format(rangeStart, 'd MMM', { locale: es })} al ${format(rangeEnd, 'd MMM yyyy', { locale: es })}`;
+        } else if (viewMode === 'year') {
+          rangeStart = startOfYear(currentDate);
+          rangeEnd = endOfYear(currentDate);
+          rangeLabel = `Eventos de ${format(currentDate, 'yyyy', { locale: es })}`;
+        } else {
+          // month / quarter
+          rangeStart = startOfMonth(currentDate);
+          rangeEnd = endOfMonth(addMonths(currentDate, 1));
+          rangeLabel = `Eventos de ${format(currentDate, 'MMMM', { locale: es })} – ${format(addMonths(currentDate, 1), 'MMMM yyyy', { locale: es })}`;
+        }
+
+        const inRange = (d: Date) => d >= rangeStart && d <= rangeEnd;
+        const rangeBookings = filteredBookings
+          .filter(b => b.fecha && inRange(new Date(b.fecha)))
+          .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const rangeEvents = filteredEvents
+          .filter(e => inRange(new Date(e.start_date)))
+          .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+        const total = rangeBookings.length + rangeEvents.length;
+        const showDate = !isSingleDay;
+
+        return (
+        <Card className="card-moodita">
           <CardHeader>
-            <CardTitle>
-              Eventos para {format(selectedDate, 'PPPP', {
-            locale: es
-          })}
-            </CardTitle>
+            <CardTitle>{rangeLabel}</CardTitle>
             <CardDescription>
-              {getEventsForDate(selectedDate).length + getBookingOffersForDate(selectedDate).length} evento(s) programado(s)
+              {total} evento(s) programado(s)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Booking Offers for this date */}
-            {getBookingOffersForDate(selectedDate).map(booking => (
+            {/* Booking Offers */}
+            {rangeBookings.map(booking => (
               <div key={booking.id} className="card-interactive p-4 space-y-2 hover-glow border-l-4 border-l-amber-500">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -1201,7 +1240,13 @@ export default function Calendar() {
                     </div>
                     <div>
                       <h3 className="font-semibold">{formatBookingTitle(booking)}</h3>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                        {showDate && booking.fecha && (
+                          <div className="flex items-center gap-1 font-medium text-foreground">
+                            <CalendarIcon className="h-3 w-3" />
+                            {format(new Date(booking.fecha), "d MMM yyyy", { locale: es })}
+                          </div>
+                        )}
                         {(booking.lugar || booking.venue) && (
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
@@ -1238,9 +1283,9 @@ export default function Calendar() {
                 </div>
               </div>
             ))}
-            
+
             {/* Regular Events */}
-            {getEventsForDate(selectedDate).map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
+            {rangeEvents.map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -1248,7 +1293,13 @@ export default function Calendar() {
                       </div>
                       <div>
                         <h3 className="font-semibold">{event.title}</h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                          {showDate && (
+                            <div className="flex items-center gap-1 font-medium text-foreground">
+                              <CalendarIcon className="h-3 w-3" />
+                              {format(new Date(event.start_date), "d MMM yyyy", { locale: es })}
+                            </div>
+                          )}
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {format(new Date(event.start_date), 'HH:mm')} - 
@@ -1278,14 +1329,16 @@ export default function Calendar() {
                       {event.description}
                     </p>}
                 </div>)}
-            
-            {getEventsForDate(selectedDate).length === 0 && getBookingOffersForDate(selectedDate).length === 0 && (
+
+            {total === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No hay eventos programados para esta fecha
+                {isSingleDay ? 'No hay eventos programados para esta fecha' : 'No hay eventos en este rango'}
               </div>
             )}
           </CardContent>
-        </Card>}
+        </Card>
+        );
+      })()}
 
       {/* Event Detail Popovers - Múltiples */}
       {openEventPopups.map(popup => <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)} position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)} onPositionChange={(newPos) => updatePopupPosition(popup.id, newPos)} artistName="David Solans" createdBy="Fabrica Mudita" onEdit={event => {
