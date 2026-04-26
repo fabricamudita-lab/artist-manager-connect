@@ -121,9 +121,45 @@ acciones_clave:
   - APPROVE_IF_ASSIGNED
   - CREATE_APPROVAL
   - SUBMIT_APPROVAL
+  - VIEW_FINANCE
+  - EDIT_FINANCE
+  - VIEW_CONTRACTS
+  - EDIT_CONTRACTS
+  - VIEW_RELEASES
+  - EDIT_RELEASES
+  - VIEW_BOOKING
+  - EDIT_BOOKING
+  - VIEW_ROADMAP
+  - EDIT_ROADMAP
 `;
 
 const permissions: PermissionMatrix = yaml.load(PERMISSIONS_CONFIG) as PermissionMatrix;
+
+/**
+ * Public catalog: all artist roles with human-readable label & description.
+ * Drives the role selector in the Teams module.
+ */
+export const ARTIST_ROLE_CATALOG: Array<{ value: ArtistRole; label: string; description: string }> = [
+  { value: 'ARTIST_MANAGER' as ArtistRole, label: 'Manager del artista', description: 'Control total sobre la carrera y los proyectos' },
+  { value: 'LABEL' as ArtistRole, label: 'Sello discográfico', description: 'Lanzamientos, contratos y finanzas' },
+  { value: 'BOOKING_AGENT' as ArtistRole, label: 'Agente de booking', description: 'Ofertas, calendario y contratos de directo' },
+  { value: 'PRODUCER' as ArtistRole, label: 'Productor musical', description: 'Créditos, audio y sesiones' },
+  { value: 'PUBLISHER' as ArtistRole, label: 'Editorial', description: 'Splits, royalties y contratos IP' },
+  { value: 'AR' as ArtistRole, label: 'A&R', description: 'Lanzamientos y agenda con permisos de comentario' },
+  { value: 'ROADIE_TECH' as ArtistRole, label: 'Equipo técnico de gira', description: 'Hojas de ruta, riders y calendario' },
+  { value: 'ARTIST_OBSERVER' as ArtistRole, label: 'Observador', description: 'Solo lectura del dashboard del artista' },
+];
+
+export const PROJECT_ROLE_CATALOG: Array<{ value: ProjectRole; label: string; description: string }> = [
+  { value: 'EDITOR', label: 'Editor', description: 'Permisos completos de gestión del proyecto' },
+  { value: 'COMMENTER', label: 'Comentador', description: 'Comentar y aprobar tareas asignadas' },
+  { value: 'VIEWER', label: 'Visualizador', description: 'Solo lectura' },
+];
+
+export const WORKSPACE_ROLE_CATALOG: Array<{ value: WorkspaceRole; label: string; description: string }> = [
+  { value: 'OWNER', label: 'Propietario', description: 'Control total del workspace' },
+  { value: 'TEAM_MANAGER', label: 'Team Manager', description: 'Administrar miembros y artistas' },
+];
 
 /**
  * Resolves all scopes (workspace, artist, project) for a given user
