@@ -569,17 +569,21 @@ export default function Calendar() {
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newDate = direction === 'prev' ? subWeeks(currentDate, 1) : addWeeks(currentDate, 1);
     setCurrentDate(newDate);
-    setSelectedDate(newDate);
+    setSelectedDate(undefined);
+    setSelectedMonth(null);
   };
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newDate = direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1);
     setCurrentDate(newDate);
-    setSelectedDate(newDate);
+    setSelectedDate(undefined);
+    setSelectedMonth(null);
   };
   const navigateYear = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
     newDate.setFullYear(newDate.getFullYear() + (direction === 'prev' ? -1 : 1));
     setCurrentDate(newDate);
+    setSelectedDate(undefined);
+    setSelectedMonth(null);
   };
   const getWeekDays = () => {
     const weekStart = startOfWeek(currentDate, {
