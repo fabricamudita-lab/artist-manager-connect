@@ -116,7 +116,7 @@ export default function Calendar() {
   const [showReleases, setShowReleases] = useState(true);
   const [showMilestones, setShowMilestones] = useState(true);
   const [selectedRelease, setSelectedRelease] = useState<CalendarRelease | null>(null);
-  const [selectedMilestone, setSelectedMilestone] = useState<CalendarMilestone | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = useState<{ milestone: CalendarMilestone; date: Date } | null>(null);
 
   // Load artist_ids the user has access to (real artists, not profile.id)
   useEffect(() => {
@@ -845,7 +845,7 @@ export default function Calendar() {
                 ))}
                 {dayMilestones.map((m) => (
                   <div key={`ms-${m.id}`} className="text-xs px-2 py-1 rounded truncate font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1"
-                    onClick={e => { e.stopPropagation(); setSelectedMilestone(m); }}>
+                    onClick={e => { e.stopPropagation(); setSelectedMilestone({ milestone: m, date: day }); }}>
                     <Target className="h-3 w-3 flex-shrink-0" />
                     <span className="truncate">{m.title}</span>
                   </div>
@@ -1037,7 +1037,7 @@ export default function Calendar() {
                         <div
                           key={`ms-${m.id}`}
                           className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1"
-                          onClick={e => { e.stopPropagation(); setSelectedMilestone(m); }}
+                          onClick={e => { e.stopPropagation(); setSelectedMilestone({ milestone: m, date: day }); }}
                         >
                           <Target className="h-2.5 w-2.5 flex-shrink-0" />
                           <span className="truncate">{m.title}</span>
@@ -1379,6 +1379,6 @@ export default function Calendar() {
 
       {/* Release & milestone popovers */}
       <ReleaseDayPopover release={selectedRelease} open={!!selectedRelease} onOpenChange={(o) => !o && setSelectedRelease(null)} />
-      <MilestoneDayPopover milestone={selectedMilestone} open={!!selectedMilestone} onOpenChange={(o) => !o && setSelectedMilestone(null)} />
+      <MilestoneDayPopover milestone={selectedMilestone?.milestone ?? null} clickedDate={selectedMilestone?.date} open={!!selectedMilestone} onOpenChange={(o) => !o && setSelectedMilestone(null)} />
     </div>;
 }

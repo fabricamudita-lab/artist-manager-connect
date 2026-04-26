@@ -1,32 +1,40 @@
-## Objetivo
+## Problema
 
-Reubicar el botón "Formulario" del diálogo de Editar Contacto para que aparezca junto al nombre del contacto en la cabecera (lado derecho), replicando el patrón ya usado en `ArtistInfoDialog` (perfil del artista del roster).
+En el modal de hito del calendario (`MilestoneDayPopover`):
 
-## Estado actual
+1. **Countdown incorrecto**: "Faltan 10 días para el lanzamiento" se calcula contra `new Date()` (hoy), por lo que sale el mismo número independientemente de qué celda del calendario se haya clicado.
+2. **Fecha clicada poco visible**: el modal muestra "Vence", "Inicio", fechas de fase, etc. y el usuario no distingue rápidamente qué día concreto del calendario abrió el popover (muchos hitos abarcan varios días).
 
-- `EditContactDialog.tsx` (línea 937-950): el botón "Formulario" vive en el `DialogFooter`, junto a "Cancelar" y "Guardar Cambios".
-- `ArtistInfoDialog.tsx` (línea 446-478): muestra el botón "Formulario" como `Button variant="outline" size="sm"` alineado a la derecha del bloque de avatar+nombre, dentro de un `flex items-center justify-between`.
+## Causa
 
-## Cambios
+- `MilestoneDayPopover.tsx` línea 81-83 usa `differenceInCalendarDays(parseISO(releaseDate), new Date())` — siempre relativo a hoy.
+- Los handlers en `Calendar.tsx` (líneas 848 y 1040) llaman `setSelectedMilestone(m)` sin pasar la fecha del día clicado (`day`).
 
-**Archivo único:** `src/components/EditContactDialog.tsx`
+## Solución
 
-1. **Cabecera del formulario (línea 627-647):** convertir el contenedor en un `flex items-start justify-between gap-4`:
-   - Mantener el bloque actual de avatar + nombre + rol + chips a la izquierda (envuelto en un `div className="flex items-start gap-4 flex-1 min-w-0"`).
-   - Añadir a la derecha el botón "Formulario" (`variant="outline"`, `size="sm"`, icono `Share2`, con estado `generatingFormLink` y handler `handleGenerateFormLink` ya existentes).
+### 1. `src/pages/Calendar.tsx`
+- Cambiar el estado `selectedMilestone` para guardar también la fecha clicada:
+  ```ts
+  const [selectedMilestone, setSelectedMilestone] = useState<{ milestone: CalendarMilestone; date: Date } | null>(null);
+  ```
+- En los dos `onClick` (líneas 848 y 1040) pasar `{ milestone: m, date: day }`.
+- Actualizar la prop al popover (línea 1382): `milestone={selectedMilestone?.milestone ?? null} clickedDate={selectedMilestone?.date}`.
 
-2. **Footer (línea 937-957):** eliminar el `<Button>` de Formulario y la clase `sm:mr-auto`. El `DialogFooter` queda solo con "Cancelar" y "Guardar Cambios".
+### 2. `src/components/calendar/MilestoneDayPopover.tsx`
+- Añadir prop opcional `clickedDate?: Date`.
+- **Countdown**: calcular `daysToRelease` desde `clickedDate` (o `new Date()` como fallback) en lugar de `new Date()` siempre. Texto: "Del lanzamiento le faltan X días desde esta fecha" o, mejor, mantener "Faltan X días para el lanzamiento" pero relativo al día clicado.
+- **Resaltar fecha clicada**: añadir un bloque destacado en la cabecera (justo debajo del título, antes de los badges) con el formato:
+  ```text
+  ┌──────────────────────────────────┐
+  │ 📅  Domingo, 26 de abril de 2026 │
+  └──────────────────────────────────┘
+  ```
+  Estilo: `rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-base font-semibold` con icono `CalendarDays` en color primario. Solo se muestra si `clickedDate` está definido.
 
-## Resultado visual
+### 3. Resultado
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│ [Avatar] Nombre Contacto              [⌁ Formulario]    │
-│          Rol · categoría · email                        │
-└─────────────────────────────────────────────────────────┘
-[ Nombre * ] ...
-...
-                                  [ Cancelar ] [ Guardar ]
-```
+- El popover deja claro de un vistazo qué día se ha clicado (banner destacado arriba).
+- "Faltan X días para el lanzamiento" cambia según el día clicado (3 abril → 30 días, 26 abril → 10 días, etc.).
+- Si la fecha clicada es posterior al lanzamiento, se mostrará "Lanzamiento publicado hace X días" coherentemente.
 
-Sin cambios en lógica, handlers, ni en otros diálogos.
+Sin cambios de base de datos. Solo dos archivos modificados.
