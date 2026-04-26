@@ -871,11 +871,61 @@ export default function ProjectDetail() {
       } catch (e) { console.error('Error loading questions', e); }
     };
 
+    const loadTasks = async () => {
+      try {
+        // Cargar tareas reales desde project_checklist_items
+        const { data: checklists } = await supabase
+          .from('project_checklists')
+          .select('id, name')
+          .eq('project_id', id);
+        const checklistIds = (checklists || []).map((c: any) => c.id);
+        if (checklistIds.length === 0) {
+          setTasks([]);
+          return;
+        }
+        const { data: items, error } = await supabase
+          .from('project_checklist_items')
+          .select('*')
+          .in('checklist_id', checklistIds)
+          .order('sort_order', { ascending: true });
+        if (error) throw error;
+
+        const statusMap: Record<string, string> = {
+          PENDING: 'pendiente',
+          IN_PROGRESS: 'en_progreso',
+          BLOCKED: 'bloqueada',
+          IN_REVIEW: 'en_progreso',
+          COMPLETED: 'completada',
+          CANCELLED: 'cancelada',
+        };
+        const checklistsById = Object.fromEntries((checklists || []).map((c: any) => [c.id, c.name]));
+
+        const mapped = (items || []).map((it: any) => ({
+          id: it.id,
+          etapa: (it.section_es || it.section || checklistsById[it.checklist_id] || 'GENERAL').toUpperCase(),
+          nombre: it.title,
+          titulo: it.title,
+          categoria: it.section_es || it.section || '',
+          responsables: it.owner_label_es ? [it.owner_label_es] : [],
+          prioridad: it.priority === 'URGENT' ? 'Alta' : it.priority === 'HIGH' ? 'Alta' : it.priority === 'LOW' ? 'Baja' : 'Media',
+          estado: statusMap[it.status] || 'pendiente',
+          comentarios: it.description || '',
+          is_urgent: it.priority === 'URGENT' || it.is_urgent === true,
+          fecha_vencimiento: it.due_date || undefined,
+        }));
+        setTasks(mapped);
+      } catch (e) {
+        console.error('Error loading tasks', e);
+        setTasks([]);
+      }
+    };
+
     load();
     loadLinked();
     loadLinkedEntities();
     loadIncidents();
     loadQuestions();
+    loadTasks();
   }, [id]);
 
   // Team member management functions
