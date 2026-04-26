@@ -1142,7 +1142,7 @@ export default function Calendar() {
           
           <YearlyCalendar year={currentDate.getFullYear()} events={events} bookings={bookingOffers} onDateSelect={date => {
           selectDay(date);
-        }} onEventClick={handleEventClick} selectedDate={selectedDate} />
+        }} onMonthSelect={date => selectMonth(date)} onEventClick={handleEventClick} selectedDate={selectedDate} selectedMonth={selectedMonth} />
         </CardContent>
       </div>;
   };
