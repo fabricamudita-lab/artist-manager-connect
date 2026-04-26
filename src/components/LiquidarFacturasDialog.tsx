@@ -290,7 +290,7 @@ export default function LiquidarFacturasDialog({
                         </TableCell>
                         <TableCell>
                           <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                            {item.billing_status}
+                            {billingStatusLabel(item.billing_status)}
                           </span>
                         </TableCell>
                       </TableRow>

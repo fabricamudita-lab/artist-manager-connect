@@ -263,9 +263,14 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
   const vencidosCount = Math.max(cobrosVencidosFromTable, eventosVencidos);
 
   // ══ KPI 5: Pagos Pendientes ══
-  const unpaidItems = activeItems.filter(i => i.billing_status !== 'pagado' && (i.unit_price ?? 0) * (i.quantity || 1) !== 0);
+  const unpaidItems = activeItems.filter(i => !isPaidStatus(i.billing_status) && (i.unit_price ?? 0) * (i.quantity || 1) !== 0);
   const pagosPendientes = sumItems(unpaidItems);
   const facturasPendientes = unpaidItems.length;
+
+  // ══ KPI 5b: Pagos sin justificante (pendientes de regularizar con gestoría) ══
+  const sinJustificanteItems = activeItems.filter(i => i.billing_status === 'pagado_sin_factura');
+  const pagosSinJustificante = sumItems(sinJustificanteItems);
+  const pagosSinJustificanteCount = sinJustificanteItems.length;
 
   // ══ KPI 6: IRPF ══
   const qRange = getPeriodRange('quarter');
@@ -319,7 +324,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
         });
 
         // Gastos
-        allItems.filter(i => i.billing_status === 'pagado' && activeIds.has(i.budget_id)).forEach(i => {
+        allItems.filter(i => isPaidStatus(i.billing_status) && activeIds.has(i.budget_id)).forEach(i => {
           const budget = allBudgets.find(b => b.id === i.budget_id);
           if (budget?.event_date && budget.event_date >= ws && budget.event_date <= we) {
             weeks[weeks.length - 1].gastos += (i.unit_price ?? 0) * (i.quantity || 1);
@@ -360,7 +365,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
     });
 
     // Gastos
-    allItems.filter(i => i.billing_status === 'pagado' && activeIds.has(i.budget_id)).forEach(i => {
+    allItems.filter(i => isPaidStatus(i.billing_status) && activeIds.has(i.budget_id)).forEach(i => {
       const budget = allBudgets.find(b => b.id === i.budget_id);
       if (!budget?.event_date) return;
       const key = budget.event_date.substring(0, 7);
@@ -524,7 +529,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
 
     // Paid budget items
     allItems
-      .filter(i => i.billing_status === 'pagado')
+      .filter(i => isPaidStatus(i.billing_status))
       .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))
       .slice(0, 5)
       .forEach(i => {

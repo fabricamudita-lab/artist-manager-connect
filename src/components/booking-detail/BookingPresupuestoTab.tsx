@@ -170,7 +170,7 @@ export function BookingPresupuestoTab({
     items.forEach(item => {
       const base = (item.unit_price || 0) * (item.quantity || 1);
       comprometido += base;
-      if (item.billing_status === 'pagado') pagado += base;
+      if (isPaidStatus(item.billing_status)) pagado += base;
       if (item.is_provisional) provisional += base;
       else confirmado += base;
     });
