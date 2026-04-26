@@ -25,8 +25,10 @@ interface YearlyCalendarProps {
   events: Event[];
   bookings?: BookingOffer[];
   onDateSelect?: (date: Date) => void;
+  onMonthSelect?: (date: Date) => void;
   onEventClick?: (event: Event, mouseEvent: React.MouseEvent) => void;
   selectedDate?: Date;
+  selectedMonth?: Date | null;
 }
 
 const monthColors = [
@@ -49,7 +51,7 @@ const monthNames = [
   'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
 ];
 
-export function YearlyCalendar({ year, events, bookings = [], onDateSelect, onEventClick, selectedDate }: YearlyCalendarProps) {
+export function YearlyCalendar({ year, events, bookings = [], onDateSelect, onMonthSelect, onEventClick, selectedDate, selectedMonth }: YearlyCalendarProps) {
   const getEventsForDate = (date: Date) => {
     return events.filter(event => 
       isSameDay(new Date(event.start_date), date)
@@ -73,15 +75,26 @@ export function YearlyCalendar({ year, events, bookings = [], onDateSelect, onEv
     const startPadding = Array(getDay(monthStart)).fill(null);
     const allDays = [...startPadding, ...days];
 
+    const isMonthSelected = selectedMonth && isSameMonth(monthDate, selectedMonth);
     return (
       <Card 
         key={monthIndex} 
-        className={`${monthColors[monthIndex]} text-white overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer`}
+        className={`${monthColors[monthIndex]} text-white overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer ${isMonthSelected ? 'ring-4 ring-white shadow-2xl scale-105' : ''}`}
       >
         <div className="p-4">
           {/* Header del mes */}
           <div className="text-center mb-4">
-            <h3 className="text-2xl font-bold mb-1">{monthNames[monthIndex]}</h3>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMonthSelect?.(monthDate);
+              }}
+              className="text-2xl font-bold mb-1 hover:underline underline-offset-4"
+              title="Ver eventos de este mes"
+            >
+              {monthNames[monthIndex]}
+            </button>
             <div className="grid grid-cols-7 gap-1 text-xs font-medium opacity-80">
               {weekDays.map(day => (
                 <div key={day} className="text-center py-1">{day}</div>
