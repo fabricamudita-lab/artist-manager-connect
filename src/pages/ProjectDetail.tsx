@@ -2399,15 +2399,25 @@ export default function ProjectDetail() {
 
             {/* ── PULSO (Dashboard) ──────────────────────────────────── */}
             <TabsContent value="pulso" className="mt-0">
-              <ProjectPulseTab
-                tasks={tasks}
-                budgets={budgets}
-                solicitudes={solicitudes}
-                incidents={incidents}
-                questions={questions}
-                linkedEntities={linkedEntities}
-                project={project}
-              />
+              {(() => {
+                const cobrosTotal = cobros.reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                const cobradoTotal = cobros
+                  .filter((c: any) => c.status === 'cobrado' || c.received_date)
+                  .reduce((s: number, c: any) => s + Number(c.amount_gross || 0), 0);
+                return (
+                  <ProjectPulseTab
+                    tasks={tasks}
+                    budgets={budgets}
+                    solicitudes={solicitudes}
+                    incidents={incidents}
+                    questions={questions}
+                    linkedEntities={linkedEntities}
+                    project={project}
+                    cobrosTotal={cobrosTotal}
+                    cobradoTotal={cobradoTotal}
+                  />
+                );
+              })()}
             </TabsContent>
 
             {/* ── WORKFLOWS ──────────────────────────────────────────── */}
