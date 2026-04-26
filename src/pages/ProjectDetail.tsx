@@ -158,6 +158,8 @@ export default function ProjectDetail() {
   const [linkedEntities, setLinkedEntities] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
+  const [cobros, setCobros] = useState<any[]>([]);
+  const [pagos, setPagos] = useState<any[]>([]);
   
   // Document upload state
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
