@@ -43,7 +43,20 @@ export function ReleaseDayPopover({ release, open, onOpenChange }: Props) {
             <Badge variant="outline">{statusLabel[release.status] || release.status}</Badge>
           </div>
           {release.artist?.name && (
-            <p className="text-sm text-muted-foreground">Artista: <span className="text-foreground">{release.artist.name}</span></p>
+            <p className="text-sm text-muted-foreground">
+              Artista:{' '}
+              {release.artist_id ? (
+                <Link
+                  to={`/artistas/${release.artist_id}`}
+                  onClick={() => onOpenChange(false)}
+                  className="text-foreground font-medium hover:text-primary hover:underline transition-colors"
+                >
+                  {release.artist.name}
+                </Link>
+              ) : (
+                <span className="text-foreground">{release.artist.name}</span>
+              )}
+            </p>
           )}
           {release.release_date && (
             <p className="text-sm flex items-center gap-2 text-muted-foreground">

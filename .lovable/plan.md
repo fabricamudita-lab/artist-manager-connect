@@ -1,40 +1,55 @@
-## Problema
+## Objetivo
 
-En el modal de hito del calendario (`MilestoneDayPopover`):
+En los modales del calendario (popover de lanzamiento y popover de booking), el nombre del artista debe ser un enlace clicable que navegue al perfil del artista (`/artistas/:id`) y cierre el modal.
 
-1. **Countdown incorrecto**: "Faltan 10 días para el lanzamiento" se calcula contra `new Date()` (hoy), por lo que sale el mismo número independientemente de qué celda del calendario se haya clicado.
-2. **Fecha clicada poco visible**: el modal muestra "Vence", "Inicio", fechas de fase, etc. y el usuario no distingue rápidamente qué día concreto del calendario abrió el popover (muchos hitos abarcan varios días).
+## Cambios
 
-## Causa
+### 1. `src/components/calendar/ReleaseDayPopover.tsx` (líneas 45-47)
 
-- `MilestoneDayPopover.tsx` línea 81-83 usa `differenceInCalendarDays(parseISO(releaseDate), new Date())` — siempre relativo a hoy.
-- Los handlers en `Calendar.tsx` (líneas 848 y 1040) llaman `setSelectedMilestone(m)` sin pasar la fecha del día clicado (`day`).
+Convertir el nombre del artista en `<Link>` cuando exista `release.artist_id`:
 
-## Solución
+```tsx
+{release.artist?.name && (
+  <p className="text-sm text-muted-foreground">
+    Artista:{' '}
+    {release.artist_id ? (
+      <Link
+        to={`/artistas/${release.artist_id}`}
+        onClick={() => onOpenChange(false)}
+        className="text-foreground font-medium hover:text-primary hover:underline transition-colors"
+      >
+        {release.artist.name}
+      </Link>
+    ) : (
+      <span className="text-foreground">{release.artist.name}</span>
+    )}
+  </p>
+)}
+```
 
-### 1. `src/pages/Calendar.tsx`
-- Cambiar el estado `selectedMilestone` para guardar también la fecha clicada:
-  ```ts
-  const [selectedMilestone, setSelectedMilestone] = useState<{ milestone: CalendarMilestone; date: Date } | null>(null);
-  ```
-- En los dos `onClick` (líneas 848 y 1040) pasar `{ milestone: m, date: day }`.
-- Actualizar la prop al popover (línea 1382): `milestone={selectedMilestone?.milestone ?? null} clickedDate={selectedMilestone?.date}`.
+### 2. `src/pages/Calendar.tsx` (líneas 1341-1347, popover de booking)
 
-### 2. `src/components/calendar/MilestoneDayPopover.tsx`
-- Añadir prop opcional `clickedDate?: Date`.
-- **Countdown**: calcular `daysToRelease` desde `clickedDate` (o `new Date()` como fallback) en lugar de `new Date()` siempre. Texto: "Del lanzamiento le faltan X días desde esta fecha" o, mejor, mantener "Faltan X días para el lanzamiento" pero relativo al día clicado.
-- **Resaltar fecha clicada**: añadir un bloque destacado en la cabecera (justo debajo del título, antes de los badges) con el formato:
-  ```text
-  ┌──────────────────────────────────┐
-  │ 📅  Domingo, 26 de abril de 2026 │
-  └──────────────────────────────────┘
-  ```
-  Estilo: `rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-base font-semibold` con icono `CalendarDays` en color primario. Solo se muestra si `clickedDate` está definido.
+Convertir el nombre del artista en `<Link>` usando `selectedBookingOffer.artist_id` (ya cargado en la query de `fetchBookingOffers`):
 
-### 3. Resultado
+```tsx
+{selectedBookingOffer.artists && (
+  <div className="flex items-center gap-3 text-sm">
+    <span className="font-medium">Artista:</span>
+    {selectedBookingOffer.artist_id ? (
+      <Link
+        to={`/artistas/${selectedBookingOffer.artist_id}`}
+        onClick={() => setSelectedBookingOffer(null)}
+        className="text-primary hover:underline"
+      >
+        {selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}
+      </Link>
+    ) : (
+      <span>{selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}</span>
+    )}
+  </div>
+)}
+```
 
-- El popover deja claro de un vistazo qué día se ha clicado (banner destacado arriba).
-- "Faltan X días para el lanzamiento" cambia según el día clicado (3 abril → 30 días, 26 abril → 10 días, etc.).
-- Si la fecha clicada es posterior al lanzamiento, se mostrará "Lanzamiento publicado hace X días" coherentemente.
+`Link` de `react-router-dom` ya está importado en ambos archivos. Ruta verificada: `/artistas/:id` definida en `src/App.tsx`.
 
-Sin cambios de base de datos. Solo dos archivos modificados.
+Sin cambios de base de datos.

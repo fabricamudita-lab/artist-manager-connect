@@ -1342,7 +1342,17 @@ export default function Calendar() {
               {selectedBookingOffer.artists && (
                 <div className="flex items-center gap-3 text-sm">
                   <span className="font-medium">Artista:</span>
-                  <span>{selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}</span>
+                  {selectedBookingOffer.artist_id ? (
+                    <Link
+                      to={`/artistas/${selectedBookingOffer.artist_id}`}
+                      onClick={() => setSelectedBookingOffer(null)}
+                      className="text-primary hover:underline"
+                    >
+                      {selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}
+                    </Link>
+                  ) : (
+                    <span>{selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}</span>
+                  )}
                 </div>
               )}
               
