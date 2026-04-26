@@ -2463,6 +2463,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
           item.billing_status === 'pendiente' ? 'Pendiente' :
           item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+          item.billing_status === 'pagado_sin_factura' ? 'Pagado s/just.' :
           item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
         
         tableData.push([
@@ -2791,6 +2792,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           const status = item.billing_status === 'factura_recibida' ? 'Facturado' :
             item.billing_status === 'pendiente' ? 'Pendiente' :
             item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+            item.billing_status === 'pagado_sin_factura' ? 'Pagado (sin justificante)' :
             item.billing_status === 'pagada' ? 'Pagada' : (item.billing_status || 'Pendiente');
           
           csv += [
@@ -3039,6 +3041,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         'factura_recibida': 'Factura recibida',
         'pagada': 'Pagada',
         'pagado': 'Pagada',
+        'pagado_sin_factura': 'Pagado (sin justificante)',
+        'agrupada': 'Agrupada en factura',
         'facturado': 'Factura recibida',
         'cancelado': 'Cancelado'
       };
@@ -4035,6 +4039,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
                                   <SelectItem value="factura_recibida">Factura recibida</SelectItem>
                                   <SelectItem value="pagada">Pagada</SelectItem>
+                                  <SelectItem value="pagado_sin_factura">Pagado (sin justificante)</SelectItem>
+                                  <SelectItem value="agrupada">Agrupada en factura</SelectItem>
                                 </SelectContent>
                               </Select>
                               {/* Delete selected button with confirmation dialog */}
@@ -4605,6 +4611,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                 <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
                                                 <SelectItem value="factura_recibida">Factura recibida</SelectItem>
                                                 <SelectItem value="pagada">Pagada</SelectItem>
+                                                <SelectItem value="pagado_sin_factura">Pagado (sin justificante)</SelectItem>
                                                 <SelectItem value="agrupada">Agrupada en factura</SelectItem>
                                               </SelectContent>
                                             </Select>
@@ -4612,17 +4619,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             <div 
                                               className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
                                               onClick={() => startEditingItem(item)}
+                                              title={item.billing_status === 'pagado_sin_factura' ? 'Salida sin factura/recibo. Pendiente de regularizar con gestoría.' : undefined}
                                             >
                                                <Badge variant={
                                                  item.billing_status === 'pagada' ? 'default' :
+                                                 item.billing_status === 'pagado_sin_factura' ? 'outline' :
                                                  item.billing_status === 'agrupada' ? 'secondary' :
                                                  item.billing_status === 'factura_recibida' ? 'secondary' :
                                                  item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
-                                               } className={item.billing_status === 'agrupada' ? 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100' : undefined}>
+                                               } className={
+                                                 item.billing_status === 'agrupada' ? 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100' :
+                                                 item.billing_status === 'pagado_sin_factura' ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100' : undefined
+                                               }>
                                                  {item.billing_status === 'pendiente' ? 'Pendiente' :
                                                   item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
                                                   item.billing_status === 'factura_recibida' ? 'Factura recibida' :
                                                   item.billing_status === 'pagada' ? 'Pagada' :
+                                                  item.billing_status === 'pagado_sin_factura' ? '⚠ Pagado sin justificante' :
                                                   item.billing_status === 'agrupada' ? '🔗 Agrupada' : item.billing_status}
                                                </Badge>
                                              </div>
