@@ -24,7 +24,12 @@ import { CategoryDropdown } from '@/components/CategoryDropdown';
 import { TeamDropdown } from '@/components/TeamDropdown';
 import { TeamManagerSheet } from '@/components/TeamManagerSheet';
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
-import { TEAM_CATEGORIES } from '@/lib/teamCategories';
+import { TEAM_CATEGORIES, FUNCTIONAL_ROLES } from '@/lib/teamCategories';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ManageArtistAccessDialog } from '@/components/teams/ManageArtistAccessDialog';
 import { MemberType } from '@/components/TeamMemberCard';
 import { ContactDashboardDialog } from '@/components/ContactDashboardDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
@@ -48,6 +53,99 @@ interface TeamMember {
     booking: 'none' | 'view' | 'edit' | 'owner';
     presupuestos: 'none' | 'view' | 'edit' | 'owner';
   };
+}
+
+function FunctionalRoleCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const trimmedSearch = search.trim();
+  const exactMatch = FUNCTIONAL_ROLES.some(
+    (r) => r.toLowerCase() === trimmedSearch.toLowerCase()
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className={cn('truncate', !value && 'text-muted-foreground')}>
+            {value || 'Selecciona o escribe un rol funcional...'}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput
+            placeholder="Buscar rol o escribir uno nuevo..."
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandEmpty>
+              {trimmedSearch ? (
+                <button
+                  type="button"
+                  className="w-full text-left text-sm px-2 py-1.5 hover:bg-accent rounded"
+                  onClick={() => {
+                    onChange(trimmedSearch);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  Usar "<strong>{trimmedSearch}</strong>" como rol personalizado
+                </button>
+              ) : (
+                <span className="text-sm text-muted-foreground">No hay coincidencias.</span>
+              )}
+            </CommandEmpty>
+            <CommandGroup heading="Roles funcionales">
+              {FUNCTIONAL_ROLES.map((role) => (
+                <CommandItem
+                  key={role}
+                  value={role}
+                  onSelect={() => {
+                    onChange(role);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === role ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  {role}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {trimmedSearch && !exactMatch && (
+              <CommandGroup heading="Personalizado">
+                <CommandItem
+                  value={`__custom__${trimmedSearch}`}
+                  onSelect={() => {
+                    onChange(trimmedSearch);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  <Check className="mr-2 h-4 w-4 opacity-0" />
+                  Usar "{trimmedSearch}" como personalizado
+                </CommandItem>
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function Teams() {
@@ -96,6 +194,7 @@ export default function Teams() {
   const [restoredProfiles, setRestoredProfiles] = useState<any[] | null>(null);
   const [ownerInfo, setOwnerInfo] = useState<{ name: string; avatarUrl?: string } | null>(null);
   const [artistInfoDialog, setArtistInfoDialog] = useState<{ open: boolean; artistId: string | null }>({ open: false, artistId: null });
+  const [manageArtistAccessFor, setManageArtistAccessFor] = useState<{ userId: string; name: string } | null>(null);
 
   // Restore dashboard state when navigating back
   useEffect(() => {
@@ -1728,11 +1827,36 @@ export default function Teams() {
             </p>
             <div className="space-y-2">
               <Label>Rol funcional</Label>
-              <Input
+              <FunctionalRoleCombobox
                 value={newFunctionalRole}
-                onChange={(e) => setNewFunctionalRole(e.target.value)}
-                placeholder="Ej: Business Manager, Director Artístico, Booker..."
+                onChange={setNewFunctionalRole}
               />
+              <p className="text-xs text-muted-foreground">
+                Elige uno de la lista o escribe uno personalizado en el buscador.
+              </p>
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <Label>Acceso a artistas</Label>
+              <p className="text-xs text-muted-foreground">
+                Define a qué artistas puede acceder este miembro. Solo verá la información de los artistas seleccionados.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  if (editingMemberRole) {
+                    setManageArtistAccessFor({
+                      userId: editingMemberRole.userId,
+                      name: editingMemberRole.name,
+                    });
+                  }
+                }}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Gestionar acceso a artistas
+              </Button>
             </div>
           </div>
           <DialogFooter>
@@ -1745,6 +1869,13 @@ export default function Teams() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ManageArtistAccessDialog
+        open={!!manageArtistAccessFor}
+        onOpenChange={(open) => !open && setManageArtistAccessFor(null)}
+        userId={manageArtistAccessFor?.userId ?? null}
+        userName={manageArtistAccessFor?.name ?? ''}
+      />
     </div>
   );
 }
