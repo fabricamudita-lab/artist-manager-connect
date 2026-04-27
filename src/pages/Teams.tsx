@@ -1733,11 +1733,13 @@ export default function Teams() {
             </p>
             <div className="space-y-2">
               <Label>Rol funcional</Label>
-              <Input
+              <FunctionalRoleCombobox
                 value={newFunctionalRole}
-                onChange={(e) => setNewFunctionalRole(e.target.value)}
-                placeholder="Ej: Business Manager, Director Artístico, Booker..."
+                onChange={setNewFunctionalRole}
               />
+              <p className="text-xs text-muted-foreground">
+                Elige uno de la lista o escribe uno personalizado en el buscador.
+              </p>
             </div>
           </div>
           <DialogFooter>
