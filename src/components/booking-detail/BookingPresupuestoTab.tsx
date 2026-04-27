@@ -262,6 +262,65 @@ export function BookingPresupuestoTab({
     },
   });
 
+  const renameMutation = useMutation({
+    mutationFn: ({ budgetId, name }: { budgetId: string; name: string }) =>
+      renameBudget(budgetId, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+      setEditingNameId(null);
+      toast({ title: 'Nombre actualizado' });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'No se pudo renombrar',
+        description: err?.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (sourceBudgetId: string) => {
+      if (!user) throw new Error('No autenticado');
+      return duplicateBudget(sourceBudgetId, user.id);
+    },
+    onSuccess: (newBudget) => {
+      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+      toast({ title: 'Presupuesto duplicado' });
+      setSelectedBudgetForDialog(newBudget);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'No se pudo duplicar',
+        description: err?.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const startEditingName = (budget: { id: string; name: string }) => {
+    setEditingNameId(budget.id);
+    setNameDraft(budget.name);
+  };
+
+  const commitNameEdit = (budgetId: string, originalName: string) => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === originalName) {
+      setEditingNameId(null);
+      return;
+    }
+    const parsed = budgetNameSchema.safeParse(trimmed);
+    if (!parsed.success) {
+      toast({
+        title: 'Nombre inválido',
+        description: parsed.error.issues[0]?.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    renameMutation.mutate({ budgetId, name: parsed.data });
+  };
+
   const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
   if (isLoading) {
