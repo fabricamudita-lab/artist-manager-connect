@@ -60,6 +60,7 @@ export function BookingPresupuestoTab({
   const [selectedBudgetForDialog, setSelectedBudgetForDialog] = useState<any>(null);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
+  const [budgetToDelete, setBudgetToDelete] = useState<{ id: string; name: string } | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
