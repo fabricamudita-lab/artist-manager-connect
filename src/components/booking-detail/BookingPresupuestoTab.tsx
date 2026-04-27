@@ -428,6 +428,16 @@ export function BookingPresupuestoTab({
                   <ExternalLink className="h-4 w-4 mr-1" />
                   Abrir presupuesto completo
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBudgetToDelete({ id: budget.id, name: budget.name })}
+                  title="Eliminar presupuesto"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Eliminar
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
