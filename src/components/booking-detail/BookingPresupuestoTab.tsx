@@ -554,6 +554,16 @@ export function BookingPresupuestoTab({
           onUpdate={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] })}
         />
       )}
+      <DeleteBudgetDialog
+        budgetId={budgetToDelete?.id ?? null}
+        budgetName={budgetToDelete?.name ?? ''}
+        open={!!budgetToDelete}
+        onOpenChange={(open) => { if (!open) setBudgetToDelete(null); }}
+        onDeleted={() => {
+          queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+          setBudgetToDelete(null);
+        }}
+      />
     </div>
   );
 }
