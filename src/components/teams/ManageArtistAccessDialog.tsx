@@ -41,6 +41,7 @@ interface Artist {
   id: string;
   name: string;
   stage_name: string | null;
+  artist_type: string | null;
 }
 
 interface BindingState {
