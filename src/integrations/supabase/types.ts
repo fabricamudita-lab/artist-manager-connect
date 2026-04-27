@@ -2104,6 +2104,7 @@ export type Database = {
           accountant_verified_by: string | null
           artist_id: string | null
           booking_offer_id: string | null
+          booking_role: string | null
           budget_status: Database["public"]["Enums"]["budget_status"] | null
           capacidad: number | null
           city: string | null
@@ -2122,6 +2123,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           invitaciones: number | null
+          is_primary_for_booking: boolean
           metadata: Json | null
           name: string
           oferta: string | null
@@ -2141,6 +2143,7 @@ export type Database = {
           accountant_verified_by?: string | null
           artist_id?: string | null
           booking_offer_id?: string | null
+          booking_role?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
           capacidad?: number | null
           city?: string | null
@@ -2159,6 +2162,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           invitaciones?: number | null
+          is_primary_for_booking?: boolean
           metadata?: Json | null
           name: string
           oferta?: string | null
@@ -2178,6 +2182,7 @@ export type Database = {
           accountant_verified_by?: string | null
           artist_id?: string | null
           booking_offer_id?: string | null
+          booking_role?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
           capacidad?: number | null
           city?: string | null
@@ -2196,6 +2201,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           invitaciones?: number | null
+          is_primary_for_booking?: boolean
           metadata?: Json | null
           name?: string
           oferta?: string | null
