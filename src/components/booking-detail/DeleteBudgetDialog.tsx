@@ -70,7 +70,7 @@ export function DeleteBudgetDialog({
   });
 
   const blocked = !!impact?.hasPaidItems;
-  const matches = confirmText.trim() === budgetName.trim();
+  const matches = confirmText.trim().toUpperCase() === 'CONFIRMAR';
   const canDelete = !blocked && matches && !!impact && !deleteMutation.isPending;
 
   return (
@@ -159,14 +159,15 @@ export function DeleteBudgetDialog({
             {!blocked && (
               <div className="space-y-1.5">
                 <Label htmlFor="confirm-name" className="text-sm">
-                  Para confirmar, escribe el nombre exacto del presupuesto:
+                  Para confirmar, escribe <strong>CONFIRMAR</strong>:
                 </Label>
                 <Input
                   id="confirm-name"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder={budgetName}
+                  placeholder="CONFIRMAR"
                   autoComplete="off"
+                  autoCapitalize="characters"
                   disabled={deleteMutation.isPending}
                 />
               </div>
