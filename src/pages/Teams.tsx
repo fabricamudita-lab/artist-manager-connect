@@ -55,6 +55,99 @@ interface TeamMember {
   };
 }
 
+function FunctionalRoleCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const trimmedSearch = search.trim();
+  const exactMatch = FUNCTIONAL_ROLES.some(
+    (r) => r.toLowerCase() === trimmedSearch.toLowerCase()
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className={cn('truncate', !value && 'text-muted-foreground')}>
+            {value || 'Selecciona o escribe un rol funcional...'}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput
+            placeholder="Buscar rol o escribir uno nuevo..."
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandEmpty>
+              {trimmedSearch ? (
+                <button
+                  type="button"
+                  className="w-full text-left text-sm px-2 py-1.5 hover:bg-accent rounded"
+                  onClick={() => {
+                    onChange(trimmedSearch);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  Usar "<strong>{trimmedSearch}</strong>" como rol personalizado
+                </button>
+              ) : (
+                <span className="text-sm text-muted-foreground">No hay coincidencias.</span>
+              )}
+            </CommandEmpty>
+            <CommandGroup heading="Roles funcionales">
+              {FUNCTIONAL_ROLES.map((role) => (
+                <CommandItem
+                  key={role}
+                  value={role}
+                  onSelect={() => {
+                    onChange(role);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === role ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  {role}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {trimmedSearch && !exactMatch && (
+              <CommandGroup heading="Personalizado">
+                <CommandItem
+                  value={`__custom__${trimmedSearch}`}
+                  onSelect={() => {
+                    onChange(trimmedSearch);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  <Check className="mr-2 h-4 w-4 opacity-0" />
+                  Usar "{trimmedSearch}" como personalizado
+                </CommandItem>
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function Teams() {
   const [searchParams] = useSearchParams();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
