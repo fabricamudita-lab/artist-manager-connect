@@ -10,13 +10,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   ClipboardList, Plus, ExternalLink, DollarSign,
   CreditCard, AlertTriangle, CheckCircle2, Link as LinkIcon,
-  Copy, Pencil
+  Copy, Pencil, Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { duplicateBudget, renameBudget, budgetNameSchema } from '@/lib/budgets/bookingBudgetActions';
+import { DeleteBudgetDialog } from '@/components/booking-detail/DeleteBudgetDialog';
 
 interface BookingPresupuestoTabProps {
   bookingId: string;
