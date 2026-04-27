@@ -630,14 +630,6 @@ export default function ReleaseCreditos() {
                 )}
               </div>
             </CardHeader>
-            {reorderImpact && (
-              <div className="mx-4 mb-2">
-                <ReorderImpactNotice
-                  impact={reorderImpact}
-                  action={isReorderMode ? 'reordenar' : 'renumerar'}
-                />
-              </div>
-            )}
             {showCreditsBanner && (
               <div className="mx-4 mb-2">
                 <Alert className="border-amber-500/30 bg-amber-500/10">

@@ -1,45 +1,24 @@
-# Plan: Agrupar el diálogo "Acceso a artistas" por Roster vs Colaboradores
-
 ## Problema
 
-En el diálogo actual de **Acceso a artistas** se mezclan en una sola lista todos los perfiles de tipo "artista" (roster + colaboradores), lo que genera confusión. El sistema ya distingue ambos en la tabla `artists` mediante el campo `artist_type` con valores `'roster'` (Mi Roster) y `'collaborator'` (Colaboradores), tal y como se ve en el módulo "Mi Management".
+En la sección "Canciones y Autoría" del detalle de lanzamiento aparece de forma permanente un banner amarillo:
 
-## Cambios
+> ⚠ Renumerar afectará a 5 elemento(s) vinculado(s) (pitches o borradores).
 
-En `src/components/teams/ManageArtistAccessDialog.tsx`:
+Se muestra siempre, incluso sin haber pulsado nada. Esto genera ruido visual y confunde, porque parece un aviso de un problema cuando en realidad solo describe lo que pasaría *si* se pulsa "Renumerar".
 
-1. La consulta de artistas pasará a leer también `artist_type` (`select('id, name, stage_name, artist_type')`).
-2. La lista se renderizará en **dos secciones claramente separadas**:
-   - **Mi Roster** (icono estrella ámbar) — artistas con `artist_type = 'roster'` o nulo (compatibilidad con datos antiguos).
-   - **Colaboradores** (icono usuarios) — artistas con `artist_type = 'collaborator'`.
-3. Cada sección muestra:
-   - Cabecera con icono, título y contador (`Mi Roster · 4`).
-   - Si está vacía, un mensaje sutil "No hay artistas en esta categoría".
-4. Se conserva el contador global "X artistas seleccionados" en el pie.
-5. Sin cambios en lógica de guardado, RLS ni base de datos — solo presentación.
+## Solución
 
-## Resultado visible
+Mostrar ese aviso **solo dentro del diálogo de confirmación** de renumerar/reordenar (donde ya aparece), no de forma permanente sobre la lista de canciones.
 
-Al abrir "Gestionar acceso a artistas" para Perfil Test:
+### Cambio concreto
 
-```text
-Acceso a artistas
+En `src/pages/release-sections/ReleaseCreditos.tsx`:
 
-★ Mi Roster · 4
-  ☐ Eudald Payés          [Manager ▾]
-  ☑ PLAYGRXVND            [Manager ▾]
-  ☐ Leyre Estruch         [Manager ▾]
-  ☐ VIC                   [Manager ▾]
+- Eliminar el bloque (líneas ~633-640) que renderiza `<ReorderImpactNotice>` debajo del `CardHeader`.
+- Mantener intacta la instancia que ya existe dentro del `AlertDialog` de confirmación de renumerar (línea ~860), que es donde tiene sentido informar del impacto justo antes de confirmar.
+- Mantener también el hook `useReorderImpact` y la recarga `getReorderImpact` previa a la acción, ya que se siguen usando dentro del diálogo.
 
-👥 Colaboradores · 3
-  ☐ Ana Ayala             [Manager ▾]
-  ☐ Jay Jules             [Manager ▾]
-  ☐ Kris Tena             [Manager ▾]
-```
+### Resultado
 
-Mucho más fácil entender a qué le estás dando acceso.
-
-## Fuera de alcance
-
-- No tocamos los roles funcionales ni las RLS aplicadas en Phase 2.
-- No cambiamos el resto del flujo (botón de entrada, guardado, permisos requeridos).
+- La cabecera de "Canciones y Autoría" queda limpia: solo el título y los botones "Renumerar" y "Cambiar orden".
+- Al pulsar "Renumerar", el diálogo de confirmación sigue mostrando claramente cuántos elementos vinculados se verían afectados antes de confirmar.
