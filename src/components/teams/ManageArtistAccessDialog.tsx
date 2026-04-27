@@ -66,7 +66,7 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName 
       setLoading(true);
       try {
         const [artistsRes, bindingsRes] = await Promise.all([
-          supabase.from('artists').select('id, name, stage_name').order('name'),
+          supabase.from('artists').select('id, name, stage_name, artist_type').order('name'),
           supabase.from('artist_role_bindings').select('artist_id, role').eq('user_id', userId),
         ]);
 
