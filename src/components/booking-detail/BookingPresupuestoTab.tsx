@@ -57,7 +57,16 @@ export function BookingPresupuestoTab({
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedBudgetForDialog, setSelectedBudgetForDialog] = useState<any>(null);
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    if (editingNameId && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingNameId]);
   // Fetch budgets linked to this booking (directly or via project)
   const { data, isLoading } = useQuery({
     queryKey: ['booking-budgets', bookingId, projectId],
