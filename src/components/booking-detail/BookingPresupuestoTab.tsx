@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { isPaidStatus } from '@/lib/billingStatus';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,42 +8,15 @@ import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  ClipboardList,
-  Plus,
-  ExternalLink,
-  DollarSign,
-  CreditCard,
-  AlertTriangle,
-  CheckCircle2,
-  Link as LinkIcon,
-  Star,
-  Unlink,
-  Pencil,
-  Check,
-  X,
+  ClipboardList, Plus, ExternalLink, DollarSign,
+  CreditCard, AlertTriangle, CheckCircle2, Link as LinkIcon,
+  Copy, Pencil
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import {
-  listBudgetsForBooking,
-  unlinkBudgetFromBooking,
-  setPrimaryBudget,
-  updateBudgetRole,
-  type BookingBudgetRow,
-} from '@/lib/budgets/bookingBudgets';
-import { LinkExistingBudgetDialog } from './LinkExistingBudgetDialog';
+import { duplicateBudget, renameBudget, budgetNameSchema } from '@/lib/budgets/bookingBudgetActions';
 
 interface BookingPresupuestoTabProps {
   bookingId: string;
@@ -57,7 +30,14 @@ interface BookingPresupuestoTabProps {
   formato?: string | null;
 }
 
-interface BudgetSummary extends BookingBudgetRow {
+interface BudgetSummary {
+  id: string;
+  name: string;
+  fee: number | null;
+  expense_budget: number | null;
+  budget_status: string | null;
+  booking_offer_id: string | null;
+  project_id: string | null;
   items: {
     unit_price: number | null;
     quantity: number | null;
@@ -66,97 +46,141 @@ interface BudgetSummary extends BookingBudgetRow {
     billing_status: string | null;
     is_provisional: boolean | null;
     category: string;
-    budget_categories?: { name: string } | null;
   }[];
 }
 
 export function BookingPresupuestoTab({
-  bookingId,
-  artistId,
-  projectId,
-  eventName,
-  eventDate,
-  eventCity,
-  eventVenue,
-  fee,
-  formato,
+  bookingId, artistId, projectId, eventName, eventDate,
+  eventCity, eventVenue, fee, formato
 }: BookingPresupuestoTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedBudgetForDialog, setSelectedBudgetForDialog] = useState<any>(null);
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [confirmUnlinkId, setConfirmUnlinkId] = useState<string | null>(null);
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [roleDraft, setRoleDraft] = useState('');
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    if (editingNameId && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingNameId]);
+  // Fetch budgets linked to this booking (directly or via project)
   const { data, isLoading } = useQuery({
-    queryKey: ['booking-budgets', bookingId],
-    queryFn: async (): Promise<BudgetSummary[]> => {
-      const { items } = await listBudgetsForBooking(bookingId, { limit: 50, offset: 0 });
-      if (items.length === 0) return [];
+    queryKey: ['booking-budgets', bookingId, projectId],
+    queryFn: async () => {
+      // 1. Direct link via booking_offer_id
+      const { data: directBudgets } = await supabase
+        .from('budgets')
+        .select('id, name, type, fee, expense_budget, budget_status, booking_offer_id, project_id, city, country, venue, show_status, internal_notes, created_at, artist_id, event_date, event_time, formato')
+        .eq('booking_offer_id', bookingId);
 
-      // Sincronizar campos del booking → presupuestos vinculados (booking es la fuente de verdad)
-      const syncFields: Record<string, any> = {};
-      if (eventDate) syncFields.event_date = eventDate;
-      if (eventCity) syncFields.city = eventCity;
-      if (eventVenue) syncFields.venue = eventVenue;
+      // 2. Project-linked budgets (if project exists)
+      let projectBudgets: typeof directBudgets = [];
+      if (projectId) {
+        const { data: pBudgets } = await supabase
+          .from('budgets')
+          .select('id, name, type, fee, expense_budget, budget_status, booking_offer_id, project_id, city, country, venue, show_status, internal_notes, created_at, artist_id, event_date, event_time, formato')
+          .eq('project_id', projectId)
+          .eq('type', 'concierto');
+        projectBudgets = pBudgets || [];
+      }
 
-      if (Object.keys(syncFields).length > 0) {
-        const outOfSync = items.filter(
-          (b) =>
-            (eventDate && b.event_date !== eventDate) ||
-            (eventCity && b.city !== eventCity) ||
-            (eventVenue && b.venue !== eventVenue),
-        );
-        if (outOfSync.length > 0) {
-          await supabase
+      // 3. Fuzzy match: same artist + (name contains event name OR event_date matches)
+      let fuzzyBudgets: typeof directBudgets = [];
+      if (artistId) {
+        const orConditions = [
+          eventName ? `name.ilike.%${eventName}%` : null,
+          eventDate ? `event_date.eq.${eventDate}` : null,
+        ].filter(Boolean).join(',');
+
+        if (orConditions) {
+          const { data: fBudgets } = await supabase
             .from('budgets')
-            .update(syncFields)
-            .in(
-              'id',
-              outOfSync.map((b) => b.id),
-            );
-          outOfSync.forEach((b) => Object.assign(b, syncFields));
+            .select('id, name, type, fee, expense_budget, budget_status, booking_offer_id, project_id, city, country, venue, show_status, internal_notes, created_at, artist_id, event_date, event_time, formato')
+            .eq('artist_id', artistId)
+            .or(orConditions);
+          fuzzyBudgets = fBudgets || [];
         }
       }
 
+      // Deduplicate
+      const allIds = new Set<string>();
+      const combined: typeof directBudgets = [];
+      for (const b of [...(directBudgets || []), ...(projectBudgets || []), ...(fuzzyBudgets || [])]) {
+        if (!allIds.has(b.id)) {
+          allIds.add(b.id);
+          combined.push(b);
+        }
+      }
+
+      // Auto-sync booking fields → linked budgets (booking is source of truth)
+      if (combined.length > 0) {
+        const syncFields: Record<string, any> = {};
+        if (eventDate) syncFields.event_date = eventDate;
+        if (eventCity) syncFields.city = eventCity;
+        if (eventVenue) syncFields.venue = eventVenue;
+        if (fee != null) syncFields.fee = fee;
+
+        if (Object.keys(syncFields).length > 0) {
+          const outOfSync = combined.filter(
+            b => b.booking_offer_id === bookingId && (
+              (eventDate && b.event_date !== eventDate) ||
+              (eventCity && b.city !== eventCity) ||
+              (eventVenue && b.venue !== eventVenue) ||
+              (fee != null && b.fee !== fee)
+            )
+          );
+          if (outOfSync.length > 0) {
+            await supabase
+              .from('budgets')
+              .update(syncFields)
+              .in('id', outOfSync.map(b => b.id));
+            // Patch local data so UI is correct immediately
+            outOfSync.forEach(b => Object.assign(b, syncFields));
+          }
+        }
+      }
+
+      if (combined.length === 0) return { linked: [] as BudgetSummary[], unlinked: [] as BudgetSummary[] };
+
+      // Fetch items for all budgets
       const { data: allItems } = await supabase
         .from('budget_items')
-        .select(
-          'budget_id, unit_price, quantity, iva_percentage, irpf_percentage, billing_status, is_provisional, category, category_id, budget_categories(name)',
-        )
-        .in(
-          'budget_id',
-          items.map((b) => b.id),
-        );
+        .select('budget_id, unit_price, quantity, iva_percentage, irpf_percentage, billing_status, is_provisional, category, category_id, budget_categories(name)')
+        .in('budget_id', combined.map(b => b.id));
 
-      const itemsByBudget = (allItems || []).reduce(
-        (acc, item) => {
-          const key = (item as any).budget_id;
-          if (!acc[key]) acc[key] = [];
-          acc[key].push(item);
-          return acc;
-        },
-        {} as Record<string, any[]>,
-      );
+      const itemsByBudget = (allItems || []).reduce((acc, item) => {
+        const key = (item as any).budget_id;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+      }, {} as Record<string, typeof allItems>);
 
-      return items.map((b) => ({
+      const budgets: BudgetSummary[] = combined.map(b => ({
         ...b,
         items: (itemsByBudget[b.id] || []) as BudgetSummary['items'],
       }));
+
+      const linked = budgets.filter(b => b.booking_offer_id === bookingId);
+      const unlinked = budgets.filter(b => b.booking_offer_id !== bookingId);
+
+      return { linked, unlinked };
     },
     enabled: !!bookingId && !!user,
   });
 
   const calcKPIs = (budget: BudgetSummary) => {
     const capital = budget.fee || 0;
+    const items = budget.items || [];
     let comprometido = 0;
     let pagado = 0;
     let confirmado = 0;
     let provisional = 0;
 
-    budget.items.forEach((item) => {
+    items.forEach(item => {
       const base = (item.unit_price || 0) * (item.quantity || 1);
       comprometido += base;
       if (isPaidStatus(item.billing_status)) pagado += base;
@@ -164,7 +188,8 @@ export function BookingPresupuestoTab({
       else confirmado += base;
     });
 
-    return { capital, comprometido, pagado, confirmado, provisional, disponible: capital - comprometido };
+    const disponible = capital - comprometido;
+    return { capital, comprometido, pagado, confirmado, provisional, disponible };
   };
 
   const createBudget = useMutation({
@@ -172,12 +197,7 @@ export function BookingPresupuestoTab({
       if (!user) throw new Error('Not authenticated');
       setIsCreating(true);
 
-      const existingCount = data?.length ?? 0;
-      const budgetName =
-        existingCount === 0
-          ? `Presupuesto - ${eventName || 'Evento'}`
-          : `Presupuesto ${existingCount + 1} - ${eventName || 'Evento'}`;
-
+      const budgetName = `Presupuesto - ${eventName || 'Evento'}`;
       const { data: newBudget, error } = await supabase
         .from('budgets')
         .insert({
@@ -198,6 +218,7 @@ export function BookingPresupuestoTab({
 
       if (error) throw error;
 
+      // Auto-populate crew if format exists
       if (formato && artistId) {
         try {
           const { loadCrewFromFormat } = await import('@/utils/budgetCrewLoader');
@@ -217,7 +238,7 @@ export function BookingPresupuestoTab({
       return newBudget;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] });
+      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
       toast({ title: 'Presupuesto creado' });
       setIsCreating(false);
     },
@@ -227,45 +248,85 @@ export function BookingPresupuestoTab({
     },
   });
 
-  const unlinkMutation = useMutation({
-    mutationFn: (budgetId: string) => unlinkBudgetFromBooking(budgetId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] });
-      toast({ title: 'Presupuesto desvinculado', description: 'El presupuesto sigue disponible en Finanzas.' });
+  const linkBudget = useMutation({
+    mutationFn: async (budgetId: string) => {
+      const { error } = await supabase
+        .from('budgets')
+        .update({ booking_offer_id: bookingId })
+        .eq('id', budgetId);
+      if (error) throw error;
     },
-    onError: (e: Error) =>
-      toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+      toast({ title: 'Presupuesto vinculado' });
+    },
   });
 
-  const primaryMutation = useMutation({
-    mutationFn: (budgetId: string) => setPrimaryBudget(budgetId, bookingId),
+  const renameMutation = useMutation({
+    mutationFn: ({ budgetId, name }: { budgetId: string; name: string }) =>
+      renameBudget(budgetId, name),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] });
-      toast({ title: 'Presupuesto marcado como principal' });
+      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+      setEditingNameId(null);
+      toast({ title: 'Nombre actualizado' });
     },
-    onError: (e: Error) =>
-      toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (err: any) => {
+      toast({
+        title: 'No se pudo renombrar',
+        description: err?.message,
+        variant: 'destructive',
+      });
+    },
   });
 
-  const roleMutation = useMutation({
-    mutationFn: ({ budgetId, role }: { budgetId: string; role: string | null }) =>
-      updateBudgetRole(budgetId, role),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] });
-      setEditingRoleId(null);
+  const duplicateMutation = useMutation({
+    mutationFn: async (sourceBudgetId: string) => {
+      if (!user) throw new Error('No autenticado');
+      return duplicateBudget(sourceBudgetId, user.id);
     },
-    onError: (e: Error) =>
-      toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onSuccess: (newBudget) => {
+      queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+      toast({ title: 'Presupuesto duplicado' });
+      setSelectedBudgetForDialog(newBudget);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'No se pudo duplicar',
+        description: err?.message,
+        variant: 'destructive',
+      });
+    },
   });
+
+  const startEditingName = (budget: { id: string; name: string }) => {
+    setEditingNameId(budget.id);
+    setNameDraft(budget.name);
+  };
+
+  const commitNameEdit = (budgetId: string, originalName: string) => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === originalName) {
+      setEditingNameId(null);
+      return;
+    }
+    const parsed = budgetNameSchema.safeParse(trimmed);
+    if (!parsed.success) {
+      toast({
+        title: 'Nombre inválido',
+        description: parsed.error.issues[0]?.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    renameMutation.mutate({ budgetId, name: parsed.data });
+  };
 
   const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
+        <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -274,195 +335,101 @@ export function BookingPresupuestoTab({
     );
   }
 
-  const linked = data ?? [];
+  const linked = data?.linked || [];
+  const unlinked = data?.unlinked || [];
 
-  if (linked.length === 0) {
+  // Empty state
+  if (linked.length === 0 && unlinked.length === 0) {
     return (
-      <>
-        <Card>
-          <CardContent className="py-12">
-            <EmptyState
-              icon={<ClipboardList className="h-8 w-8 text-muted-foreground" />}
-              title="Sin presupuesto de producción"
-              description="Crea uno nuevo o vincula uno existente para gestionar los gastos de este concierto"
-              action={{
-                label: '+ Crear presupuesto',
-                onClick: () => createBudget.mutate(),
-              }}
-            />
-            <div className="flex justify-center mt-3">
-              <Button variant="outline" size="sm" onClick={() => setShowLinkDialog(true)} disabled={!artistId}>
-                <LinkIcon className="h-4 w-4 mr-1" />
-                Vincular existente
-              </Button>
-            </div>
-            {isCreating && <p className="text-center text-sm text-muted-foreground mt-4">Creando presupuesto...</p>}
-          </CardContent>
-        </Card>
-        <LinkExistingBudgetDialog
-          open={showLinkDialog}
-          onOpenChange={setShowLinkDialog}
-          bookingId={bookingId}
-          artistId={artistId ?? null}
-          onLinked={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] })}
-        />
-      </>
+      <Card>
+        <CardContent className="py-12">
+          <EmptyState
+            icon={<ClipboardList className="h-8 w-8 text-muted-foreground" />}
+            title="Sin presupuesto de producción"
+            description="Crea un presupuesto para gestionar los gastos de este concierto"
+            action={{
+              label: '+ Crear presupuesto',
+              onClick: () => createBudget.mutate(),
+            }}
+          />
+          {isCreating && <p className="text-center text-sm text-muted-foreground mt-4">Creando presupuesto...</p>}
+        </CardContent>
+      </Card>
     );
   }
 
-  // KPIs consolidados
-  const totals = linked.reduce(
-    (acc, b) => {
-      const k = calcKPIs(b);
-      acc.capital += k.capital;
-      acc.pagado += k.pagado;
-      acc.comprometido += k.comprometido;
-      acc.confirmado += k.confirmado;
-      acc.provisional += k.provisional;
-      acc.disponible += k.disponible;
-      return acc;
-    },
-    { capital: 0, pagado: 0, comprometido: 0, confirmado: 0, provisional: 0, disponible: 0 },
-  );
-
   return (
     <div className="space-y-4">
-      {/* KPIs consolidados (solo si hay >1) */}
-      {linked.length > 1 && (
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-primary" />
-              Total consolidado · {linked.length} presupuestos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Capital</p>
-                <p className="text-lg font-bold">{fmt(totals.capital)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Pagado</p>
-                <p className="text-lg font-bold text-green-600">{fmt(totals.pagado)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Comprometido</p>
-                <p className="text-lg font-bold text-amber-600">{fmt(totals.comprometido)}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {fmt(totals.confirmado)} confirmado · {fmt(totals.provisional)} provisional
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Disponible</p>
-                <p className={`text-lg font-bold ${totals.disponible >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {fmt(totals.disponible)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Linked budgets */}
       {linked.map((budget) => {
         const kpi = calcKPIs(budget);
         const categoryCounts: Record<string, { total: number; count: number }> = {};
-        budget.items.forEach((item) => {
+        budget.items.forEach(item => {
           const cat = (item as any).budget_categories?.name || item.category || 'Sin categoría';
           if (!categoryCounts[cat]) categoryCounts[cat] = { total: 0, count: 0 };
           categoryCounts[cat].total += (item.unit_price || 0) * (item.quantity || 1);
           categoryCounts[cat].count += 1;
         });
 
-        const isEditing = editingRoleId === budget.id;
-
         return (
           <Card key={budget.id}>
-            <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-              <div className="min-w-0 flex-1">
-                <CardTitle className="flex items-center gap-2 text-base flex-wrap">
-                  <ClipboardList className="h-5 w-5 text-primary shrink-0" />
-                  <span className="truncate">{budget.name}</span>
-                  {budget.is_primary_for_booking && (
-                    <Badge variant="default" className="gap-1">
-                      <Star className="h-3 w-3" /> Principal
-                    </Badge>
-                  )}
-                </CardTitle>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  {isEditing ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={roleDraft}
-                        onChange={(e) => setRoleDraft(e.target.value.slice(0, 60))}
-                        placeholder="Producción, Catering…"
-                        className="h-7 text-sm"
-                        maxLength={60}
-                        autoFocus
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() =>
-                          roleMutation.mutate({
-                            budgetId: budget.id,
-                            role: roleDraft.trim() || null,
-                          })
-                        }
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setEditingRoleId(null)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setEditingRoleId(budget.id);
-                        setRoleDraft(budget.booking_role ?? '');
-                      }}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      {budget.booking_role || 'Añadir etiqueta'}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
-                {!budget.is_primary_for_booking && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => primaryMutation.mutate(budget.id)}
-                    disabled={primaryMutation.isPending}
+            <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base flex-1 min-w-0">
+                <ClipboardList className="h-5 w-5 text-primary shrink-0" />
+                {editingNameId === budget.id ? (
+                  <Input
+                    ref={nameInputRef}
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onBlur={() => commitNameEdit(budget.id, budget.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitNameEdit(budget.id, budget.name);
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setEditingNameId(null);
+                      }
+                    }}
+                    maxLength={120}
+                    disabled={renameMutation.isPending}
+                    className="h-8 text-base font-semibold"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditingName(budget)}
+                    title="Editar nombre"
+                    className="group inline-flex items-center gap-1.5 rounded-md px-1 -mx-1 hover:bg-muted text-left truncate"
                   >
-                    <Star className="h-4 w-4 mr-1" />
-                    Principal
-                  </Button>
+                    <span className="truncate">{budget.name}</span>
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setSelectedBudgetForDialog(budget)}>
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Abrir
+              </CardTitle>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => duplicateMutation.mutate(budget.id)}
+                  disabled={duplicateMutation.isPending}
+                  title="Duplicar como punto de partida"
+                >
+                  <Copy className="h-4 w-4 mr-1" />
+                  {duplicateMutation.isPending ? 'Duplicando...' : 'Duplicar'}
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => setConfirmUnlinkId(budget.id)}
-                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => setSelectedBudgetForDialog(budget)}
                 >
-                  <Unlink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Abrir presupuesto completo
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -495,6 +462,7 @@ export function BookingPresupuestoTab({
                 </div>
               </div>
 
+              {/* Category breakdown */}
               {Object.keys(categoryCounts).length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">Desglose por categoría</h4>
@@ -503,9 +471,7 @@ export function BookingPresupuestoTab({
                       .sort((a, b) => b[1].total - a[1].total)
                       .map(([cat, { total, count }]) => (
                         <div key={cat} className="flex items-center justify-between text-sm border rounded-md px-3 py-2">
-                          <span>
-                            {cat} <span className="text-muted-foreground text-xs">({count})</span>
-                          </span>
+                          <span>{cat} <span className="text-muted-foreground text-xs">({count})</span></span>
                           <span className="font-medium">{fmt(total)}</span>
                         </div>
                       ))}
@@ -517,59 +483,63 @@ export function BookingPresupuestoTab({
         );
       })}
 
-      {/* Acciones */}
-      <div className="flex flex-wrap justify-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => createBudget.mutate()} disabled={createBudget.isPending}>
-          <Plus className="h-4 w-4 mr-1" />
-          {createBudget.isPending ? 'Creando...' : 'Nuevo presupuesto'}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setShowLinkDialog(true)} disabled={!artistId}>
-          <LinkIcon className="h-4 w-4 mr-1" />
-          Vincular existente
-        </Button>
-      </div>
+      {/* Unlinked budgets from same project — offer to link */}
+      {unlinked.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <LinkIcon className="h-4 w-4" />
+              Presupuestos del mismo proyecto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {unlinked.map(budget => (
+              <div
+                key={budget.id}
+                className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+              >
+                <div>
+                  <p className="font-medium text-sm">{budget.name}</p>
+                  {budget.fee != null && budget.fee > 0 && (
+                    <p className="text-xs text-muted-foreground">{fmt(budget.fee)}</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => linkBudget.mutate(budget.id)}
+                  disabled={linkBudget.isPending}
+                >
+                  <LinkIcon className="h-3.5 w-3.5 mr-1" />
+                  Vincular
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
-      <LinkExistingBudgetDialog
-        open={showLinkDialog}
-        onOpenChange={setShowLinkDialog}
-        bookingId={bookingId}
-        artistId={artistId ?? null}
-        onLinked={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] })}
-      />
-
-      <AlertDialog open={!!confirmUnlinkId} onOpenChange={(o) => !o && setConfirmUnlinkId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Desvincular presupuesto?</AlertDialogTitle>
-            <AlertDialogDescription>
-              El presupuesto no se eliminará: solo dejará de estar vinculado a este booking. Podrás
-              encontrarlo en Finanzas → Presupuestos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (confirmUnlinkId) {
-                  unlinkMutation.mutate(confirmUnlinkId);
-                  setConfirmUnlinkId(null);
-                }
-              }}
-            >
-              Desvincular
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Add another budget */}
+      {linked.length > 0 && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => createBudget.mutate()}
+            disabled={createBudget.isPending}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            {createBudget.isPending ? 'Creando...' : 'Nuevo presupuesto'}
+          </Button>
+        </div>
+      )}
 
       {selectedBudgetForDialog && (
         <BudgetDetailsDialog
           open={!!selectedBudgetForDialog}
-          onOpenChange={(open) => {
-            if (!open) setSelectedBudgetForDialog(null);
-          }}
+          onOpenChange={(open) => { if (!open) setSelectedBudgetForDialog(null); }}
           budget={selectedBudgetForDialog}
-          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId] })}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] })}
         />
       )}
     </div>
