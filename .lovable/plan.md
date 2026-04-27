@@ -1,62 +1,20 @@
-# Eliminar presupuestos desde el detalle del Booking
+## Simplificar la doble confirmación de borrado
 
-Añadir un botón **Eliminar** en cada tarjeta de presupuesto vinculada al booking, con un diálogo de **doble confirmación** que detalle exactamente qué se perderá antes de borrar.
+Cambiar el requisito de tipear el nombre exacto del presupuesto por una palabra fija y predecible: **`CONFIRMAR`**.
 
-## UX
+### Cambios en `src/components/booking-detail/DeleteBudgetDialog.tsx`
 
-En la cabecera de cada tarjeta de presupuesto (junto a "Duplicar" y "Abrir presupuesto completo"), añadir un botón **Eliminar** en rojo (icono `Trash2`).
+1. Reemplazar la lógica de match:
+   - Antes: `confirmText.trim() === budgetName.trim()`
+   - Después: `confirmText.trim().toUpperCase() === 'CONFIRMAR'`
 
-Al pulsarlo, abrir un `AlertDialog` con:
+2. Actualizar el bloque de confirmación:
+   - Label: `Para confirmar, escribe CONFIRMAR:`
+   - Input `placeholder="CONFIRMAR"`
+   - Mantener `autoComplete="off"` y disabled durante mutación.
 
-**Título**: `¿Eliminar "<nombre del presupuesto>"?`
+3. Sin cambios en la lógica de impacto, bloqueos por partidas pagadas, ni en `bookingBudgetActions.ts`.
 
-**Cuerpo dinámico** que liste lo que se perderá (calculado con los datos ya cargados + una consulta ligera de conteos):
-- N partidas de presupuesto (`budget_items`)
-- Total Capital (€XX.XXX,XX) y total Pagado
-- Si es **primario**: aviso de que se promoverá automáticamente otro presupuesto como primario (gestionado por trigger DB existente)
-- Si tiene pagos registrados (items con `billing_status` cobrado/pagado): **bloquear eliminación** y mostrar mensaje pidiendo desvincular cobros antes
-- Si tiene partidas conciliadas (`is_reconciled`): aviso fuerte sobre alteración de cierre fiscal
-- Aviso final: *"Esta acción no se puede deshacer."*
+### Resultado
 
-**Doble confirmación**: el botón rojo "Eliminar definitivamente" permanece deshabilitado hasta que el usuario escriba el nombre exacto del presupuesto en un input de confirmación (patrón GitHub-style).
-
-Tras eliminar, toast de éxito + `invalidateQueries(['booking-budgets', bookingId])`.
-
-## Capa lógica
-
-Extender `src/lib/budgets/bookingBudgetActions.ts` con:
-
-```ts
-export async function getBudgetDeletionImpact(budgetId: string): Promise<{
-  itemCount: number;
-  totalCapital: number;
-  totalPaid: number;
-  hasPaidItems: boolean;
-  hasReconciledItems: boolean;
-  isPrimary: boolean;
-}>
-
-export async function deleteBudget(budgetId: string): Promise<void>
-```
-
-- `getBudgetDeletionImpact`: una sola query a `budget_items` (`select id, unit_price, quantity, billing_status, is_reconciled`) + lectura del flag `is_primary_for_booking` del header. Calcula totales en cliente.
-- `deleteBudget`: valida con Zod (id uuid), re-comprueba en servidor que no haya items pagados/conciliados (defensa en profundidad), borra `budget_items` y luego el `budgets`. El trigger `promote_next_primary_budget` ya existente se encarga de promover otro primario si procede.
-
-## Componente UI
-
-Nuevo componente `src/components/booking-detail/DeleteBudgetDialog.tsx`:
-- Props: `budget`, `open`, `onOpenChange`, `onDeleted`
-- Usa `useQuery` para cargar el impacto al abrirse
-- Renderiza lista de impacto con iconos (AlertTriangle ámbar / rojo según severidad)
-- Input de confirmación por nombre + botón destructivo
-- Maneja estados: loading impacto, bloqueado por pagos, confirmando, eliminando
-
-Integrarlo en `BookingPresupuestoTab.tsx` añadiendo estado `budgetToDelete` y el botón Trash2 en la cabecera de cada tarjeta del bloque "linked".
-
-## Archivos afectados
-
-- `src/lib/budgets/bookingBudgetActions.ts` (añadir funciones)
-- `src/components/booking-detail/DeleteBudgetDialog.tsx` (nuevo)
-- `src/components/booking-detail/BookingPresupuestoTab.tsx` (botón + estado + render del diálogo)
-
-No requiere migración de base de datos: los triggers de promoción de primario y las RLS de `budgets`/`budget_items` ya existen.
+El usuario siempre escribe la misma palabra (`CONFIRMAR`) sin importar el nombre del presupuesto, evitando fricción con nombres largos o con caracteres especiales, manteniendo la doble confirmación intencional.
