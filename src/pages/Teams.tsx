@@ -1742,6 +1742,29 @@ export default function Teams() {
                 Elige uno de la lista o escribe uno personalizado en el buscador.
               </p>
             </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <Label>Acceso a artistas</Label>
+              <p className="text-xs text-muted-foreground">
+                Define a qué artistas puede acceder este miembro. Solo verá la información de los artistas seleccionados.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  if (editingMemberRole) {
+                    setManageArtistAccessFor({
+                      userId: editingMemberRole.userId,
+                      name: editingMemberRole.name,
+                    });
+                  }
+                }}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Gestionar acceso a artistas
+              </Button>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingMemberRole(null)}>
@@ -1753,6 +1776,13 @@ export default function Teams() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ManageArtistAccessDialog
+        open={!!manageArtistAccessFor}
+        onOpenChange={(open) => !open && setManageArtistAccessFor(null)}
+        userId={manageArtistAccessFor?.userId ?? null}
+        userName={manageArtistAccessFor?.name ?? ''}
+      />
     </div>
   );
 }
