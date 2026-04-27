@@ -1,19 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { isPaidStatus } from '@/lib/billingStatus';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  ClipboardList, Plus, ExternalLink, DollarSign, 
-  CreditCard, AlertTriangle, CheckCircle2, Link as LinkIcon 
+import {
+  ClipboardList, Plus, ExternalLink, DollarSign,
+  CreditCard, AlertTriangle, CheckCircle2, Link as LinkIcon,
+  Copy, Pencil
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { duplicateBudget, renameBudget, budgetNameSchema } from '@/lib/budgets/bookingBudgetActions';
 
 interface BookingPresupuestoTabProps {
   bookingId: string;
