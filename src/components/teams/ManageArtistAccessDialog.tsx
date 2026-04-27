@@ -200,8 +200,11 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName 
           </p>
         ) : (
           <ScrollArea className="max-h-[50vh] pr-3">
-            <div className="space-y-2">
-              {artists.map((artist) => {
+            {(() => {
+              const roster = artists.filter((a) => (a.artist_type ?? 'roster') === 'roster');
+              const collaborators = artists.filter((a) => a.artist_type === 'collaborator');
+
+              const renderRow = (artist: Artist, isRoster: boolean) => {
                 const b = bindings[artist.id];
                 if (!b) return null;
                 const displayName = artist.stage_name || artist.name;
@@ -219,7 +222,11 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName 
                       htmlFor={`a-${artist.id}`}
                       className="flex-1 flex items-center gap-2 cursor-pointer font-medium"
                     >
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                      {isRoster ? (
+                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                      ) : (
+                        <Users className="h-3 w-3 text-muted-foreground" />
+                      )}
                       {displayName}
                     </Label>
                     <Select
@@ -240,8 +247,46 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName 
                     </Select>
                   </div>
                 );
-              })}
-            </div>
+              };
+
+              return (
+                <div className="space-y-5">
+                  <section className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                      Mi Roster
+                      <span className="text-xs font-normal">· {roster.length}</span>
+                    </div>
+                    {roster.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic px-1">
+                        No hay artistas en el roster.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {roster.map((a) => renderRow(a, true))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      <Users className="h-4 w-4" />
+                      Colaboradores
+                      <span className="text-xs font-normal">· {collaborators.length}</span>
+                    </div>
+                    {collaborators.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic px-1">
+                        No hay colaboradores.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {collaborators.map((a) => renderRow(a, false))}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              );
+            })()}
           </ScrollArea>
         )}
 
