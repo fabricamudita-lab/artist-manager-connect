@@ -373,19 +373,60 @@ export function BookingPresupuestoTab({
 
         return (
           <Card key={budget.id}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ClipboardList className="h-5 w-5 text-primary" />
-                {budget.name}
+            <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base flex-1 min-w-0">
+                <ClipboardList className="h-5 w-5 text-primary shrink-0" />
+                {editingNameId === budget.id ? (
+                  <Input
+                    ref={nameInputRef}
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onBlur={() => commitNameEdit(budget.id, budget.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitNameEdit(budget.id, budget.name);
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setEditingNameId(null);
+                      }
+                    }}
+                    maxLength={120}
+                    disabled={renameMutation.isPending}
+                    className="h-8 text-base font-semibold"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditingName(budget)}
+                    title="Editar nombre"
+                    className="group inline-flex items-center gap-1.5 rounded-md px-1 -mx-1 hover:bg-muted text-left truncate"
+                  >
+                    <span className="truncate">{budget.name}</span>
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
+                )}
               </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedBudgetForDialog(budget)}
-              >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                Abrir presupuesto completo
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => duplicateMutation.mutate(budget.id)}
+                  disabled={duplicateMutation.isPending}
+                  title="Duplicar como punto de partida"
+                >
+                  <Copy className="h-4 w-4 mr-1" />
+                  {duplicateMutation.isPending ? 'Duplicando...' : 'Duplicar'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedBudgetForDialog(budget)}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Abrir presupuesto completo
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* KPI Cards */}
