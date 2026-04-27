@@ -1,72 +1,62 @@
-# Duplicar y renombrar presupuestos en Booking
+# Eliminar presupuestos desde el detalle del Booking
 
-Añadiremos dos acciones a cada tarjeta de presupuesto vinculada en la pestaña **Presupuesto** del detalle de Booking:
-
-1. **Duplicar presupuesto** — clona un presupuesto existente (cabecera + partidas) y lo deja vinculado al mismo booking como punto de partida para uno nuevo.
-2. **Editar el nombre inline** — al hacer clic en el nombre del presupuesto se vuelve editable; se guarda al pulsar Enter o al perder el foco (Escape descarta).
+Añadir un botón **Eliminar** en cada tarjeta de presupuesto vinculada al booking, con un diálogo de **doble confirmación** que detalle exactamente qué se perderá antes de borrar.
 
 ## UX
 
-En cada tarjeta de presupuesto vinculado:
+En la cabecera de cada tarjeta de presupuesto (junto a "Duplicar" y "Abrir presupuesto completo"), añadir un botón **Eliminar** en rojo (icono `Trash2`).
 
-- El título (`budget.name`) pasa a ser editable: clic → `Input` → Enter/blur guarda, Esc cancela. Indicador visual sutil al pasar el ratón (icono lápiz).
-- Nuevo botón pequeño **"Duplicar"** (icono `Copy`) junto a "Abrir presupuesto completo" / "Principal".
-  - Al duplicar:
-    - Nombre por defecto: `"<nombre original> (copia)"`.
-    - Se queda vinculado al mismo `booking_offer_id`.
-    - Nunca se marca como principal (si existe el flag `is_primary_for_booking`, se fuerza `false`).
-    - Toast: "Presupuesto duplicado" con opción **Deshacer** (vía `undoableDelete` aplicado al nuevo id).
-    - Refresca la query `['booking-budgets', bookingId, projectId]` y abre automáticamente el nuevo presupuesto en el `BudgetDetailsDialog` para empezar a editar.
+Al pulsarlo, abrir un `AlertDialog` con:
 
-## Implementación técnica
+**Título**: `¿Eliminar "<nombre del presupuesto>"?`
 
-### Capa de datos (lógica separada de la UI)
+**Cuerpo dinámico** que liste lo que se perderá (calculado con los datos ya cargados + una consulta ligera de conteos):
+- N partidas de presupuesto (`budget_items`)
+- Total Capital (€XX.XXX,XX) y total Pagado
+- Si es **primario**: aviso de que se promoverá automáticamente otro presupuesto como primario (gestionado por trigger DB existente)
+- Si tiene pagos registrados (items con `billing_status` cobrado/pagado): **bloquear eliminación** y mostrar mensaje pidiendo desvincular cobros antes
+- Si tiene partidas conciliadas (`is_reconciled`): aviso fuerte sobre alteración de cierre fiscal
+- Aviso final: *"Esta acción no se puede deshacer."*
 
-Crear `src/lib/budgets/bookingBudgetActions.ts`:
+**Doble confirmación**: el botón rojo "Eliminar definitivamente" permanece deshabilitado hasta que el usuario escriba el nombre exacto del presupuesto en un input de confirmación (patrón GitHub-style).
 
-- `renameBudget(budgetId: string, newName: string)`:
-  - Validación con **Zod**: `z.string().trim().min(1, 'Requerido').max(120)`.
-  - `supabase.from('budgets').update({ name }).eq('id', budgetId)`.
-  - Devuelve el registro actualizado.
-- `duplicateBudget(sourceBudgetId: string, userId: string)`:
-  - Lee la cabecera con `select('*')`.
-  - Inserta una nueva fila copiando solo campos no calculados/no generados (excluye `id`, `created_at`, `updated_at`, `is_primary_for_booking`, y cualquier columna generada — ver memoria *database-generated-columns*). El nuevo `created_by = userId`.
-  - Lee `budget_items` del original (paginado, `range(0, 999)` por lote hasta agotar) y los inserta en bloque para el nuevo `budget_id`, excluyendo `id`/timestamps.
-  - Devuelve el nuevo `budget`.
-  - Maneja errores (registro origen no existe, fallo en items → revierte borrando la cabecera nueva).
+Tras eliminar, toast de éxito + `invalidateQueries(['booking-budgets', bookingId])`.
 
-Toda la lógica vive en este módulo; el componente solo invoca mutaciones (`useMutation`).
+## Capa lógica
 
-### UI — `BookingPresupuestoTab.tsx`
+Extender `src/lib/budgets/bookingBudgetActions.ts` con:
 
-- Añadir estado `editingNameId: string | null` y `nameDraft: string`.
-- En el render de cada tarjeta:
-  - Reemplazar el `<CardTitle>` por: si `editingNameId === budget.id` mostrar `<Input>` autofocus; si no, el nombre con `onClick` para entrar en modo edición.
-  - Botón `Duplicar` (variant outline, size sm, icono `Copy`) junto a los demás.
-- Mutaciones:
-  - `renameMutation` → llama a `renameBudget`, invalida query, toast.
-  - `duplicateMutation` → llama a `duplicateBudget`, invalida query, abre el diálogo del nuevo presupuesto (`setSelectedBudgetForDialog(newBudget)`).
+```ts
+export async function getBudgetDeletionImpact(budgetId: string): Promise<{
+  itemCount: number;
+  totalCapital: number;
+  totalPaid: number;
+  hasPaidItems: boolean;
+  hasReconciledItems: boolean;
+  isPrimary: boolean;
+}>
 
-### Validación y seguridad
+export async function deleteBudget(budgetId: string): Promise<void>
+```
 
-- **Zod** valida nombre en cliente y antes de la llamada.
-- No se concatenan strings en queries (Supabase usa parámetros) → sin riesgo de SQL injection.
-- El nombre se renderiza vía React (texto), no `dangerouslySetInnerHTML` → sin XSS.
-- Las RLS existentes de `budgets` y `budget_items` ya cubren autorización (no se tocan).
+- `getBudgetDeletionImpact`: una sola query a `budget_items` (`select id, unit_price, quantity, billing_status, is_reconciled`) + lectura del flag `is_primary_for_booking` del header. Calcula totales en cliente.
+- `deleteBudget`: valida con Zod (id uuid), re-comprueba en servidor que no haya items pagados/conciliados (defensa en profundidad), borra `budget_items` y luego el `budgets`. El trigger `promote_next_primary_budget` ya existente se encarga de promover otro primario si procede.
 
-### Esquema de BD
+## Componente UI
 
-No requiere migración: `budgets.name` ya existe y `budget_items` ya soporta inserción masiva. No se añaden índices nuevos (las consultas siguen filtrando por `booking_offer_id`/`id` que ya están indexados como PK/FK).
+Nuevo componente `src/components/booking-detail/DeleteBudgetDialog.tsx`:
+- Props: `budget`, `open`, `onOpenChange`, `onDeleted`
+- Usa `useQuery` para cargar el impacto al abrirse
+- Renderiza lista de impacto con iconos (AlertTriangle ámbar / rojo según severidad)
+- Input de confirmación por nombre + botón destructivo
+- Maneja estados: loading impacto, bloqueado por pagos, confirmando, eliminando
 
-## Edge cases cubiertos
-
-- Nombre vacío al guardar → no se guarda, vuelve al valor original con toast de error.
-- Duplicar un presupuesto sin partidas → se crea solo la cabecera (sin error).
-- Si el origen tiene cientos de partidas → inserción paginada en lotes de 500.
-- Si la duplicación de items falla a mitad → se elimina la cabecera nueva para no dejar registros huérfanos.
-- El duplicado nunca hereda el flag de "principal" si la columna existe.
+Integrarlo en `BookingPresupuestoTab.tsx` añadiendo estado `budgetToDelete` y el botón Trash2 en la cabecera de cada tarjeta del bloque "linked".
 
 ## Archivos afectados
 
-- **Nuevo:** `src/lib/budgets/bookingBudgetActions.ts` (lógica + Zod).
-- **Editado:** `src/components/booking-detail/BookingPresupuestoTab.tsx` (UI + mutaciones).
+- `src/lib/budgets/bookingBudgetActions.ts` (añadir funciones)
+- `src/components/booking-detail/DeleteBudgetDialog.tsx` (nuevo)
+- `src/components/booking-detail/BookingPresupuestoTab.tsx` (botón + estado + render del diálogo)
+
+No requiere migración de base de datos: los triggers de promoción de primario y las RLS de `budgets`/`budget_items` ya existen.
