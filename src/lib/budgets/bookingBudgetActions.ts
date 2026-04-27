@@ -74,6 +74,101 @@ export async function renameBudget(budgetId: string, newName: string) {
   return data;
 }
 
+// ─── Deletion impact / Delete ─────────────────────────────────────────
+const uuidSchema = z.string().uuid('Identificador inválido');
+
+export interface BudgetDeletionImpact {
+  itemCount: number;
+  totalCapital: number;
+  totalPaid: number;
+  paidItemCount: number;
+  reconciledItemCount: number;
+  hasPaidItems: boolean;
+  hasReconciledItems: boolean;
+  isPrimary: boolean;
+  budgetName: string;
+}
+
+const PAID_BILLING_STATUSES = new Set([
+  'paid',
+  'pagado',
+  'cobrado',
+  'cobrado_completo',
+  'partially_paid',
+  'cobrado_parcial',
+]);
+
+export async function getBudgetDeletionImpact(
+  budgetId: string
+): Promise<BudgetDeletionImpact> {
+  const id = uuidSchema.parse(budgetId);
+
+  const { data: header, error: hErr } = await supabase
+    .from('budgets')
+    .select('id, name, is_primary_for_booking')
+    .eq('id', id)
+    .single();
+  if (hErr || !header) throw new Error('No se pudo leer el presupuesto');
+
+  const { data: items, error: iErr } = await supabase
+    .from('budget_items')
+    .select('unit_price, quantity, billing_status, is_reconciled')
+    .eq('budget_id', id);
+  if (iErr) throw iErr;
+
+  let totalCapital = 0;
+  let totalPaid = 0;
+  let paidItemCount = 0;
+  let reconciledItemCount = 0;
+
+  for (const it of items || []) {
+    const subtotal = (Number(it.unit_price) || 0) * (Number(it.quantity) || 0);
+    totalCapital += subtotal;
+    const status = (it.billing_status || '').toLowerCase();
+    if (PAID_BILLING_STATUSES.has(status)) {
+      totalPaid += subtotal;
+      paidItemCount += 1;
+    }
+    if (it.is_reconciled) reconciledItemCount += 1;
+  }
+
+  return {
+    itemCount: items?.length || 0,
+    totalCapital,
+    totalPaid,
+    paidItemCount,
+    reconciledItemCount,
+    hasPaidItems: paidItemCount > 0,
+    hasReconciledItems: reconciledItemCount > 0,
+    isPrimary: !!header.is_primary_for_booking,
+    budgetName: header.name || '',
+  };
+}
+
+export async function deleteBudget(budgetId: string): Promise<void> {
+  const id = uuidSchema.parse(budgetId);
+
+  // Defense-in-depth: re-check impact server-side before deletion
+  const impact = await getBudgetDeletionImpact(id);
+  if (impact.hasPaidItems) {
+    throw new Error(
+      'No se puede eliminar: el presupuesto tiene partidas cobradas/pagadas. Desvincúlalas primero desde Finanzas.'
+    );
+  }
+
+  const { error: itemsErr } = await supabase
+    .from('budget_items')
+    .delete()
+    .eq('budget_id', id);
+  if (itemsErr) throw itemsErr;
+
+  const { error: budgetErr } = await supabase
+    .from('budgets')
+    .delete()
+    .eq('id', id);
+  if (budgetErr) throw budgetErr;
+}
+
 // ─── Duplicate ────────────────────────────────────────────────────────
 const PAGE_SIZE = 500;
 

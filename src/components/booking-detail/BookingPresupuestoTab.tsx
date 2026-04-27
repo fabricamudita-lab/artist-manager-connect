@@ -10,13 +10,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   ClipboardList, Plus, ExternalLink, DollarSign,
   CreditCard, AlertTriangle, CheckCircle2, Link as LinkIcon,
-  Copy, Pencil
+  Copy, Pencil, Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { duplicateBudget, renameBudget, budgetNameSchema } from '@/lib/budgets/bookingBudgetActions';
+import { DeleteBudgetDialog } from '@/components/booking-detail/DeleteBudgetDialog';
 
 interface BookingPresupuestoTabProps {
   bookingId: string;
@@ -59,6 +60,7 @@ export function BookingPresupuestoTab({
   const [selectedBudgetForDialog, setSelectedBudgetForDialog] = useState<any>(null);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
+  const [budgetToDelete, setBudgetToDelete] = useState<{ id: string; name: string } | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -426,6 +428,16 @@ export function BookingPresupuestoTab({
                   <ExternalLink className="h-4 w-4 mr-1" />
                   Abrir presupuesto completo
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBudgetToDelete({ id: budget.id, name: budget.name })}
+                  title="Eliminar presupuesto"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Eliminar
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -542,6 +554,16 @@ export function BookingPresupuestoTab({
           onUpdate={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] })}
         />
       )}
+      <DeleteBudgetDialog
+        budgetId={budgetToDelete?.id ?? null}
+        budgetName={budgetToDelete?.name ?? ''}
+        open={!!budgetToDelete}
+        onOpenChange={(open) => { if (!open) setBudgetToDelete(null); }}
+        onDeleted={() => {
+          queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] });
+          setBudgetToDelete(null);
+        }}
+      />
     </div>
   );
 }
