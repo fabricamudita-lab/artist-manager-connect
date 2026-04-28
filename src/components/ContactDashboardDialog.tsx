@@ -107,6 +107,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         trackCreditsRes,
         bookingsRes,
         releasesRes,
+        budgetsRes,
       ] = await Promise.all([
         contactIds.length > 0
           ? supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds)
@@ -135,10 +136,14 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         artistIds.length > 0
           ? supabase.from('releases').select('*').in('artist_id', artistIds)
           : Promise.resolve({ data: [] }),
+        artistIds.length > 0
+          ? supabase.from('budgets').select('id, name, type, fee, show_status, budget_status, event_date, event_time, city, venue, country, artist_id, formato, expense_budget, internal_notes, created_at').in('artist_id', artistIds).order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] }),
       ]);
 
       setData({
         budgetItems: budgetItemsRes.data || [],
+        budgets: budgetsRes.data || [],
         bookings: bookingsRes.data || [],
         solicitudes: solicitudesRes.data || [],
         syncOffers: syncOffersRes.data || [],
