@@ -600,20 +600,33 @@ export default function BookingDetail() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
+          <Card
+            className={`bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20 ${primaryBudgetKpi ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            onClick={primaryBudgetKpi ? () => setActiveTab('presupuesto') : undefined}
+          >
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
+              <div className="p-2 bg-orange-500/20 rounded-lg shrink-0">
                 <Receipt className="h-5 w-5 text-orange-600" />
               </div>
-              {booking.gastos_estimados ? (
+              {primaryBudgetKpi ? (
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Disponible · Presupuesto</p>
+                  <p className={`text-lg font-bold ${primaryBudgetKpi.disponible >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {fmtEUR(primaryBudgetKpi.disponible)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Capital {fmtEUR(primaryBudgetKpi.capital)} · Comprometido {fmtEUR(primaryBudgetKpi.comprometido)}
+                  </p>
+                </div>
+              ) : booking.gastos_estimados ? (
                 <div>
                   <p className="text-xs text-muted-foreground">Gastos Est.</p>
                   <p className="text-lg font-bold">{booking.gastos_estimados.toLocaleString()}€</p>
                 </div>
               ) : (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 p-0 h-auto"
                   onClick={() => setShowEditDialog(true)}
                 >
@@ -623,6 +636,7 @@ export default function BookingDetail() {
               )}
             </CardContent>
           </Card>
+
           
           <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
             <CardContent className="p-4 flex items-center gap-3">
