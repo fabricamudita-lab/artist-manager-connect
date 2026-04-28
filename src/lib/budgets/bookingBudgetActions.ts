@@ -169,6 +169,54 @@ export async function deleteBudget(budgetId: string): Promise<void> {
   if (budgetErr) throw budgetErr;
 }
 
+// ─── Primary flag management ──────────────────────────────────────────
+export async function setPrimaryBudget(bookingId: string, newPrimaryId: string) {
+  if (!bookingId || !newPrimaryId) throw new Error('Faltan parámetros');
+
+  // 1. Clear any existing primary on this booking
+  const { error: clearErr } = await supabase
+    .from('budgets')
+    .update({ is_primary_for_booking: false })
+    .eq('booking_offer_id', bookingId)
+    .eq('is_primary_for_booking', true);
+  if (clearErr) throw clearErr;
+
+  // 2. Mark new primary
+  const { error: setErr } = await supabase
+    .from('budgets')
+    .update({ is_primary_for_booking: true })
+    .eq('id', newPrimaryId);
+  if (setErr) throw setErr;
+}
+
+export async function unlinkBudgetFromBooking(budgetId: string) {
+  if (!budgetId) throw new Error('Falta el id del presupuesto');
+
+  // Block if it's the only/primary budget — caller should promote another first
+  const { data: b, error: rErr } = await supabase
+    .from('budgets')
+    .select('booking_offer_id, is_primary_for_booking')
+    .eq('id', budgetId)
+    .single();
+  if (rErr || !b) throw new Error('No se pudo leer el presupuesto');
+
+  if (b.is_primary_for_booking) {
+    const { count } = await supabase
+      .from('budgets')
+      .select('id', { count: 'exact', head: true })
+      .eq('booking_offer_id', b.booking_offer_id!);
+    if ((count ?? 0) > 1) {
+      throw new Error('Este es el presupuesto principal. Marca otro como principal antes de desvincular.');
+    }
+  }
+
+  const { error } = await supabase
+    .from('budgets')
+    .update({ booking_offer_id: null, is_primary_for_booking: false })
+    .eq('id', budgetId);
+  if (error) throw error;
+}
+
 // ─── Duplicate ────────────────────────────────────────────────────────
 const PAGE_SIZE = 500;
 
