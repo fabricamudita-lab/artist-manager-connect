@@ -10,6 +10,7 @@ import { Loader2, DollarSign, Calendar, FileText, Music, FolderOpen, ArrowRight,
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 
 interface SelectedProfile {
   id: string;
