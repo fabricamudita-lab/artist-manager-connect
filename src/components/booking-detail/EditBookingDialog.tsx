@@ -47,6 +47,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { ContactSelector } from '@/components/ContactSelector';
+import { CommissionSection } from '@/components/booking-detail/CommissionSection';
 
 interface BookingOffer {
   id: string;
