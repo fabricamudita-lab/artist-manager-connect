@@ -162,6 +162,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
 
   const totalItems =
     data.budgetItems.length +
+    data.budgets.length +
     data.bookings.length +
     data.solicitudes.length +
     data.syncOffers.length +
@@ -172,7 +173,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     data.releases.length;
 
   const tabCounts = {
-    presupuestos: data.budgetItems.length,
+    presupuestos: data.budgetItems.length + data.budgets.length,
     bookings: data.bookings.length,
     solicitudes: data.solicitudes.length,
     sync: data.syncOffers.length,
