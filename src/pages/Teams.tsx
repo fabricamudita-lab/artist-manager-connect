@@ -913,6 +913,21 @@ export default function Teams() {
       });
     });
 
+    // Pre-cómputo GLOBAL: ¿este artista del roster ya está representado por algún
+    // contacto promocionado en CUALQUIER categoría? Evita duplicar al mismo
+    // artista como "Artista principal" + "Compositor, Productor", etc.
+    const globallyPromotedArtistIds = new Set<string>();
+    (teamContacts || []).forEach(c => {
+      const linkedId = (c as any).linked_artist_id as string | null | undefined;
+      let match = linkedId ? artists.find(a => a.id === linkedId) : undefined;
+      if (!match) {
+        match =
+          artistByName.get(norm((c as any).stage_name || '')) ||
+          artistByName.get(norm((c as any).name || ''));
+      }
+      if (match) globallyPromotedArtistIds.add(match.id);
+    });
+
     return allCategoriesForDisplay.map(cat => {
       const wsMembers = teamMembers.filter(m => {
         if (selectedArtistId === '00-management') {
