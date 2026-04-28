@@ -33,7 +33,7 @@ import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 interface Artist {
   id: string;
   name: string;
@@ -132,6 +132,47 @@ export default function BookingDetail() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
   const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Primary budget linked to this booking (for header KPI card)
+  const { data: primaryBudgetKpi } = useQuery({
+    queryKey: ['booking-primary-budget', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data: budget } = await supabase
+        .from('budgets')
+        .select('id, name, fee')
+        .eq('booking_offer_id', id!)
+        .eq('is_primary_for_booking', true)
+        .maybeSingle();
+      if (!budget) return null;
+      const { data: items } = await supabase
+        .from('budget_items')
+        .select('quantity, unit_price, iva_percentage')
+        .eq('budget_id', budget.id);
+      const capital = budget.fee || 0;
+      const comprometido = (items || []).reduce((acc, it: any) => {
+        const base = (Number(it.quantity) || 0) * (Number(it.unit_price) || 0);
+        const iva = Number(it.iva_percentage) || 0;
+        return acc + base * (1 + iva / 100);
+      }, 0);
+      return {
+        id: budget.id,
+        name: budget.name,
+        capital,
+        comprometido,
+        disponible: capital - comprometido,
+      };
+    },
+  });
+
+  const fmtEUR = (n: number) =>
+    new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(n);
   
   // Project linking state
   const [showLinkProjectDialog, setShowLinkProjectDialog] = useState(false);
@@ -559,20 +600,33 @@ export default function BookingDetail() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
+          <Card
+            className={`bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20 ${primaryBudgetKpi ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            onClick={primaryBudgetKpi ? () => setActiveTab('presupuesto') : undefined}
+          >
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
+              <div className="p-2 bg-orange-500/20 rounded-lg shrink-0">
                 <Receipt className="h-5 w-5 text-orange-600" />
               </div>
-              {booking.gastos_estimados ? (
+              {primaryBudgetKpi ? (
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Disponible · Presupuesto</p>
+                  <p className={`text-lg font-bold ${primaryBudgetKpi.disponible >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {fmtEUR(primaryBudgetKpi.disponible)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Capital {fmtEUR(primaryBudgetKpi.capital)} · Comprometido {fmtEUR(primaryBudgetKpi.comprometido)}
+                  </p>
+                </div>
+              ) : booking.gastos_estimados ? (
                 <div>
                   <p className="text-xs text-muted-foreground">Gastos Est.</p>
                   <p className="text-lg font-bold">{booking.gastos_estimados.toLocaleString()}€</p>
                 </div>
               ) : (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 p-0 h-auto"
                   onClick={() => setShowEditDialog(true)}
                 >
@@ -582,6 +636,7 @@ export default function BookingDetail() {
               )}
             </CardContent>
           </Card>
+
           
           <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
             <CardContent className="p-4 flex items-center gap-3">
@@ -650,7 +705,7 @@ export default function BookingDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Tabs - Takes 2 columns */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="overview" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-6 mb-6">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />

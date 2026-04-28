@@ -1,136 +1,50 @@
+# Mostrar "Disponible" del presupuesto principal en la tarjeta de Gastos
+
 ## Objetivo
+En la barra de Quick Stats del detalle de booking, la tarjeta naranja de "Gastos Est." actualmente solo muestra el campo manual `gastos_estimados` o un botón "Estimar gastos". Cuando exista un **presupuesto principal** vinculado al booking, esa tarjeta debe pasar a mostrar la información real y útil del presupuesto: **Disponible** (Capital − Comprometido), con Capital como referencia secundaria.
 
-Transformar la pestaña **Presupuesto** del detalle de un booking en un centro de gestión profesional donde:
+## Comportamiento propuesto
 
-1. Cada booking tenga **un único presupuesto principal** (el que alimenta Caché/Cobros oficiales).
-2. Se puedan crear **presupuestos alternativos** (propuestas internas, simulaciones, escenarios "con/sin equipo").
-3. Se pueda **duplicar** o **vincular** desde otros presupuestos del mismo proyecto/artista.
-4. La interfaz sea estéticamente clara, ordenada y use **menús desplegables** para no saturar.
+Prioridad de contenido en la tarjeta naranja (en orden):
 
-Se mantiene la lógica ya aprobada: duplicar, renombrar inline, eliminar con confirmación "CONFIRMAR".
+1. **Si hay presupuesto principal** (`is_primary_for_booking = true`):
+   - Etiqueta: `Disponible` (en lugar de "Gastos Est.")
+   - Valor grande: `kpi.disponible` formateado en EU (`€XX.XXX,XX`), en verde si ≥ 0, rojo si < 0
+   - Sub-línea pequeña: `Capital €X · Comprometido €Y`
+   - La tarjeta es clicable y navega a la pestaña Presupuesto
+2. **Si no hay presupuesto principal pero sí `gastos_estimados`**: comportamiento actual (label "Gastos Est." + valor)
+3. **Si no hay nada**: botón actual "Estimar gastos" que abre EditBookingDialog
 
----
+## Detalles técnicos
 
-## Cambios funcionales
+**Archivo**: `src/pages/BookingDetail.tsx` (líneas ~562-584).
 
-### 1. Concepto "Principal" vs "Alternativos"
+**Carga de datos del presupuesto principal**:
+- Añadir un `useQuery` (ya se usa `@tanstack/react-query`) con clave `['booking-primary-budget', bookingId]`:
+  - `SELECT id, name, fee FROM budgets WHERE booking_offer_id = :id AND is_primary_for_booking = true LIMIT 1`
+  - Si existe, segundo fetch: `SELECT quantity, unit_price, iva_percentage FROM budget_items WHERE budget_id = :primaryId`
+- Cálculo (idéntico al usado en `BookingPresupuestoTab.calcKPIs`):
+  - `capital = budget.fee || 0`
+  - `comprometido = Σ (quantity * unit_price * (1 + iva/100))` sobre todos los items
+  - `disponible = capital - comprometido`
+- Reutilizar el formateador EU existente o `Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR' })`.
 
-- Se reutiliza la columna existente `budgets.is_primary_for_booking` (ya en BD).
-- **Reglas**:
-  - Cuando solo hay un presupuesto vinculado → automáticamente principal.
-  - Al añadir más, el primero conserva el flag; el resto entran como **Alternativos**.
-  - El usuario puede "Marcar como principal" desde el menú → se desmarca el anterior (operación atómica vía dos updates en secuencia con invalidación).
-  - El presupuesto principal es el que muestran Cobros, Cashflow y Caché (lógica existente respeta este flag).
-
-### 2. Layout rediseñado de la sección
-
+**Render condicional (pseudocódigo del JSX en la card naranja)**:
 ```text
-┌─ Presupuestos del evento ────────────────────────── [+ Añadir ▾] ─┐
-│                                                                    │
-│  ╔═ PRINCIPAL ═══════════════════════════════════════════════════╗ │
-│  ║ 📋 Presupuesto - CurtCircuit         [ Acciones ▾ ]          ║ │
-│  ║ ─────────────────────────────────────────────────────────────║ │
-│  ║ Capital   Pagado    Comprometido    Disponible               ║ │
-│  ║ 3.818€    2.256€    2.856€          962€                     ║ │
-│  ║ ─ Desglose por categoría ───────────────────────────────────  ║ │
-│  ║ Músicos (5) ............................... 1.500€           ║ │
-│  ╚═══════════════════════════════════════════════════════════════╝ │
-│                                                                    │
-│  Alternativos (2)                                  [ Colapsar ▾ ] │
-│  ┌─ 📋 Propuesta sin equipo técnico  [Marcar principal][Acciones▾]┐│
-│  │   Capital 3.818€ · Comprometido 1.800€ · Disponible 2.018€    ││
-│  └────────────────────────────────────────────────────────────────┘│
-│  ┌─ 📋 Escenario con cachet alto     [Marcar principal][Acciones▾]┐│
-│  └────────────────────────────────────────────────────────────────┘│
-│                                                                    │
-│  ── Disponibles para vincular del proyecto ──────────────────────  │
-│  • Presupuesto - Gira Norte    [Vincular ▾ (como alternativo)]    │
-└────────────────────────────────────────────────────────────────────┘
+if (primaryBudget) {
+  → Label "Disponible" + valor grande coloreado
+  → onClick: setActiveTab('presupuesto') o cambiar a la pestaña Presupuesto
+  → Sub-línea: "Capital €X · Comprometido €Y"
+} else if (booking.gastos_estimados) {
+  → Render actual
+} else {
+  → Botón "Estimar gastos" actual
+}
 ```
 
-Detalles visuales:
-- **Principal**: tarjeta destacada con borde primary y badge "Principal" verde; KPIs grandes y desglose completo.
-- **Alternativos**: tarjetas compactas plegadas por defecto (mostrar solo nombre + Capital/Disponible). Click para expandir desglose. Acordeón controlado.
-- Etiquetas de estado: badge `Borrador`, `Aprobado`, `Cerrado` según `budget_status` cuando aplique.
-- Iconografía consistente: `Star` para principal, `Copy` duplicar, `Pencil` renombrar, `Link` vincular, `Trash2` eliminar.
+**Invalidación**: tras cambios en la pestaña Presupuesto (crear/editar items, cambiar principal), invalidar la query `['booking-primary-budget', bookingId]` para mantener sincronizado el header.
 
-### 3. Menú "Añadir ▾" (DropdownMenu en la cabecera)
-
-Reemplaza los botones sueltos actuales. Opciones:
-
-| Opción | Acción |
-|---|---|
-| ➕ Crear nuevo presupuesto en blanco | mutación `createBudget` actual (autocarga crew si hay formato) |
-| 🧬 Duplicar el principal | `duplicateBudget(principalId)` y abrir el resultado |
-| 🔗 Vincular uno existente del proyecto… | abre submenú con la lista de `unlinked` del proyecto |
-
-Si no hay principal aún, solo se muestra "Crear nuevo presupuesto".
-
-### 4. Menú "Acciones ▾" por tarjeta
-
-Sustituye la fila actual de botones (Duplicar / Abrir / Eliminar). DropdownMenu con:
-
-- **Abrir presupuesto completo** (ExternalLink)
-- **Renombrar** (Pencil) → activa edición inline existente
-- **Duplicar como nuevo alternativo** (Copy)
-- **Marcar como principal** (Star) — solo visible si `!is_primary_for_booking`
-- **Desvincular del booking** (Unlink) — solo visible para alternativos: pone `booking_offer_id = null`, sin borrar
-- **Eliminar…** (Trash2, rojo) — abre `DeleteBudgetDialog` existente con "CONFIRMAR"
-
-El nombre del presupuesto sigue siendo editable haciendo click directo (lápiz al hover), comportamiento ya existente.
-
-### 5. Vinculación de presupuestos del mismo proyecto
-
-- La sección "Presupuestos del mismo proyecto" se mantiene pero se refina:
-  - Se muestra solo cuando hay candidatos.
-  - Cada item incluye chip con tipo + fee + fecha del evento si difiere.
-  - Botón único "Vincular" que añade como alternativo (no toca el principal).
-  - Si no había ningún presupuesto vinculado, el primer vínculo se marca como principal automáticamente.
-
-### 6. Cambio del flag principal (lógica)
-
-Función nueva en `bookingBudgetActions.ts`:
-
-```text
-setPrimaryBudget(bookingId, newPrimaryId):
-  1. UPDATE budgets SET is_primary_for_booking=false
-     WHERE booking_offer_id = bookingId AND is_primary_for_booking = true
-  2. UPDATE budgets SET is_primary_for_booking=true
-     WHERE id = newPrimaryId
-```
-
-`unlinkBudget(budgetId)`:
-- Si el budget es principal y existen otros vinculados → exigir promover otro antes (toast informativo).
-- Si no, `UPDATE budgets SET booking_offer_id=null WHERE id=...`.
-
-### 7. Estado vacío
-
-Mantener `EmptyState` actual pero con texto mejorado: "Aún no hay presupuestos para este concierto. Crea uno desde cero o duplica uno existente del proyecto." y un botón con menú desplegable que ofrece ambas opciones cuando hay candidatos del proyecto.
-
----
-
-## Archivos afectados
-
-- `src/components/booking-detail/BookingPresupuestoTab.tsx`
-  - Reestructurar render: cabecera con DropdownMenu "Añadir", tarjeta principal destacada, sección "Alternativos" colapsable, sección "Disponibles para vincular" pulida.
-  - Reemplazar botones por DropdownMenu de acciones por tarjeta.
-  - Añadir mutaciones `setPrimaryMutation` y `unlinkMutation`.
-  - Calcular `principal` = `linked.find(b => b.is_primary_for_booking)` o `linked[0]` (auto-primary si no hay flag).
-  - Añadir al `select` el campo `is_primary_for_booking`.
-- `src/lib/budgets/bookingBudgetActions.ts`
-  - Añadir `setPrimaryBudget(bookingId, newPrimaryId)`.
-  - Añadir `unlinkBudgetFromBooking(budgetId)`.
-  - Añadir `ensurePrimaryOnLink(bookingId)` helper que marca principal si ninguno lo es.
-- Reutilizar componentes: `DropdownMenu`, `Card`, `Badge`, `Collapsible`, `BudgetDetailsDialog`, `DeleteBudgetDialog`.
-
-No se requieren migraciones — el campo `is_primary_for_booking` ya existe.
-
----
-
-## Resultado esperado
-
-- Una tarjeta principal grande, clara, con KPIs y desglose por categoría (como en la captura del usuario).
-- Alternativos compactos, expandibles, fáciles de comparar.
-- Acciones agrupadas en menús desplegables limpios (≤ 2 botones visibles por tarjeta).
-- Flujo profesional para crear/duplicar/vincular sin saturar la UI.
-- Promoción/desvinculación de presupuestos sin perder datos ni romper la trazabilidad financiera.
+## Lo que NO cambia
+- La pestaña "Presupuesto" sigue siendo la fuente de verdad detallada.
+- El campo `gastos_estimados` sigue existiendo y editable desde EditBookingDialog (para bookings sin presupuesto formal).
+- No se modifica el esquema de base de datos.
