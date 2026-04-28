@@ -34,10 +34,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket, ShieldCheck, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useTeamMembersByArtist } from '@/hooks/useTeamMembersByArtist';
 
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
