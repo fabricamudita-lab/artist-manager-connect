@@ -316,8 +316,22 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                   <EmptyState label="recursos" />
                 ) : (
                   <>
+                    {data.budgets.length > 0 && (
+                      <Section title="Presupuestos del artista" icon={<DollarSign className="h-4 w-4" />} count={data.budgets.length}>
+                        {data.budgets.map(item => (
+                          <ItemCard
+                            key={`budget-${item.id}`}
+                            title={item.name || 'Presupuesto'}
+                            subtitle={[item.city, item.venue].filter(Boolean).join(' · ') || item.type}
+                            status={item.budget_status || item.show_status}
+                            date={item.event_date || item.created_at}
+                            onClick={() => setSelectedBudget(item)}
+                          />
+                        ))}
+                      </Section>
+                    )}
                     {data.budgetItems.length > 0 && (
-                      <Section title="Presupuestos" icon={<DollarSign className="h-4 w-4" />} count={data.budgetItems.length}>
+                      <Section title="Partidas como proveedor" icon={<DollarSign className="h-4 w-4" />} count={data.budgetItems.length}>
                         {data.budgetItems.map(item => (
                           <ItemCard
                             key={item.id}
