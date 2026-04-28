@@ -10,6 +10,7 @@ import { Loader2, DollarSign, Calendar, FileText, Music, FolderOpen, ArrowRight,
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 
 interface SelectedProfile {
   id: string;
@@ -27,6 +28,7 @@ interface ContactDashboardDialogProps {
 
 interface DashboardData {
   budgetItems: any[];
+  budgets: any[];
   bookings: any[];
   solicitudes: any[];
   syncOffers: any[];
@@ -47,6 +49,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DashboardData>({
     budgetItems: [],
+    budgets: [],
     bookings: [],
     solicitudes: [],
     syncOffers: [],
@@ -56,6 +59,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     trackCredits: [],
     releases: [],
   });
+  const [selectedBudget, setSelectedBudget] = useState<any>(null);
   const navigate = useNavigate();
 
   const navigateFromDashboard = (path: string) => {
@@ -103,6 +107,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         trackCreditsRes,
         bookingsRes,
         releasesRes,
+        budgetsRes,
       ] = await Promise.all([
         contactIds.length > 0
           ? supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds)
@@ -131,10 +136,14 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         artistIds.length > 0
           ? supabase.from('releases').select('*').in('artist_id', artistIds)
           : Promise.resolve({ data: [] }),
+        artistIds.length > 0
+          ? supabase.from('budgets').select('id, name, type, fee, show_status, budget_status, event_date, event_time, city, venue, country, artist_id, formato, expense_budget, internal_notes, created_at').in('artist_id', artistIds).order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] }),
       ]);
 
       setData({
         budgetItems: budgetItemsRes.data || [],
+        budgets: budgetsRes.data || [],
         bookings: bookingsRes.data || [],
         solicitudes: solicitudesRes.data || [],
         syncOffers: syncOffersRes.data || [],
@@ -153,6 +162,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
 
   const totalItems =
     data.budgetItems.length +
+    data.budgets.length +
     data.bookings.length +
     data.solicitudes.length +
     data.syncOffers.length +
@@ -163,7 +173,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     data.releases.length;
 
   const tabCounts = {
-    presupuestos: data.budgetItems.length,
+    presupuestos: data.budgetItems.length + data.budgets.length,
     bookings: data.bookings.length,
     solicitudes: data.solicitudes.length,
     sync: data.syncOffers.length,
@@ -306,8 +316,22 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                   <EmptyState label="recursos" />
                 ) : (
                   <>
+                    {data.budgets.length > 0 && (
+                      <Section title="Presupuestos del artista" icon={<DollarSign className="h-4 w-4" />} count={data.budgets.length}>
+                        {data.budgets.map(item => (
+                          <ItemCard
+                            key={`budget-${item.id}`}
+                            title={item.name || 'Presupuesto'}
+                            subtitle={[item.city, item.venue].filter(Boolean).join(' · ') || item.type}
+                            status={item.budget_status || item.show_status}
+                            date={item.event_date || item.created_at}
+                            onClick={() => setSelectedBudget(item)}
+                          />
+                        ))}
+                      </Section>
+                    )}
                     {data.budgetItems.length > 0 && (
-                      <Section title="Presupuestos" icon={<DollarSign className="h-4 w-4" />} count={data.budgetItems.length}>
+                      <Section title="Partidas como proveedor" icon={<DollarSign className="h-4 w-4" />} count={data.budgetItems.length}>
                         {data.budgetItems.map(item => (
                           <ItemCard
                             key={item.id}
@@ -427,10 +451,34 @@ onClick={() => navigateFromDashboard(`/booking/${item.id}`)}
               </TabsContent>
 
               {/* Individual tabs */}
-              <TabsContent value="presupuestos" className="space-y-2 m-0">
-                {data.budgetItems.length === 0 ? <EmptyState label="presupuestos" /> : data.budgetItems.map(item => (
-                  <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} onClick={() => navigateFromDashboard('/budgets')} />
-                ))}
+              <TabsContent value="presupuestos" className="space-y-4 m-0">
+                {data.budgets.length === 0 && data.budgetItems.length === 0 ? (
+                  <EmptyState label="presupuestos" />
+                ) : (
+                  <>
+                    {data.budgets.length > 0 && (
+                      <Section title="Presupuestos del artista" icon={<DollarSign className="h-4 w-4" />} count={data.budgets.length}>
+                        {data.budgets.map(item => (
+                          <ItemCard
+                            key={`budget-tab-${item.id}`}
+                            title={item.name || 'Presupuesto'}
+                            subtitle={[item.city, item.venue].filter(Boolean).join(' · ') || item.type}
+                            status={item.budget_status || item.show_status}
+                            date={item.event_date || item.created_at}
+                            onClick={() => setSelectedBudget(item)}
+                          />
+                        ))}
+                      </Section>
+                    )}
+                    {data.budgetItems.length > 0 && (
+                      <Section title="Partidas como proveedor" icon={<DollarSign className="h-4 w-4" />} count={data.budgetItems.length}>
+                        {data.budgetItems.map(item => (
+                          <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} onClick={() => navigateFromDashboard('/budgets')} />
+                        ))}
+                      </Section>
+                    )}
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="bookings" className="space-y-2 m-0">
@@ -485,6 +533,14 @@ onClick={() => navigateFromDashboard(`/booking/${item.id}`)}
           </Tabs>
         )}
       </DialogContent>
+      {selectedBudget && (
+        <BudgetDetailsDialog
+          open={!!selectedBudget}
+          onOpenChange={(open) => { if (!open) setSelectedBudget(null); }}
+          budget={selectedBudget}
+          onUpdate={fetchAll}
+        />
+      )}
     </Dialog>
   );
 }
