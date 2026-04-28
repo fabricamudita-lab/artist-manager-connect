@@ -1,95 +1,55 @@
-# Comisión en Booking: clarificar uso, permitir 0€ y asociar a perfil
+# Eliminar duplicado de artistas en Equipos
 
-## Diagnóstico
+## Problema
 
-Hay tres problemas convergentes en el formulario "Editar Booking → Financiero":
+En `/contacts` (vista Equipos), Eudald Payés aparece dos veces cuando el filtro de Categoría está en "Todas":
 
-1. **No deja guardar 0€**: el trigger SQL `calculate_booking_commission` recalcula automáticamente la comisión en cada `INSERT/UPDATE` de `booking_offers`:
-   - `comision_porcentaje = es_cityzen ? 10 : 5`
-   - `comision_euros = fee * comision_porcentaje / 100`
-   
-   Aunque escribas `0` en el formulario, el trigger lo sobreescribe. Por eso "no se permite" 0€.
+- Una vez como **"Artista principal"** (inyectado automáticamente en la categoría `artistico`/`banda` desde la tabla `artists`).
+- Otra vez como **"Compositor, Productor"** (porque existe un contacto del roster vinculado al mismo artista vía `linked_artist_id` o por coincidencia de nombre, y está categorizado en `compositor`/`productor`).
 
-2. **Conceptualmente confuso**: hoy estos campos parecen ser "la comisión de management/booking", pero esas ya viven dentro del **presupuesto** (líneas con `commission_percentage` / `is_commission_percentage` en `budget_items`). Por tanto, el campo del booking representa realmente **comisiones EXTRA** puntuales (un finder fee, un agente externo, un porcentaje a otro colaborador, etc.).
+La causa está en `src/pages/Teams.tsx`:
 
-3. **Sin perfil asociado**: no hay forma de indicar a quién se paga esa comisión extra, lo que impide trazabilidad en cashflow y liquidaciones.
+- Líneas 974-999: se inyecta `artist-<uuid>` como "Artista principal" en la categoría artístico/banda **solo si no está promocionado en esa misma categoría**. Pero si el contacto promocionado está en otra categoría distinta (compositor/productor), no entra en `promotedArtists` de artístico, por lo que se vuelve a inyectar.
+- Líneas 1001-1011: el promocionado de la otra categoría se añade con id `artist-<uuid>-<cat>`.
+- Líneas 1132-1146 (`allMembersFlattened`): la deduplicación es por `member.id`. Como los ids son distintos, ambos sobreviven.
 
-## Propuesta
+## Solución propuesta
 
-### A. Renombrar y rediseñar la sección en EditBookingDialog → tab "Financiero"
+Unificar al artista en una sola tarjeta cuando coexisten ambas representaciones, conservando el rol específico (p. ej. "Artista principal · Compositor, Productor") en lugar de mostrar dos burbujas.
 
-Sustituir la fila actual `Comisión (%) | Comisión (€)` por una sub-sección clara:
+### Cambios en `src/pages/Teams.tsx`
 
-```text
-┌─ Comisión adicional (opcional) ─────────────────────────────┐
-│  ℹ Las comisiones de management y agencia ya están          │
-│    incluidas en el presupuesto. Usa este campo solo para    │
-│    comisiones extra puntuales (finder fee, agente externo). │
-│                                                             │
-│  Beneficiario          % sobre fee     Importe (€)          │
-│  [Selector perfil ▾]   [____]          [____]               │
-│                                                             │
-│  Concepto (opcional)                                        │
-│  [____________________________________________________]     │
-└─────────────────────────────────────────────────────────────┘
-```
+1. **Pre-cálculo global de artistas promocionados (antes del `map` de categorías).**
+   Recorrer `teamContacts` una sola vez y construir un `Map<artistId, { roles: Set<string>, categories: Set<string> }>` con todos los contactos del roster vinculados a un artista (vía `linked_artist_id` o nombre normalizado), agregando sus roles y categorías. Esto da una visión global, independiente de la categoría actual.
 
-- **Beneficiario**: `Select` con perfiles/contactos (reusar el patrón de `BudgetContactSelector` o el selector de `cashflow-contact-linking`). Opción "Sin asignar".
-- **0€ es válido**: el formulario debe distinguir `null` (no informado) de `0` (sin comisión). Aceptar `0` y enviarlo a la BD tal cual.
-- **% e Importe se enlazan**: si hay `fee`, al cambiar % se recalcula €, y viceversa. Pero respetando entradas explícitas del usuario.
+2. **Ajustar la inyección de "Artista principal" (líneas 974-999).**
+   En lugar de comprobar `promotedArtists.has(a.id)` (local a la categoría), comprobar contra el mapa global. Si el artista ya está promocionado en cualquier categoría, **no inyectar** la entrada genérica "Artista principal"; en su lugar, anteponer "Artista principal" al rol existente al construir el promocionado.
 
-### B. Cambios en la base de datos (migración)
+3. **Ajustar el id del artista promocionado (línea 1004).**
+   Usar `id: \`artist-${artist.id}\`` (sin sufijo de categoría). Así, en `allMembersFlattened` la deduplicación por `id` ya colapsa ambas apariciones automáticamente. La categoría visible se elige como la primera donde aparece (o se concatenan en `currentCategory` si fuera necesario para el grid).
 
-1. **Eliminar / desactivar el trigger `calculate_booking_commission`** que sobreescribe los valores. Opciones:
-   - `DROP TRIGGER` que lo invoque sobre `booking_offers`.
-   - Mantener la función pero llamarla solo en `INSERT` cuando ambos campos son `NULL` (auto-sugerencia inicial), nunca en `UPDATE`.
-   
-   Recomendación: opción 2, así sigue precargando un valor sugerido al crear, pero respeta cualquier edición posterior (incluido `0`).
+4. **Componer el rol final.**
+   Si el artista está en el roster y además promocionado, mostrar `role = "Artista principal · <roles del contacto>"` (p. ej. "Artista principal · Compositor, Productor"). Si solo está promocionado (sin estar en categoría artístico/banda directa), mantener su rol del contacto. Si solo es del roster, mantener "Artista principal".
 
-2. **Añadir columnas a `booking_offers`**:
-   - `comision_beneficiario_profile_id uuid REFERENCES profiles(id) ON DELETE SET NULL`
-   - `comision_beneficiario_contact_id uuid REFERENCES contacts(id) ON DELETE SET NULL`
-   - `comision_concepto text`
-   - Solo uno de los dos `*_id` puede estar relleno (`CHECK` constraint).
-   - Índice en `comision_beneficiario_profile_id` y `comision_beneficiario_contact_id` (consultas por beneficiario).
+5. **Verificar el contador de la categoría "Todas".**
+   El contador `allMembersFlattened.length` ya respetará el dedupe al usar el mismo id. Confirmar que el badge "Equipos (6)" pasa a "(5)" tras el arreglo.
 
-3. **No tocar** `comision_porcentaje` / `comision_euros`: ya existen y siguen sirviendo para el importe. Asegurar que aceptan `0`.
+## Casos a cubrir
 
-### C. Cambios en frontend
+- Artista en roster con contacto vinculado en otra categoría → una sola tarjeta con rol combinado.
+- Artista en roster sin contacto vinculado → solo "Artista principal" (comportamiento actual, sin cambios).
+- Contacto vinculado a un artista que no está en el roster → no aplica (no debería ocurrir, pero se ignora con seguridad).
+- Filtro de artista (`selectedArtistId !== 'all'`) → respetar el filtrado existente.
+- Filtro de categoría individual (no "Todas") → si la categoría seleccionada es artístico/banda y el artista solo está promocionado en compositor/productor, mostrar la tarjeta "Artista principal" sin el rol de la otra categoría (mantener semántica por categoría).
 
-- **`EditBookingDialog.tsx`** (sección Financiero, líneas ~731-748):
-  - Reemplazar la fila por el bloque descrito en A.
-  - Banner informativo (`Alert` con `Info` icon) explicando que management/agencia van en el presupuesto.
-  - Inputs numéricos: tratar `''` como `null`, `0` como `0` (no convertir 0 a null).
-  - Nuevo selector de beneficiario (Profile o Contact).
+## Riesgos / no cambia
 
-- **Visualización en BookingDetail (Quick Stats card "Comisión")**:
-  - Si `comision_euros == null && comision_porcentaje == null` → mostrar "—" (sin comisión extra).
-  - Si `comision_euros == 0` → mostrar "Sin comisión" en verde claro.
-  - Si > 0 → mostrar importe + nombre del beneficiario abajo en pequeño.
+- No se tocan datos en BD ni RLS.
+- No se modifica `allTeamByCategory` para vistas filtradas por una categoría concreta más allá del punto 5: cada categoría sigue mostrando solo a los miembros que le pertenecen.
+- No afecta a `00-management` (selectedArtistId especial) ni al flujo de invitaciones.
 
-- **`BookingCard.tsx`** (línea 200): cambiar el fallback `|| 5` por `?? '—'` para no inventar 5% cuando no hay dato.
+## Archivos a modificar
 
-- **`useBookingCalendarSync` / cashflow** (futuro, fuera de scope inmediato): cuando se marque el booking como cobrado, esa comisión extra puede generar un movimiento de salida hacia el beneficiario. Por ahora solo dejamos el dato registrado.
+- `src/pages/Teams.tsx` (única fuente del bug).
 
-## Resumen del cambio de modelo mental
-
-| Concepto                          | Dónde vive                                   |
-|-----------------------------------|----------------------------------------------|
-| Caché del artista                 | `booking_offers.fee`                         |
-| Comisión management / agencia     | Presupuesto (`budget_items` con `is_commission_percentage`) |
-| **Comisión extra puntual**        | `booking_offers.comision_*` + nuevo beneficiario |
-| Gastos producción / equipo        | Presupuesto + `booking_expenses`             |
-
-## Detalles técnicos
-
-- Migración: `DROP TRIGGER IF EXISTS <nombre> ON booking_offers;` (necesito verificar el nombre exacto del trigger leyendo `pg_trigger`); recrearlo solo `BEFORE INSERT WHEN (NEW.comision_porcentaje IS NULL AND NEW.comision_euros IS NULL)`.
-- Columnas nuevas con `DEFAULT NULL`, sin `NOT NULL`.
-- `CHECK ((comision_beneficiario_profile_id IS NULL) OR (comision_beneficiario_contact_id IS NULL))`.
-- `useQuery` para resolver el nombre del beneficiario en la card (reusar `identity-resolution-logic`).
-- Memoria a actualizar: `mem://booking/module-architecture` (clarificar el rol de `comision_*` como "extra opcional") y crear `mem://finanzas/booking-extra-commission` describiendo el modelo.
-
-## Lo que NO cambia
-- El cálculo existente de comisiones de management/agencia dentro de presupuestos.
-- Los flujos de cobros/pagos del módulo Finanzas.
-- La estructura de `booking_offers.fee`.
+Tras la aprobación, paso a modo build, aplico los cambios y verifico visualmente que la captura adjunta pasa de 6 a 5 burbujas con Eudald Payés mostrando rol combinado.
