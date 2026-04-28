@@ -4456,6 +4456,74 @@ export type Database = {
           },
         ]
       }
+      functional_role_default_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["permission_level"]
+          module: string
+          role_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["permission_level"]
+          module: string
+          role_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["permission_level"]
+          module?: string
+          role_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      functional_role_permission_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["permission_level"]
+          module: string
+          role_name: string
+          updated_at: string
+          updated_by: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level: Database["public"]["Enums"]["permission_level"]
+          module: string
+          role_name: string
+          updated_at?: string
+          updated_by?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["permission_level"]
+          module?: string
+          role_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "functional_role_permission_overrides_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -8467,6 +8535,10 @@ export type Database = {
       generate_contact_slug: { Args: never; Returns: string }
       generate_epk_slug: { Args: { artista_proyecto: string }; Returns: string }
       generate_project_share_token: { Args: never; Returns: string }
+      get_functional_permission: {
+        Args: { _module: string; _user_id: string; _workspace_id: string }
+        Returns: Database["public"]["Enums"]["permission_level"]
+      }
       get_profile_id_by_user: { Args: { _user_id: string }; Returns: string }
       get_user_artist_roles: {
         Args: { _user_id: string }
@@ -8488,6 +8560,15 @@ export type Database = {
           role: Database["public"]["Enums"]["workspace_role"]
           workspace_id: string
         }[]
+      }
+      has_functional_permission: {
+        Args: {
+          _module: string
+          _required: Database["public"]["Enums"]["permission_level"]
+          _user_id: string
+          _workspace_id: string
+        }
+        Returns: boolean
       }
       increment_epk_download: {
         Args: { epk_slug: string; recurso?: string }
@@ -8659,6 +8740,7 @@ export type Database = {
       epk_video_type: "youtube" | "vimeo" | "archivo"
       epk_visibility: "publico" | "privado" | "protegido_password"
       node_type: "folder" | "file"
+      permission_level: "none" | "view" | "edit" | "manage"
       pitch_status: "draft" | "sent" | "in_progress" | "completed" | "reviewed"
       project_role: "EDITOR" | "COMMENTER" | "VIEWER"
       project_status: "en_curso" | "finalizado" | "archivado"
@@ -8913,6 +8995,7 @@ export const Constants = {
       epk_video_type: ["youtube", "vimeo", "archivo"],
       epk_visibility: ["publico", "privado", "protegido_password"],
       node_type: ["folder", "file"],
+      permission_level: ["none", "view", "edit", "manage"],
       pitch_status: ["draft", "sent", "in_progress", "completed", "reviewed"],
       project_role: ["EDITOR", "COMMENTER", "VIEWER"],
       project_status: ["en_curso", "finalizado", "archivado"],
