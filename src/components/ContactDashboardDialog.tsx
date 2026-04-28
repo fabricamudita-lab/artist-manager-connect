@@ -49,6 +49,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DashboardData>({
     budgetItems: [],
+    budgets: [],
     bookings: [],
     solicitudes: [],
     syncOffers: [],
@@ -58,6 +59,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     trackCredits: [],
     releases: [],
   });
+  const [selectedBudget, setSelectedBudget] = useState<any>(null);
   const navigate = useNavigate();
 
   const navigateFromDashboard = (path: string) => {
