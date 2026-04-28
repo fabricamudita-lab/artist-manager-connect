@@ -28,6 +28,7 @@ interface ContactDashboardDialogProps {
 
 interface DashboardData {
   budgetItems: any[];
+  budgets: any[];
   bookings: any[];
   solicitudes: any[];
   syncOffers: any[];
