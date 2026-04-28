@@ -33,7 +33,7 @@ import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 interface Artist {
   id: string;
   name: string;
