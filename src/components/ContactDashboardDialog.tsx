@@ -533,6 +533,14 @@ onClick={() => navigateFromDashboard(`/booking/${item.id}`)}
           </Tabs>
         )}
       </DialogContent>
+      {selectedBudget && (
+        <BudgetDetailsDialog
+          open={!!selectedBudget}
+          onOpenChange={(open) => { if (!open) setSelectedBudget(null); }}
+          budget={selectedBudget}
+          onUpdate={fetchAll}
+        />
+      )}
     </Dialog>
   );
 }
