@@ -65,6 +65,9 @@ interface BookingOffer {
   gastos_estimados?: number | null;
   comision_porcentaje?: number | null;
   comision_euros?: number | null;
+  comision_beneficiario_profile_id?: string | null;
+  comision_beneficiario_contact_id?: string | null;
+  comision_concepto?: string | null;
   es_cityzen?: boolean | null;
   es_internacional?: boolean | null;
   estado_facturacion?: string | null;
