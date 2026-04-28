@@ -913,6 +913,21 @@ export default function Teams() {
       });
     });
 
+    // Pre-cómputo GLOBAL: ¿este artista del roster ya está representado por algún
+    // contacto promocionado en CUALQUIER categoría? Evita duplicar al mismo
+    // artista como "Artista principal" + "Compositor, Productor", etc.
+    const globallyPromotedArtistIds = new Set<string>();
+    (teamContacts || []).forEach(c => {
+      const linkedId = (c as any).linked_artist_id as string | null | undefined;
+      let match = linkedId ? artists.find(a => a.id === linkedId) : undefined;
+      if (!match) {
+        match =
+          artistByName.get(norm((c as any).stage_name || '')) ||
+          artistByName.get(norm((c as any).name || ''));
+      }
+      if (match) globallyPromotedArtistIds.add(match.id);
+    });
+
     return allCategoriesForDisplay.map(cat => {
       const wsMembers = teamMembers.filter(m => {
         if (selectedArtistId === '00-management') {
@@ -971,12 +986,14 @@ export default function Teams() {
 
       let artistMembers: any[] = [];
 
-      // Inyección automática de "Artista principal" en categorías artistico/banda
+      // Inyección automática de "Artista principal" en categorías artistico/banda.
+      // Importante: si el artista ya está promocionado en CUALQUIER categoría
+      // (no solo en esta), omitimos la inyección genérica para evitar duplicados.
+      // El rol "Artista principal" se compondrá en el bloque de promocionados.
       if (cat.value === 'artistico' || cat.value === 'banda') {
         if (selectedArtistId === 'all' && artists && artists.length > 0) {
           artists.forEach(a => {
-            // Si el artista ya está promocionado en esta categoría, lo dejamos para el bloque de abajo (con su rol específico)
-            if (promotedArtists.has(a.id)) return;
+            if (globallyPromotedArtistIds.has(a.id)) return;
             artistMembers.push({
               id: `artist-${a.id}`,
               isArtist: true,
@@ -986,7 +1003,7 @@ export default function Teams() {
               avatarUrl: a.avatar_url,
             });
           });
-        } else if (selectedArtist && !promotedArtists.has(selectedArtist.id)) {
+        } else if (selectedArtist && !globallyPromotedArtistIds.has(selectedArtist.id)) {
           artistMembers.push({
             id: `artist-${selectedArtist.id}`,
             isArtist: true,
@@ -998,13 +1015,24 @@ export default function Teams() {
         }
       }
 
-      // Añadir artistas promocionados desde contactos (con su rol real, ej. "Compositor, Productor")
+      // Añadir artistas promocionados desde contactos (con su rol real, ej. "Compositor, Productor").
+      // Usamos un id estable `artist-<uuid>` (sin sufijo de categoría) para que la
+      // deduplicación por id en `allMembersFlattened` colapse las apariciones del
+      // mismo artista en distintas categorías. Si además forma parte del roster
+      // (categorías artístico/banda lo cubrirían), anteponemos "Artista principal · ".
       promotedArtists.forEach(({ artist, role }) => {
+        const isRosterArtist = artists.some(a => a.id === artist.id);
+        const baseRole = role || cat.label;
+        const finalRole = isRosterArtist
+          ? (baseRole && baseRole !== 'Artista principal'
+              ? `Artista principal · ${baseRole}`
+              : 'Artista principal')
+          : baseRole;
         artistMembers.push({
-          id: `artist-${artist.id}-${cat.value}`,
+          id: `artist-${artist.id}`,
           isArtist: true,
           name: artist.stage_name || artist.name,
-          role: role || cat.label,
+          role: finalRole,
           artistId: artist.id,
           avatarUrl: artist.avatar_url,
         });
