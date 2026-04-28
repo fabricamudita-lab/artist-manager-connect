@@ -132,6 +132,47 @@ export default function BookingDetail() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
   const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Primary budget linked to this booking (for header KPI card)
+  const { data: primaryBudgetKpi } = useQuery({
+    queryKey: ['booking-primary-budget', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data: budget } = await supabase
+        .from('budgets')
+        .select('id, name, fee')
+        .eq('booking_offer_id', id!)
+        .eq('is_primary_for_booking', true)
+        .maybeSingle();
+      if (!budget) return null;
+      const { data: items } = await supabase
+        .from('budget_items')
+        .select('quantity, unit_price, iva_percentage')
+        .eq('budget_id', budget.id);
+      const capital = budget.fee || 0;
+      const comprometido = (items || []).reduce((acc, it: any) => {
+        const base = (Number(it.quantity) || 0) * (Number(it.unit_price) || 0);
+        const iva = Number(it.iva_percentage) || 0;
+        return acc + base * (1 + iva / 100);
+      }, 0);
+      return {
+        id: budget.id,
+        name: budget.name,
+        capital,
+        comprometido,
+        disponible: capital - comprometido,
+      };
+    },
+  });
+
+  const fmtEUR = (n: number) =>
+    new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(n);
   
   // Project linking state
   const [showLinkProjectDialog, setShowLinkProjectDialog] = useState(false);
