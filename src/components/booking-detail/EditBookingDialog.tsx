@@ -45,6 +45,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { ContactSelector } from '@/components/ContactSelector';
+import { CommissionSection } from '@/components/booking-detail/CommissionSection';
 
 interface BookingOffer {
   id: string;
@@ -65,6 +66,9 @@ interface BookingOffer {
   gastos_estimados?: number | null;
   comision_porcentaje?: number | null;
   comision_euros?: number | null;
+  comision_beneficiario_profile_id?: string | null;
+  comision_beneficiario_contact_id?: string | null;
+  comision_concepto?: string | null;
   es_cityzen?: boolean | null;
   es_internacional?: boolean | null;
   estado_facturacion?: string | null;
@@ -279,6 +283,9 @@ export function EditBookingDialog({
         gastos_estimados: formData.gastos_estimados,
         comision_porcentaje: formData.comision_porcentaje,
         comision_euros: formData.comision_euros,
+        comision_beneficiario_profile_id: formData.comision_beneficiario_profile_id ?? null,
+        comision_beneficiario_contact_id: formData.comision_beneficiario_contact_id ?? null,
+        comision_concepto: formData.comision_concepto?.trim() || null,
         es_cityzen: formData.es_cityzen,
         es_internacional: formData.es_internacional,
         estado_facturacion: formData.estado_facturacion,
@@ -728,24 +735,16 @@ export function EditBookingDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Comisión (%)</Label>
-                <Input
-                  type="number"
-                  value={formData.comision_porcentaje ?? ''}
-                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('comision_porcentaje', isNaN(v) ? null : v); }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Comisión (€)</Label>
-                <Input
-                  type="number"
-                  value={formData.comision_euros ?? ''}
-                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('comision_euros', isNaN(v) ? null : v); }}
-                />
-              </div>
-            </div>
+            <CommissionSection
+              fee={formData.fee}
+              artistId={formData.artist_id}
+              porcentaje={formData.comision_porcentaje}
+              euros={formData.comision_euros}
+              profileId={formData.comision_beneficiario_profile_id}
+              contactId={formData.comision_beneficiario_contact_id}
+              concepto={formData.comision_concepto}
+              onChange={(patch) => setFormData(prev => ({ ...prev, ...patch }))}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

@@ -1278,6 +1278,9 @@ export type Database = {
           cobro_metodo: string | null
           cobro_notas: string | null
           cobro_referencia: string | null
+          comision_beneficiario_contact_id: string | null
+          comision_beneficiario_profile_id: string | null
+          comision_concepto: string | null
           comision_euros: number | null
           comision_porcentaje: number | null
           condiciones: string | null
@@ -1355,6 +1358,9 @@ export type Database = {
           cobro_metodo?: string | null
           cobro_notas?: string | null
           cobro_referencia?: string | null
+          comision_beneficiario_contact_id?: string | null
+          comision_beneficiario_profile_id?: string | null
+          comision_concepto?: string | null
           comision_euros?: number | null
           comision_porcentaje?: number | null
           condiciones?: string | null
@@ -1432,6 +1438,9 @@ export type Database = {
           cobro_metodo?: string | null
           cobro_notas?: string | null
           cobro_referencia?: string | null
+          comision_beneficiario_contact_id?: string | null
+          comision_beneficiario_profile_id?: string | null
+          comision_concepto?: string | null
           comision_euros?: number | null
           comision_porcentaje?: number | null
           condiciones?: string | null
@@ -1497,6 +1506,20 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_comision_beneficiario_contact_id_fkey"
+            columns: ["comision_beneficiario_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_comision_beneficiario_profile_id_fkey"
+            columns: ["comision_beneficiario_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
