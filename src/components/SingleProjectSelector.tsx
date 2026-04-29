@@ -25,6 +25,12 @@ interface SingleProjectSelectorProps {
   className?: string;
   artistId?: string | null;
   onlyFolders?: boolean;
+  /**
+   * Si es false, ignora `artistId` para el filtro de la query (mostrará todos
+   * los proyectos del workspace). Por defecto true para mantener el comportamiento
+   * existente en el resto de la app.
+   */
+  filterByArtist?: boolean;
 }
 
 export default function SingleProjectSelector({
@@ -34,6 +40,7 @@ export default function SingleProjectSelector({
   className,
   artistId,
   onlyFolders = false,
+  filterByArtist = true,
 }: SingleProjectSelectorProps) {
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -53,9 +60,9 @@ export default function SingleProjectSelector({
           .from("projects")
           .select("id,name,is_folder")
           .order("created_at", { ascending: false })
-          .limit(50);
+          .limit(100);
         if (onlyFolders) qb = qb.eq("is_folder", true);
-        if (artistId) qb = qb.eq("artist_id", artistId as any);
+        if (filterByArtist && artistId) qb = qb.eq("artist_id", artistId as any);
         if (search) qb = qb.ilike("name", `%${search}%`);
         const { data, error } = await qb;
         if (error) throw error;
@@ -67,7 +74,7 @@ export default function SingleProjectSelector({
       }
     };
     fetchProjects();
-  }, [open, artistId, search, onlyFolders]);
+  }, [open, artistId, search, onlyFolders, filterByArtist]);
 
   // Ensure we can display a selected project even if not in the current page of results
   useEffect(() => {
