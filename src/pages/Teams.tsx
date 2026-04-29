@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard } from 'lucide-react';
+import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard, Shield } from 'lucide-react';
+import { PermissionsByRoleTab } from '@/pages/teams/PermissionsByRoleTab';
+import { RolePermissionSummary } from '@/components/permissions/RolePermissionSummary';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -163,7 +165,7 @@ export default function Teams() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [teamManagerOpen, setTeamManagerOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'free'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'free' | 'permissions'>('grid');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -1360,6 +1362,15 @@ export default function Teams() {
             title="Vista libre"
           >
             <Move className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={viewMode === 'permissions' ? 'secondary' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('permissions')}
+            className="h-7 w-7"
+            title="Permisos por rol"
+          >
+            <Shield className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
