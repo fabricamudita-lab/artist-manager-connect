@@ -19,7 +19,7 @@ interface HubGateProps {
  * de aplicarse el bloqueo.
  */
 export function HubGate({ module, required = 'view', children }: HubGateProps) {
-  const { can, loading } = useCan();
+  const { can, loading, roleName } = useCan();
 
   if (loading) {
     return (
@@ -29,6 +29,8 @@ export function HubGate({ module, required = 'view', children }: HubGateProps) {
     );
   }
 
-  if (!can(module, required)) return <ForbiddenView module={module} required={required} />;
+  if (!can(module, required)) {
+    return <ForbiddenView module={module} required={required} roleName={roleName} />;
+  }
   return <>{children}</>;
 }

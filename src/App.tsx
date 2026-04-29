@@ -126,7 +126,9 @@ const App = () => (
               <Route path="/booking" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Booking />
+                    <HubGate module="bookings" required="view">
+                      <Booking />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -140,7 +142,9 @@ const App = () => (
               <Route path="/sincronizaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Sincronizaciones />
+                    <HubGate module="solicitudes" required="view">
+                      <Sincronizaciones />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -154,49 +158,63 @@ const App = () => (
               <Route path="/finanzas" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="budgets" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/cobros" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/pagos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/presupuestos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="budgets" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/liquidaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/fiscal" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/analytics" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Analytics />
+                    <HubGate module="analytics" required="view">
+                      <Analytics />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -204,7 +222,9 @@ const App = () => (
               <Route path="/documents" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Documents />
+                    <HubGate module="contracts" required="view">
+                      <Documents />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -239,7 +259,9 @@ const App = () => (
               <Route path="/agenda" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Agenda />
+                    <HubGate module="bookings" required="view">
+                      <Agenda />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -280,13 +302,17 @@ const App = () => (
               } />
               <Route path="/proyectos" element={
                 <ProtectedRoute>
-                  <Proyectos />
+                  <HubGate module="projects" required="view">
+                    <Proyectos />
+                  </HubGate>
                 </ProtectedRoute>
               } />
               <Route path="/projects" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Projects />
+                    <HubGate module="projects" required="view">
+                      <Projects />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -297,7 +323,9 @@ const App = () => (
               } />
               <Route path="/drive" element={
                 <ProtectedRoute>
-                  <Drive />
+                  <HubGate module="drive" required="view">
+                    <Drive />
+                  </HubGate>
                 </ProtectedRoute>
               } />
               <Route path="/projects/:id" element={
@@ -348,14 +376,18 @@ const App = () => (
               <Route path="/releases" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Releases />
+                    <HubGate module="releases" required="view">
+                      <Releases />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseDetail />
+                    <HubGate module="releases" required="view">
+                      <ReleaseDetail />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -435,21 +467,27 @@ const App = () => (
               <Route path="/roadmaps" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Roadmaps />
+                    <HubGate module="roadmaps" required="view">
+                      <Roadmaps />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/roadmaps/:id" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <RoadmapDetail />
+                    <HubGate module="roadmaps" required="view">
+                      <RoadmapDetail />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/automatizaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Automatizaciones />
+                    <HubGate module="automations" required="view">
+                      <Automatizaciones />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
