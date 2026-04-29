@@ -1,25 +1,25 @@
 ## Problema
 
-En el formulario de creación de solicitud de booking, el campo **"Estado del Booking"** muestra el valor `offer` (y otros como `interest`, `hold`, `confirmed`) en inglés. Esto ocurre porque ahí se está usando el componente genérico `BookingStatusCombobox`, que carga los valores crudos desde la tabla `booking_status_options` y los pinta tal cual.
+En el formulario de **Solicitud de Licencia** (y resto de solicitudes que usan `ArtistProfileSelector`), al elegir Artista aparecen mezclados los artistas del Roster y los Colaboradores en el mismo grupo "Artistas del Roster", todos con el badge **"Roster"**. Debe aparecer:
 
-Los valores internos del pipeline de booking (`interest`, `offer`, `hold`, `confirmed`) son correctos como identificadores en BD, pero al usuario hay que mostrarle etiquetas en español: **Interés, Oferta, Hold, Confirmado**.
+1. Primero los artistas del **Roster** (badge ámbar "Roster").
+2. Después los artistas **Colaboradores** (badge distinto "Colaborador"), en su propio grupo.
+
+La tabla `artists` ya distingue ambos mediante la columna `artist_type` (`'roster'` | `'collaborator'`), pero el selector no la lee.
 
 ## Solución
 
-Reemplazar el `BookingStatusCombobox` dentro de `CreateSolicitudFromTemplateDialog.tsx` (sección "Estado y Aprobación") por un `Select` simple con las 4 opciones fijas del pipeline de booking, mostrando etiquetas en español pero guardando el valor interno en inglés (sin tocar la BD ni romper la lógica de auto-promoción `interest` → `offer` cuando hay fee).
+Modificar **`src/components/ArtistProfileSelector.tsx`**:
 
-### Cambios
-
-**`src/components/CreateSolicitudFromTemplateDialog.tsx`** (líneas ~1132-1148):
-- Sustituir `<BookingStatusCombobox …>` por un `<Select>` shadcn con items:
-  - `interest` → "Interés"
-  - `offer` → "Oferta"
-  - `hold` → "Hold (reservado)"
-  - `confirmed` → "Confirmado"
-- Mantener `value={formData.booking_status || 'interest'}` y el mismo `onValueChange` (que marca `booking_status_touched: true`).
-- Quitar el import de `BookingStatusCombobox` si deja de usarse en este archivo.
+1. Añadir `artist_type` al `select` de la query a `artists`.
+2. Añadirlo a la interfaz `Artist`.
+3. Separar los artistas en dos listas: `rosterArtists` (`artist_type === 'roster'` o sin tipo, por compatibilidad) y `collaboratorArtists` (`artist_type === 'collaborator'`), ambas ordenadas por nombre.
+4. Renderizar **dos `CommandGroup` separados**:
+   - "Artistas del Roster" — badge ámbar "Roster" (como ahora).
+   - "Artistas Colaboradores" — nuevo grupo con icono `Users`/`Star` outline y badge azul/morado "Colaborador".
+5. Mantener el grupo "Otros Perfiles" (contactos) tal cual al final.
 
 ### Fuera de alcance
 
-- No se modifica `BookingStatusCombobox` ni la tabla `booking_status_options` (se siguen usando en otras pantallas donde sí tiene sentido permitir estados libres).
-- No se cambia la lógica de mapeo `statusToPhase` ni la auto-promoción por fee.
+- No se toca `SingleArtistSelector` (no se usa en este formulario).
+- No se modifica el esquema de BD ni RLS.
