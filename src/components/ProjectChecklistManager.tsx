@@ -182,6 +182,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   useEffect(() => {
     if (activeChecklistId) {
       fetchChecklistItems();
+    } else {
+      // No active checklist (project may have none yet) — stop the loading state
+      setItems([]);
+      setLoading(false);
     }
   }, [activeChecklistId]);
 
