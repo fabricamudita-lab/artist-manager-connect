@@ -249,7 +249,11 @@ export function CreateSolicitudFromTemplateDialog({
         fee: '',
         door_split_percentage: '',
         condiciones: '',
-        comentarios: ''
+        comentarios: '',
+        // Estado del booking (auto: interest por defecto, offer si hay fee)
+        booking_status: 'interest',
+        booking_status_touched: false,
+        required_approvers: [] as string[],
       }),
       ...(templateId === 'entrevista' && {
         programa: '',
