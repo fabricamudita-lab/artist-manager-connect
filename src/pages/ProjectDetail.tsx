@@ -810,7 +810,7 @@ export default function ProjectDetail() {
     const loadLinked = async () => {
       try {
         const [bRes, cRes, dRes, sRes, tRes] = await Promise.all([
-          supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, formato, artist:artist_id(name, stage_name)').eq('project_id', id).order('created_at', { ascending: false }),
+          supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, formato, booking_offer_id, artist:artist_id(name, stage_name), booking_offer:booking_offer_id(id, phase, fee), budget_items(quantity, unit_price)').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('contracts').select('id, title, status, file_path').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('documents').select('id, title, file_url, category').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('solicitudes').select('id, nombre_solicitante, estado, fecha_creacion').eq('project_id', id).order('fecha_creacion', { ascending: false }),
@@ -1135,7 +1135,7 @@ export default function ProjectDetail() {
 
   const refreshBudgets = async () => {
     try {
-      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, artist:artist_id(name, stage_name)').eq('project_id', id).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, booking_offer_id, artist:artist_id(name, stage_name), booking_offer:booking_offer_id(id, phase, fee), budget_items(quantity, unit_price)').eq('project_id', id).order('created_at', { ascending: false });
       if (!error) setBudgets(data || []);
     } catch (e) {
       console.error('Error refreshing budgets', e);
@@ -2299,15 +2299,31 @@ export default function ProjectDetail() {
             {/* ── FINANZAS ─────────────────────────────────────────── */}
             <TabsContent value="finanzas" className="mt-0 space-y-6">
               {(() => {
+                // ── Helper: estado efectivo combinando booking_offer.phase y budget_status/show_status ──
+                const getBudgetEffectiveStatus = (b: any): 'confirmado' | 'negociacion' | 'otros' => {
+                  const offerPhase = b?.booking_offer?.phase;
+                  if (offerPhase) {
+                    if (['confirmado', 'facturado'].includes(offerPhase)) return 'confirmado';
+                    if (['interes', 'oferta', 'negociacion'].includes(offerPhase)) return 'negociacion';
+                  }
+                  const bs = b?.budget_status;
+                  const ss = b?.show_status;
+                  if (bs === 'confirmado' || ss === 'confirmado') return 'confirmado';
+                  if (['negociacion', 'pendiente'].includes(bs) || ['negociacion', 'pendiente'].includes(ss)) return 'negociacion';
+                  return 'otros';
+                };
+                // Fee efectivo: usa el del budget; si es 0/null y hay booking_offer, usa el fee de la offer
+                const getEffectiveFee = (b: any): number => {
+                  const bf = Number(b?.fee || 0);
+                  if (bf > 0) return bf;
+                  return Number(b?.booking_offer?.fee || 0);
+                };
+
                 // ── Presupuestos del proyecto ──
-                const presupuestosConfirmadosList = budgets.filter(b =>
-                  b.budget_status === 'confirmado' || b.show_status === 'confirmado'
-                );
-                const presupuestosNegociacionList = budgets.filter(b =>
-                  b.budget_status === 'negociacion' || b.budget_status === 'pendiente' || b.show_status === 'negociacion'
-                );
-                const presupuestosConfirmados = presupuestosConfirmadosList.reduce((s: number, b: any) => s + Number(b.fee || 0), 0);
-                const presupuestosNegociacion = presupuestosNegociacionList.reduce((s: number, b: any) => s + Number(b.fee || 0), 0);
+                const presupuestosConfirmadosList = budgets.filter(b => getBudgetEffectiveStatus(b) === 'confirmado');
+                const presupuestosNegociacionList = budgets.filter(b => getBudgetEffectiveStatus(b) === 'negociacion');
+                const presupuestosConfirmados = presupuestosConfirmadosList.reduce((s: number, b: any) => s + getEffectiveFee(b), 0);
+                const presupuestosNegociacion = presupuestosNegociacionList.reduce((s: number, b: any) => s + getEffectiveFee(b), 0);
 
                 // ── Booking offers vinculados directamente al proyecto ──
                 // Evitar doble conteo: ignorar offers que ya tienen un budget cargado
