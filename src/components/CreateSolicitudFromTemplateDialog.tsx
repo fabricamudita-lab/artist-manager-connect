@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Plus, Calendar, Mic, HelpCircle, Info, Scale, MoreHorizontal, Users, DollarSign, X, MapPin, UserCheck } from "lucide-react";
-import { BookingStatusCombobox } from "@/components/BookingStatusCombobox";
+
 import { TeamMemberSelector } from "@/components/TeamMemberSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -1131,7 +1131,7 @@ export function CreateSolicitudFromTemplateDialog({
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="booking_status">Estado del Booking</Label>
-                    <BookingStatusCombobox
+                    <Select
                       value={formData.booking_status || 'interest'}
                       onValueChange={(value) =>
                         setFormData({
@@ -1140,8 +1140,17 @@ export function CreateSolicitudFromTemplateDialog({
                           booking_status_touched: true,
                         })
                       }
-                      placeholder="Selecciona el estado..."
-                    />
+                    >
+                      <SelectTrigger id="booking_status">
+                        <SelectValue placeholder="Selecciona el estado..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="interest">Interés</SelectItem>
+                        <SelectItem value="offer">Oferta</SelectItem>
+                        <SelectItem value="hold">Hold (reservado)</SelectItem>
+                        <SelectItem value="confirmed">Confirmado</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <p className="text-xs text-muted-foreground">
                       Si se aprueba la solicitud, el booking pasará a "confirmado". Si se deniega, pasará a "cancelado".
                     </p>

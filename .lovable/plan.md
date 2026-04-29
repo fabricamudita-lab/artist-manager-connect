@@ -1,31 +1,25 @@
-## Por qué aparecen contactos sin lógica en "Aprobadores Requeridos"
+## Problema
 
-`TeamMemberSelector` ya recibe el `artistId` y usa el hook `useTeamMembersByArtist`. El problema está en el filtro del hook (`src/hooks/useTeamMembersByArtist.ts`, líneas 160–182):
+En el formulario de creación de solicitud de booking, el campo **"Estado del Booking"** muestra el valor `offer` (y otros como `interest`, `hold`, `confirmed`) en inglés. Esto ocurre porque ahí se está usando el componente genérico `BookingStatusCombobox`, que carga los valores crudos desde la tabla `booking_status_options` y los pinta tal cual.
 
-```ts
-const managementCategories = ['management','tourmanager','booking','produccion','tecnico','legal','comunicacion'];
-if (member.category && managementCategories.includes(member.category)) {
-  return true; // se muestra SIEMPRE, sin importar el artista
-}
-```
+Los valores internos del pipeline de booking (`interest`, `offer`, `hold`, `confirmed`) son correctos como identificadores en BD, pero al usuario hay que mostrarle etiquetas en español: **Interés, Oferta, Hold, Confirmado**.
 
-Eso provoca que cualquier contacto cuya categoría sea una de esas (p. ej. "Pedro Inventado · legal", "Núria · otro" si tiene categoría legacy, "Transportes Miguel · tourmanager") se muestre en el selector aunque NO esté asignado al artista seleccionado. Por eso el listado parece arbitrario.
+## Solución
 
-## Cambio
+Reemplazar el `BookingStatusCombobox` dentro de `CreateSolicitudFromTemplateDialog.tsx` (sección "Estado y Aprobación") por un `Select` simple con las 4 opciones fijas del pipeline de booking, mostrando etiquetas en español pero guardando el valor interno en inglés (sin tocar la BD ni romper la lógica de auto-promoción `interest` → `offer` cuando hay fee).
 
-En `src/hooks/useTeamMembersByArtist.ts` quitar el bypass por categoría. La regla queda:
+### Cambios
 
-- **Workspace members (cuentas)** → siempre visibles (es el management interno).
-- **Contactos** → visibles solo si:
-  1. Están marcados explícitamente como management team (`field_config.is_management_team === true`), o
-  2. Están asignados al artista vía `contact_artist_assignments`.
+**`src/components/CreateSolicitudFromTemplateDialog.tsx`** (líneas ~1132-1148):
+- Sustituir `<BookingStatusCombobox …>` por un `<Select>` shadcn con items:
+  - `interest` → "Interés"
+  - `offer` → "Oferta"
+  - `hold` → "Hold (reservado)"
+  - `confirmed` → "Confirmado"
+- Mantener `value={formData.booking_status || 'interest'}` y el mismo `onValueChange` (que marca `booking_status_touched: true`).
+- Quitar el import de `BookingStatusCombobox` si deja de usarse en este archivo.
 
-No se cambia nada más: el resto de usos del hook (RoadmapBlocks, etc.) se beneficia del mismo criterio coherente.
+### Fuera de alcance
 
-## Resultado
-
-En "Aprobadores Requeridos" del formulario de solicitud, con un artista seleccionado, solo aparecerán:
-- Los miembros del workspace (David Solans, Perfil Test, etc.).
-- Los contactos del equipo de ese artista o marcados como management.
-
-Los contactos sueltos por categoría (legal, tourmanager…) que no estén asignados al artista dejarán de aparecer.
+- No se modifica `BookingStatusCombobox` ni la tabla `booking_status_options` (se siguen usando en otras pantallas donde sí tiene sentido permitir estados libres).
+- No se cambia la lógica de mapeo `statusToPhase` ni la auto-promoción por fee.
