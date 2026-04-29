@@ -25,6 +25,7 @@ import Solicitudes from "./pages/Solicitudes";
 import Contacts from "./pages/Contacts";
 import Agenda from "./pages/Agenda";
 import Teams from "./pages/Teams";
+import TeamRoles from "./pages/TeamRoles";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
@@ -245,6 +246,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Teams />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/teams/roles" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <TeamRoles />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
