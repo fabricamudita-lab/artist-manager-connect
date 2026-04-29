@@ -128,45 +128,97 @@ export function ArtistProfileSelector({
             <CommandEmpty>No se encontraron perfiles.</CommandEmpty>
             <CommandList>
               {/* Artistas del Roster */}
-              <CommandGroup heading={
-                <span className="flex items-center gap-2">
-                  <Star className="h-3 w-3 text-amber-500" />
-                  Artistas del Roster
-                </span>
-              }>
-                {artists.map((artist) => (
-                  <CommandItem
-                    key={`artist-${artist.id}`}
-                    onSelect={() => {
-                      onValueChange(artist.id, 'artist');
-                      setOpen(false);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === artist.id ? "opacity-100" : "opacity-0"
+              {(() => {
+                const rosterArtists = artists
+                  .filter(a => !a.artist_type || a.artist_type === 'roster')
+                  .sort((a, b) => (a.stage_name || a.name).localeCompare(b.stage_name || b.name));
+                const collaboratorArtists = artists
+                  .filter(a => a.artist_type === 'collaborator')
+                  .sort((a, b) => (a.stage_name || a.name).localeCompare(b.stage_name || b.name));
+                return (
+                  <>
+                    <CommandGroup heading={
+                      <span className="flex items-center gap-2">
+                        <Star className="h-3 w-3 text-amber-500" />
+                        Artistas del Roster
+                      </span>
+                    }>
+                      {rosterArtists.map((artist) => (
+                        <CommandItem
+                          key={`artist-${artist.id}`}
+                          onSelect={() => {
+                            onValueChange(artist.id, 'artist');
+                            setOpen(false);
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              value === artist.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <Star className="mr-2 h-4 w-4 text-amber-500 fill-amber-500" />
+                          <div className="flex flex-col flex-1">
+                            <span className="font-medium">{getDisplayName(artist)}</span>
+                            {artist.stage_name && artist.name !== artist.stage_name && (
+                              <span className="text-xs text-muted-foreground">{artist.name}</span>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="ml-2 text-xs bg-amber-500/10 text-amber-700 border-amber-200">
+                            Roster
+                          </Badge>
+                        </CommandItem>
+                      ))}
+                      {rosterArtists.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No hay artistas en el roster
+                        </div>
                       )}
-                    />
-                    <Star className="mr-2 h-4 w-4 text-amber-500 fill-amber-500" />
-                    <div className="flex flex-col flex-1">
-                      <span className="font-medium">{getDisplayName(artist)}</span>
-                      {artist.stage_name && artist.name !== artist.stage_name && (
-                        <span className="text-xs text-muted-foreground">{artist.name}</span>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="ml-2 text-xs bg-amber-500/10 text-amber-700 border-amber-200">
-                      Roster
-                    </Badge>
-                  </CommandItem>
-                ))}
-                {artists.length === 0 && (
-                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    No hay artistas en el roster
-                  </div>
-                )}
-              </CommandGroup>
+                    </CommandGroup>
+
+                    {collaboratorArtists.length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading={
+                          <span className="flex items-center gap-2">
+                            <Star className="h-3 w-3 text-indigo-500" />
+                            Artistas Colaboradores
+                          </span>
+                        }>
+                          {collaboratorArtists.map((artist) => (
+                            <CommandItem
+                              key={`artist-${artist.id}`}
+                              onSelect={() => {
+                                onValueChange(artist.id, 'artist');
+                                setOpen(false);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  value === artist.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <Star className="mr-2 h-4 w-4 text-indigo-500" />
+                              <div className="flex flex-col flex-1">
+                                <span className="font-medium">{getDisplayName(artist)}</span>
+                                {artist.stage_name && artist.name !== artist.stage_name && (
+                                  <span className="text-xs text-muted-foreground">{artist.name}</span>
+                                )}
+                              </div>
+                              <Badge variant="outline" className="ml-2 text-xs bg-indigo-500/10 text-indigo-700 border-indigo-200">
+                                Colaborador
+                              </Badge>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
 
               <CommandSeparator />
 
