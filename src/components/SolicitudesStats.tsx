@@ -356,13 +356,24 @@ export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
 
       {/* Timeline Chart */}
       <Card className="card-moodita">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Actividad Últimos 30 Días</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-sm font-medium">Actividad — {RANGE_LABELS[range]}</CardTitle>
+          <Select value={range} onValueChange={(v) => setRange(v as TimelineRange)}>
+            <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="30d">Últimos 30 días</SelectItem>
+              <SelectItem value="3m">Últimos 3 meses</SelectItem>
+              <SelectItem value="6m">Últimos 6 meses</SelectItem>
+              <SelectItem value="1y">Último año</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.last30Days}>
+              <AreaChart data={timelineData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
                 <XAxis 
                   dataKey="date" 
