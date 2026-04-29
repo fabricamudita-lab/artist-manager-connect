@@ -30,7 +30,7 @@ interface AssetDetailPanelProps {
   onOpenLightbox?: () => void;
 }
 
-export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDetailPanelProps) {
+export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLightbox }: AssetDetailPanelProps) {
   const { user } = useAuth();
   const { data: tracks } = useTracks(asset.release_id);
   const [editing, setEditing] = useState(false);
