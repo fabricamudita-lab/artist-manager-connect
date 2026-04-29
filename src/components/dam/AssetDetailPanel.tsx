@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
-import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play, Music } from 'lucide-react';
+import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play, Music, Maximize2 } from 'lucide-react';
 import { getVideoThumbnail } from '@/lib/video-thumbnails';
 import { toast } from '@/hooks/use-toast';
 import {
