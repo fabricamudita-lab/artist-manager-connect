@@ -37,6 +37,7 @@ export type OverrideWriteInput = z.infer<typeof overrideWriteSchema>;
 interface CacheEntry {
   expiresAt: number;
   perms: EffectivePermissions;
+  roleName: string | null;
 }
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, CacheEntry>();
