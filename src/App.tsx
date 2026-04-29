@@ -158,49 +158,63 @@ const App = () => (
               <Route path="/finanzas" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="budgets" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/cobros" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/pagos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/presupuestos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="budgets" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/liquidaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/finanzas/fiscal" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <FinanzasHub />
+                    <HubGate module="cashflow" required="view">
+                      <FinanzasHub />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/analytics" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Analytics />
+                    <HubGate module="analytics" required="view">
+                      <Analytics />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -208,7 +222,9 @@ const App = () => (
               <Route path="/documents" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Documents />
+                    <HubGate module="contracts" required="view">
+                      <Documents />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
