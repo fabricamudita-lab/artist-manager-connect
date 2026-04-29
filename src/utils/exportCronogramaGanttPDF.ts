@@ -315,13 +315,9 @@ export function exportCronogramaGanttPDF(
         const barH = rowHeight - 3;
         const barW = Math.max(barEnd - barStart, 1.5);
 
-        // Bar opacity based on status
-        const opacity = STATUS_BAR_OPACITY[task.status];
-        const blendedR = Math.round(r * opacity + 255 * (1 - opacity));
-        const blendedG = Math.round(g * opacity + 255 * (1 - opacity));
-        const blendedB = Math.round(b * opacity + 255 * (1 - opacity));
-
-        doc.setFillColor(blendedR, blendedG, blendedB);
+        // Bar color based on status (matches legend)
+        const [sr, sg, sb] = STATUS_COLORS[task.status];
+        doc.setFillColor(sr, sg, sb);
 
         // Rounded rect (manual with small radius)
         const radius = 1.2;
