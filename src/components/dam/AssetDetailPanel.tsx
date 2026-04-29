@@ -291,18 +291,45 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLight
                   <Select value={form.format_spec} onValueChange={v => setForm(f => ({ ...f, format_spec: v }))}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                     <SelectContent>
-                      {FORMAT_SPECS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                      {Array.from(new Set([
+                        ...FORMAT_SPECS,
+                        ...(detectedDims?.formatSpec ? [detectedDims.formatSpec] : []),
+                        ...(form.format_spec ? [form.format_spec] : []),
+                      ].filter(Boolean))).map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Resolución</Label>
-                  <Select value={form.resolution} onValueChange={v => setForm(f => ({ ...f, resolution: v }))}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>
-                      {RESOLUTION_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Resolución</span>
+                    {detectedDims?.resolution && form.resolution !== detectedDims.resolution && (
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline"
+                        onClick={() => setForm(f => ({ ...f, resolution: detectedDims.resolution }))}
+                      >
+                        Usar {detectedDims.resolution} (auto)
+                      </button>
+                    )}
+                  </Label>
+                  <Input
+                    value={form.resolution}
+                    onChange={e => setForm(f => ({ ...f, resolution: e.target.value }))}
+                    placeholder={detectedDims?.resolution ? `Sugerido: ${detectedDims.resolution}` : 'Ej: 3000×3000'}
+                    className="h-8 text-sm"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {RESOLUTION_OPTIONS.map(r => (
+                      <Badge
+                        key={r}
+                        variant={form.resolution === r ? 'default' : 'outline'}
+                        className="text-[10px] cursor-pointer"
+                        onClick={() => setForm(f => ({ ...f, resolution: r }))}
+                      >
+                        {r}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">Fecha entrega</Label>
