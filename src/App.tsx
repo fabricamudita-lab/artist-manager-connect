@@ -467,21 +467,27 @@ const App = () => (
               <Route path="/roadmaps" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Roadmaps />
+                    <HubGate module="roadmaps" required="view">
+                      <Roadmaps />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/roadmaps/:id" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <RoadmapDetail />
+                    <HubGate module="roadmaps" required="view">
+                      <RoadmapDetail />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/automatizaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Automatizaciones />
+                    <HubGate module="automations" required="view">
+                      <Automatizaciones />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
