@@ -157,26 +157,20 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
       return allTeamMembers;
     }
 
-    // Filter: workspace members always visible, contacts only if:
-    // 1. They are marked as management team (is_management_team: true => artistIds is empty array)
-    // 2. They are explicitly assigned to one of the selected artists
+    // Filter: workspace members always visible. Contactos solo si:
+    //  1. Están explícitamente marcados como management team (is_management_team: true).
+    //  2. Están asignados al artista seleccionado vía contact_artist_assignments.
+    // No usamos categorías como bypass: tener categoría "legal" o "tourmanager"
+    // no implica pertenecer al equipo de un artista concreto.
     return allTeamMembers.filter(member => {
       if (member.type === 'workspace') {
-        return true; // Workspace members are always visible
+        return true; // Workspace members siempre visibles
       }
-      // Contact: check if is management team (empty artistIds means management)
-      // OR explicitly assigned to any selected artist
       if (member.isManagementTeam) {
-        return true; // Management team always visible
+        return true; // Management team siempre visible
       }
-      // Show contacts with management-type categories (tourmanager, booking, produccion, etc.)
-      const managementCategories = ['management', 'tourmanager', 'booking', 'produccion', 'tecnico', 'legal', 'comunicacion'];
-      if (member.category && managementCategories.includes(member.category)) {
-        return true; // These categories are always visible
-      }
-      // Only show if assigned to at least one selected artist
       if (!member.artistIds || member.artistIds.length === 0) {
-        return false; // No assignment and not management = hide
+        return false; // Sin asignación y no es management = ocultar
       }
       return member.artistIds.some(id => selectedArtistIds.includes(id));
     });

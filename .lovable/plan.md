@@ -1,22 +1,31 @@
-## Por qué solo aparece "PURO PAYÉS"
+## Por qué aparecen contactos sin lógica en "Aprobadores Requeridos"
 
-En `AssociateProjectDialog.tsx` se usa `SingleProjectSelector` pasándole el `artistId` de la solicitud. Dentro de `SingleProjectSelector` (línea 58), si llega un `artistId` la query a `projects` añade `eq('artist_id', artistId)`. Resultado: solo se ven los proyectos cuyo `artist_id` coincide con el artista de la solicitud (en tu caso, "PURO PAYÉS"). Los proyectos de otros artistas o sin artista quedan ocultos.
+`TeamMemberSelector` ya recibe el `artistId` y usa el hook `useTeamMembersByArtist`. El problema está en el filtro del hook (`src/hooks/useTeamMembersByArtist.ts`, líneas 160–182):
 
-## Cambios
+```ts
+const managementCategories = ['management','tourmanager','booking','produccion','tecnico','legal','comunicacion'];
+if (member.category && managementCategories.includes(member.category)) {
+  return true; // se muestra SIEMPRE, sin importar el artista
+}
+```
 
-1. `src/components/SingleProjectSelector.tsx`
-   - Añadir prop opcional `filterByArtist?: boolean` (por defecto `true`, así no se rompe el resto de la app: Drive, Finanzas, etc.).
-   - Solo aplicar `eq('artist_id', ...)` si `filterByArtist && artistId`.
-   - Subir el `limit(50)` a `limit(100)` para que entren más proyectos en la lista inicial cuando no se filtra por artista.
+Eso provoca que cualquier contacto cuya categoría sea una de esas (p. ej. "Pedro Inventado · legal", "Núria · otro" si tiene categoría legacy, "Transportes Miguel · tourmanager") se muestre en el selector aunque NO esté asignado al artista seleccionado. Por eso el listado parece arbitrario.
 
-2. `src/components/AssociateProjectDialog.tsx`
-   - Mostrar TODOS los proyectos por defecto (no filtrar por artista), ya que es lo que pide el caso de uso de "asociar una solicitud a cualquier proyecto".
-   - Añadir un pequeño toggle "Solo proyectos de este artista" justo encima del selector. Por defecto desactivado. Si se activa, el selector vuelve a filtrar por `artistId`.
-   - Pasar `filterByArtist={onlyArtistProjects}` al `SingleProjectSelector`.
+## Cambio
 
-3. No tocar otros usos
-   - Drive, Finanzas, Releases y demás siguen pasando `artistId` con el `filterByArtist` por defecto a `true`, así que su comportamiento no cambia.
+En `src/hooks/useTeamMembersByArtist.ts` quitar el bypass por categoría. La regla queda:
+
+- **Workspace members (cuentas)** → siempre visibles (es el management interno).
+- **Contactos** → visibles solo si:
+  1. Están marcados explícitamente como management team (`field_config.is_management_team === true`), o
+  2. Están asignados al artista vía `contact_artist_assignments`.
+
+No se cambia nada más: el resto de usos del hook (RoadmapBlocks, etc.) se beneficia del mismo criterio coherente.
 
 ## Resultado
 
-Al abrir "Asociar a proyecto" desde una solicitud verás el listado completo de proyectos del workspace (con buscador), independientemente del artista de la solicitud. Si quieres acotar al artista, activas el toggle.
+En "Aprobadores Requeridos" del formulario de solicitud, con un artista seleccionado, solo aparecerán:
+- Los miembros del workspace (David Solans, Perfil Test, etc.).
+- Los contactos del equipo de ese artista o marcados como management.
+
+Los contactos sueltos por categoría (legal, tourmanager…) que no estén asignados al artista dejarán de aparecer.
