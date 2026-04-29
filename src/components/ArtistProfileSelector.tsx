@@ -23,6 +23,7 @@ interface Artist {
   id: string;
   name: string;
   stage_name?: string;
+  artist_type?: string | null;
   type: 'artist';
 }
 
@@ -66,7 +67,7 @@ export function ArtistProfileSelector({
       const [artistsRes, contactsRes] = await Promise.all([
         supabase
           .from('artists')
-          .select('id, name, stage_name')
+          .select('id, name, stage_name, artist_type')
           .order('name', { ascending: true }),
         supabase
           .from('contacts')
