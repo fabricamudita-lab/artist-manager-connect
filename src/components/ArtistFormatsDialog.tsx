@@ -575,6 +575,99 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
     });
   };
 
+  // Import an existing workspace contact into the format crew (and optionally
+  // assign it permanently to this artist's team).
+  const handleImportContactAsCrew = async (
+    formatIndex: number,
+    contact: { id: string; name: string; stage_name: string | null; role: string | null },
+    assignToArtist: boolean,
+  ) => {
+    handleAddCrewMember(formatIndex, {
+      id: contact.id,
+      name: contact.stage_name || contact.name,
+      role: contact.role || undefined,
+      type: 'contact',
+    });
+
+    if (assignToArtist && artistId) {
+      try {
+        await supabase
+          .from('contact_artist_assignments')
+          .upsert(
+            [{ contact_id: contact.id, artist_id: artistId }],
+            { onConflict: 'contact_id,artist_id', ignoreDuplicates: true },
+          );
+        await queryClient.invalidateQueries({ queryKey: ['artist-team-members-strict', artistId] });
+      } catch (err) {
+        console.warn('No se pudo asignar el contacto al artista', err);
+      }
+    }
+  };
+
+  // Create a brand new contact and add it to the format crew in one step.
+  const handleCreateNewCrewContact = async (
+    formatIndex: number,
+    payload: { name: string; role: string; category: string; assignToArtist: boolean },
+  ) => {
+    if (!user?.id) return;
+    if (!payload.name.trim()) {
+      toast.error('Introduce un nombre');
+      return;
+    }
+    setCreatingNewCrew(true);
+    try {
+      const { data: inserted, error } = await supabase
+        .from('contacts')
+        .insert({
+          name: payload.name.trim(),
+          role: payload.role.trim() || null,
+          category: payload.category,
+          created_by: user.id,
+          field_config: {
+            is_team_member: true,
+            is_management_team: false,
+            team_categories: [payload.category],
+          },
+        })
+        .select('id, name, stage_name, role')
+        .single();
+      if (error) throw error;
+      if (!inserted) throw new Error('No se pudo crear el contacto');
+
+      handleAddCrewMember(formatIndex, {
+        id: inserted.id,
+        name: inserted.stage_name || inserted.name,
+        role: inserted.role || undefined,
+        type: 'contact',
+      });
+
+      if (payload.assignToArtist && artistId) {
+        await supabase
+          .from('contact_artist_assignments')
+          .upsert(
+            [{ contact_id: inserted.id, artist_id: artistId }],
+            { onConflict: 'contact_id,artist_id', ignoreDuplicates: true },
+          );
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['artist-team-members-strict', artistId] });
+      await queryClient.invalidateQueries({ queryKey: ['all-contacts-for-format-crew', user.id] });
+
+      // Reset new-form state
+      setNewCrewName('');
+      setNewCrewRole('');
+      setNewCrewCategory('banda');
+      setCrewPickerTab('team');
+      toast.success(`${inserted.stage_name || inserted.name} añadido al equipo`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error al crear el contacto');
+    } finally {
+      setCreatingNewCrew(false);
+    }
+  };
+
+
   const handleUpdateCrewRole = (formatIndex: number, memberId: string, roleLabel: string) => {
     const format = formats[formatIndex];
     handleUpdateFormat(formatIndex, {
