@@ -69,8 +69,31 @@ export function DraftCommentsSidebar({
     }
   }, [pendingSelection]);
 
-  const rootComments = comments.filter(c => !c.parent_comment_id);
-  const getReplies = (parentId: string) => comments.filter(c => c.parent_comment_id === parentId);
+  // Order by position in the document (selection_start). Comments without
+  // selection_start fall back to clause_number, then created_at, so the
+  // sidebar stays coherent with the order users encounter while reading.
+  const compareByDocPosition = (a: DraftComment, b: DraftComment) => {
+    const sa = a.selection_start;
+    const sb = b.selection_start;
+    if (sa != null && sb != null && sa !== sb) return sa - sb;
+    if (sa != null && sb == null) return -1;
+    if (sa == null && sb != null) return 1;
+    const ca = (a.clause_number || '').toString();
+    const cb = (b.clause_number || '').toString();
+    const byClause = ca.localeCompare(cb, undefined, { numeric: true, sensitivity: 'base' });
+    if (byClause !== 0) return byClause;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  };
+
+  const rootComments = comments
+    .filter(c => !c.parent_comment_id)
+    .slice()
+    .sort(compareByDocPosition);
+  const getReplies = (parentId: string) =>
+    comments
+      .filter(c => c.parent_comment_id === parentId)
+      .slice()
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   // Counts for filter pills
   const counts = useMemo(() => ({
