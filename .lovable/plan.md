@@ -1,121 +1,174 @@
 
-# Enforcement real de permisos funcionales
+# Refinamiento del enforcement de permisos (Prioridad ALTA)
 
-Objetivo: que los permisos definidos en la matriz **realmente bloqueen** acceso, tanto en la UI como en la base de datos. Hoy se calculan y se muestran, pero no impiden nada.
+Objetivo: cerrar los 3 huecos detectados en la auditoría sin tocar lógica de negocio ni romper a usuarios `OWNER` / `TEAM_MANAGER` (que ya tienen bypass automático en `has_functional_permission`).
 
-Principios:
-- **Aditivo, nunca destructivo**: las RLS nuevas se SUMAN a las existentes (OR), no se borran las que ya hay.
-- **OWNER / TEAM_MANAGER**: siempre tienen control total (la RPC `has_functional_permission` ya hace bypass).
-- **Sin tocar** schemas reservados (`auth`, `storage`, `realtime`) ni `types.ts`.
+Principio: **todo es aditivo y reutiliza componentes existentes** (`HubGate`, `PermissionGuard`, `IfCan`, `useCan`). No se crean tablas nuevas, no se cambian RLS, no se toca `useAuth` ni `ProtectedRoute`.
 
 ---
 
-## 1. UI: gating en hubs y sidebar
+## 1. Tabs de FinanzasHub filtradas por permiso
 
-Para cada hub, envolver el contenido con `<IfCan module="X" required="view" fallback={<ForbiddenView/>}>` y los CTAs con `<PermissionGuard required="edit|manage">`.
+**Problema actual**: el hub entero exige `cashflow:view`. Un usuario con sólo `budgets:view` (p.ej. un Tour Manager o Booker) no puede entrar a Presupuestos porque el `HubGate` lo bloquea antes.
 
-Crear primero un componente compartido `src/components/permissions/ForbiddenView.tsx` con icono de candado, título "No tienes acceso a este módulo" y enlace a Dashboard, para usarlo como fallback en todos los hubs.
+**Solución**:
+- Mover el `HubGate` exterior y reemplazarlo por lógica granular.
+- Cada tab tiene un `module` asociado:
+  - `panel`, `cobros`, `pagos`, `liquidaciones`, `fiscal` → `cashflow`
+  - `presupuestos` → `budgets`
+- Filtrar el array `TABS` con `useCan()` antes de renderizar `TabsList`.
+- Si el `activeTab` actual no está permitido, hacer `navigate` automático al primer tab visible.
+- Si **ninguna** tab queda visible, mostrar `<ForbiddenView module="cashflow" />`.
+- Esto preserva el routing actual (`/finanzas`, `/finanzas/cobros`, etc.) y no rompe deep-links: si se entra por URL a un tab no permitido, redirige al primero permitido.
 
-Mapeo módulo → archivo:
+Archivos: `src/pages/FinanzasHub.tsx` (único cambio).
+
+## 2. Gate en páginas de detalle
+
+**Problema**: `ReleaseDetail`, `RoadmapDetail`, `ApprovalDetail` y `Projects.tsx` (vista lista antigua) son accesibles por URL directa. La RLS bloquea las queries y el usuario ve una pantalla "fantasma" sin mensaje claro.
+
+**Solución**: envolver cada componente con `<HubGate module="X" required="view">` igual que ya se hizo en los hubs.
+
+| Archivo | Módulo |
+|---|---|
+| `src/pages/ReleaseDetail.tsx` | `releases` |
+| `src/pages/RoadmapDetail.tsx` | `roadmaps` |
+| `src/pages/ApprovalDetail.tsx` | `solicitudes` |
+| `src/pages/Projects.tsx` | `projects` |
+
+Importante: el `HubGate` se aplica al componente exportado, **después** de los hooks que cargan datos por ID, para no romper el orden de hooks. Pattern: extraer el contenido a `XInner` y exportar `<HubGate>...<XInner/></HubGate>` igual que se hizo en los hubs.
+
+## 3. Gating fino de CTAs (botones Crear / Editar / Eliminar)
+
+**Problema**: dentro de los hubs ya gateados, los botones "Nuevo / Eliminar" están visibles para usuarios con sólo `view`. Al pulsarlos, la BD bloquea la mutación con un error genérico — UX pobre.
+
+**Solución**: envolver cada CTA con el componente ya existente `<PermissionGuard module="X" required="edit|manage">` (o el más liso `<IfCan>` si no se quiere fallback). Si el usuario no tiene permiso, el botón simplemente no se renderiza.
+
+**Alcance prioritario** (los CTAs más visibles y dañinos si se pulsan sin permiso):
 
 ```text
-bookings      → src/pages/Agenda.tsx (calendario), src/components/booking/* (ya bajo Agenda)
-budgets       → src/pages/Budgets.tsx + tab dentro de FinanzasHub
-cashflow      → tabs Cobros/Pagos/Liquidaciones/Fiscal/Panel en FinanzasHub
-contracts     → src/pages/Documents.tsx
-releases      → src/pages/Releases.tsx, src/pages/ReleaseDetail.tsx
-projects      → src/pages/Proyectos.tsx, src/pages/Projects.tsx
-drive         → src/pages/Drive.tsx
-roadmaps      → src/pages/Roadmaps.tsx, src/pages/RoadmapDetail.tsx
-solicitudes   → src/pages/Approvals.tsx, src/pages/ApprovalDetail.tsx
-analytics     → src/pages/Analytics.tsx
-contacts      → src/pages/MyManagement.tsx (Teams ya gestionado por workspace_role)
-automations   → src/pages/Automatizaciones.tsx
+src/pages/Releases.tsx          → botón "Nuevo Release"  (releases:edit)
+src/pages/Proyectos.tsx         → botón "Nuevo Proyecto" (projects:edit)
+src/pages/Roadmaps.tsx          → botón "Nuevo Roadmap"  (roadmaps:edit)
+src/pages/Documents.tsx         → "Nuevo contrato" / "Nuevo borrador" (contracts:edit)
+src/pages/Approvals.tsx         → botón "Nueva solicitud" (solicitudes:edit)
+src/pages/Automatizaciones.tsx  → "Nueva automatización" (automations:manage)
+src/pages/Drive.tsx             → "Subir archivo" / "Nueva carpeta" (drive:edit)
+src/pages/Agenda.tsx            → "Nuevo evento" (bookings:edit)
+src/components/finanzas/CobrosTab.tsx + PagosTab + LiquidacionesTab → botones de alta (cashflow:edit)
+src/components/finanzas/FinanzasPanelTab.tsx → "Cerrar trimestre" (cashflow:manage)
+src/pages/Budgets.tsx           → "Nuevo presupuesto" (budgets:edit)
 ```
 
-Tratamiento especial en `FinanzasHub.tsx`: cada tab del array `TABS` se filtra por permiso. `panel/cobros/pagos/liquidaciones/fiscal` requieren `cashflow:view`; `presupuestos` requiere `budgets:view`. Si todas son `none`, mostrar `ForbiddenView`.
+Los botones de **eliminar** dentro de listas (filas/cards) suelen estar en componentes hijos. Plan: en esta iteración cubrimos sólo los CTAs principales del header de cada hub. Los iconos de borrar fila se dejan para una siguiente iteración (la RLS sigue siendo la red de seguridad real).
 
-CTAs (botones "Nuevo / Crear / Eliminar") usan `<PermissionGuard required="edit">` (o `manage` para borrar y para acciones tipo "Cerrar trimestre", "Configurar automatización").
+## 4. Toast claro cuando RLS bloquea una mutación (mejora UX)
 
-Sidebar (`src/components/AppSidebar.tsx` o similar): ocultar entradas de menú cuyo módulo asociado esté en `none` para el usuario actual usando `useCan()`.
+Pequeña mejora transversal: en los handlers de error de las mutaciones, detectar el código de error de Postgres `42501` (insufficient_privilege) o el mensaje "violates row-level security policy" y mostrar un toast amistoso `"No tienes permiso para realizar esta acción"` en lugar del error técnico crudo.
 
-## 2. RLS aditivo en BD (12 tablas)
+Implementación: helper `src/lib/permissions/handlePermissionError.ts` con `function handleSupabaseError(error)` que se puede llamar desde cualquier `.catch()`. Sólo se aplica oportunísticamente en los CTAs que toquemos en el punto 3 (no se hace refactor masivo).
 
-Una sola migración SQL con políticas adicionales por tabla. Todas usan la helper `public.has_functional_permission(auth.uid(), <tabla>.workspace_id, '<módulo>', '<nivel>')` que ya existe y hace bypass para OWNER/TEAM_MANAGER.
-
-Plantilla por tabla:
-
-```sql
-CREATE POLICY "select_by_func_perm_<modulo>" ON public.<tabla>
-FOR SELECT TO authenticated
-USING (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'view'));
-
-CREATE POLICY "insert_by_func_perm_<modulo>" ON public.<tabla>
-FOR INSERT TO authenticated
-WITH CHECK (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'edit'));
-
-CREATE POLICY "update_by_func_perm_<modulo>" ON public.<tabla>
-FOR UPDATE TO authenticated
-USING (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'edit'));
-
-CREATE POLICY "delete_by_func_perm_<modulo>" ON public.<tabla>
-FOR DELETE TO authenticated
-USING (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'manage'));
-```
-
-Mapeo:
-
-| Tabla | Módulo |
-|---|---|
-| `bookings` | bookings |
-| `budgets`, `budget_lines` | budgets |
-| `cashflow_entries` | cashflow |
-| `contracts`, `contract_drafts` | contracts |
-| `releases`, `tracks` | releases |
-| `projects` | projects |
-| `storage_nodes`, `project_files` | drive |
-| `roadmaps`, `roadmap_items` | roadmaps |
-| `approvals` | solicitudes |
-| `automation_configs` | automations |
-
-Para tablas hijas sin `workspace_id` directo (`budget_lines`, `tracks`, `roadmap_items`, `contract_drafts`), la policy hace JOIN con la tabla padre vía subselect.
-
-`contacts` se deja fuera por ahora: tiene su propio modelo y romperíamos el espejo `mirror_type=workspace_member` que el propio sistema de permisos consulta para resolver el rol del usuario. Se gatea solo en UI.
-
-`analytics` no tiene tabla → solo UI.
-
-## 3. Índices de rendimiento
-
-Misma migración:
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_contacts_mirror_type
-  ON public.contacts ((field_config->>'mirror_type'));
-CREATE INDEX IF NOT EXISTS idx_frdp_module
-  ON public.functional_role_default_permissions (module);
-```
-
-## 4. QA y memoria
-
-- Smoke checklist: con un usuario `Booker` (rol funcional), confirmar que ve Bookings/Roadmaps, NO ve Cashflow ni Automatizaciones; con `Asesor Legal`, confirmar acceso `manage` a Contratos.
-- Verificar con `supabase--read_query` que `has_functional_permission` devuelve `true` para OWNER en cualquier módulo y `false` para `Backliner` en `cashflow`.
-- Actualizar `mem://features/functional-role-permissions` describiendo el enforcement aplicado (lista de tablas con RLS y hubs con `<IfCan>`).
+---
 
 ## Detalles técnicos
 
-- Hooks: `useCan().can(module, level)` ya existe y está cacheado 60s + Realtime.
-- `ForbiddenView` se ubica en `src/components/permissions/` para mantener la separación.
-- Las nuevas RLS son **aditivas**: si el usuario ya tenía acceso por una policy previa (p.ej. ser propietario del recurso), seguirá teniéndolo; si NO tenía acceso pero su rol funcional sí lo concede, ahora podrá acceder. Esto puede ser intencional (un Booker accede a `bookings` aunque no sea creador). Si el usuario quisiera el comportamiento opuesto (intersección en vez de unión) habría que reemplazar policies, lo cual NO se hace en este plan por seguridad.
-- Migración única, idempotente con `DROP POLICY IF EXISTS` antes de cada `CREATE POLICY`.
+### Patrón para tabs filtradas (FinanzasHub)
+
+```tsx
+const TABS = [
+  { value: 'panel',         label: 'Panel',         module: 'cashflow' as ModuleKey, ... },
+  { value: 'cobros',        label: 'Cobros',        module: 'cashflow' as ModuleKey, ... },
+  { value: 'pagos',         label: 'Pagos',         module: 'cashflow' as ModuleKey, ... },
+  { value: 'presupuestos',  label: 'Presupuestos',  module: 'budgets'  as ModuleKey, ... },
+  { value: 'liquidaciones', label: 'Liquidaciones', module: 'cashflow' as ModuleKey, ... },
+  { value: 'fiscal',        label: 'Fiscal',        module: 'cashflow' as ModuleKey, ... },
+];
+
+const { can, loading } = useCan();
+const visibleTabs = TABS.filter(t => loading || can(t.module, 'view'));
+
+useEffect(() => {
+  if (loading) return;
+  if (!visibleTabs.length) return;
+  if (!visibleTabs.find(t => t.value === activeTab)) {
+    navigate(visibleTabs[0].path, { replace: true });
+  }
+}, [loading, activeTab, visibleTabs.length]);
+
+if (!loading && !visibleTabs.length) {
+  return <ForbiddenView module="cashflow" required="view" />;
+}
+```
+
+### Patrón para páginas de detalle
+
+```tsx
+function ReleaseDetailInner() { /* contenido actual */ }
+
+export default function ReleaseDetail() {
+  return (
+    <HubGate module="releases" required="view">
+      <ReleaseDetailInner />
+    </HubGate>
+  );
+}
+```
+
+### Patrón para CTAs
+
+```tsx
+<PermissionGuard module="releases" required="edit">
+  <Button onClick={openNewReleaseDialog}>Nuevo Release</Button>
+</PermissionGuard>
+```
+
+### Helper de errores RLS
+
+```ts
+// src/lib/permissions/handlePermissionError.ts
+import { toast } from '@/hooks/use-toast';
+
+export function isPermissionError(err: any): boolean {
+  return err?.code === '42501'
+      || /row-level security/i.test(String(err?.message ?? ''));
+}
+
+export function handleSupabaseError(err: any, fallbackMsg = 'Error') {
+  if (isPermissionError(err)) {
+    toast({
+      title: 'Permiso denegado',
+      description: 'No tienes permisos para realizar esta acción.',
+      variant: 'destructive',
+    });
+    return;
+  }
+  toast({ title: fallbackMsg, description: err?.message ?? 'Error desconocido', variant: 'destructive' });
+}
+```
+
+---
+
+## Lo que NO hacemos (y por qué)
+
+- **No tocamos RLS ni la BD**: ya están bien. No hacen falta migraciones, índices nuevos ni cambios de esquema. Los índices que se pidieron (`mirror_type`, `frdp_module`) ya están creados en la migración del 29/04.
+- **No añadimos paginación nueva**: el sistema de permisos no hace queries propias paginables; consume la RPC `has_functional_permission` (cacheada 60s) y la tabla `functional_role_permission_overrides` (filas escasas, todas las del workspace caben en una query). Aplicar paginación aquí no aporta nada.
+- **No tocamos `useAuth` ni `ProtectedRoute`**: el sistema de permisos funcionales se aplica encima de la autenticación, no la sustituye.
+- **No reescribimos `PermissionBoundary` / `useAuthz`**: coexisten con el sistema funcional, sirven para gating por proyecto. Documentado en memoria, fuera del alcance de esta iteración.
+- **No metemos zod**: este cambio no introduce ningún nuevo input de usuario, sólo gating.
+
+## QA al terminar
+
+- Con un OWNER: confirmar que ve todo (tabs, botones, páginas de detalle).
+- Con un usuario sin `cashflow` pero con `budgets:view`: entrar a `/finanzas` debe redirigir a `/finanzas/presupuestos` y ver sólo esa tab.
+- Con un usuario `releases:view` (sin `edit`): entrar a `/releases/:id` debe verse, pero el botón "Nuevo Release" en `/releases` no aparece.
+- Confirmar que un toast claro salta si alguien (manipulando UI) intenta una mutación bloqueada por RLS.
 
 ## Entregables
 
-1. `src/components/permissions/ForbiddenView.tsx` (nuevo).
-2. Wraps con `<IfCan>` / `<PermissionGuard>` en los 12 archivos de hubs/páginas listados.
-3. Filtrado del sidebar por `useCan()`.
-4. Migración SQL: ~40 policies aditivas + 2 índices.
-5. Actualización de `mem://features/functional-role-permissions`.
-
-## Aviso
-
-El enforcement de RLS es la red de seguridad real. A partir del momento en que se aplique, **un rol con `cashflow=none` no podrá leer `cashflow_entries` aunque alguien manipule el cliente**. Si algún flujo interno (edge functions con anon key, vistas materializadas, etc.) dependía de leer esas tablas sin autenticación, lo notarás de inmediato. Las edge functions que usan `service_role` no se ven afectadas.
+1. **Modificados** (8 archivos):
+   - `src/pages/FinanzasHub.tsx` (tabs filtradas)
+   - `src/pages/ReleaseDetail.tsx`, `src/pages/RoadmapDetail.tsx`, `src/pages/ApprovalDetail.tsx`, `src/pages/Projects.tsx` (HubGate)
+   - `src/pages/Releases.tsx`, `src/pages/Proyectos.tsx`, `src/pages/Roadmaps.tsx`, `src/pages/Documents.tsx`, `src/pages/Approvals.tsx`, `src/pages/Automatizaciones.tsx`, `src/pages/Drive.tsx`, `src/pages/Agenda.tsx`, `src/pages/Budgets.tsx` (PermissionGuard en CTAs principales)
+   - `src/components/finanzas/CobrosTab.tsx`, `PagosTab.tsx`, `LiquidacionesTab.tsx`, `FinanzasPanelTab.tsx` (PermissionGuard en CTAs)
+2. **Nuevo** (1 archivo): `src/lib/permissions/handlePermissionError.ts`
+3. **Sin cambios en BD ni en `types.ts`**.

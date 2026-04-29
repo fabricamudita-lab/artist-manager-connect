@@ -8,6 +8,7 @@ import { useAutomationConfigs } from '@/hooks/useAutomationConfigs';
 import { AutomationCard } from '@/components/AutomationCard';
 import { toast } from '@/hooks/use-toast';
 import { HubGate } from '@/components/permissions/HubGate';
+import { IfCan } from '@/components/permissions/PermissionGuard';
 
 function AutomatizacionesInner() {
   const { configs, isLoading, upsertConfig, enableAllRecommended, activeCount, totalCount, artists } = useAutomationConfigs();
@@ -44,10 +45,12 @@ function AutomatizacionesInner() {
           <Badge variant="secondary" className="text-sm px-3 py-1">
             {activeCount} de {totalCount} activas
           </Badge>
-          <Button size="sm" onClick={handleEnableAll} disabled={enableAllRecommended.isPending}>
-            <Sparkles className="w-4 h-4 mr-1" />
-            Activar recomendadas
-          </Button>
+          <IfCan module="automations" required="manage">
+            <Button size="sm" onClick={handleEnableAll} disabled={enableAllRecommended.isPending}>
+              <Sparkles className="w-4 h-4 mr-1" />
+              Activar recomendadas
+            </Button>
+          </IfCan>
         </div>
       </div>
 

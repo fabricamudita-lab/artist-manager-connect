@@ -49,7 +49,7 @@ interface ProjectListItem {
   parent_folder_id: string | null;
 }
 
-export default function Projects() {
+function ProjectsInner() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');
@@ -678,5 +678,14 @@ export default function Projects() {
         />
       </main>
     </TooltipProvider>
+  );
+}
+
+import { HubGate as HubGateProjects } from '@/components/permissions/HubGate';
+export default function Projects() {
+  return (
+    <HubGateProjects module="projects" required="view">
+      <ProjectsInner />
+    </HubGateProjects>
   );
 }

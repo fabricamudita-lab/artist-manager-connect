@@ -93,7 +93,7 @@ interface LinkedBookingWithLinkId extends LinkedBooking {
   linkId: string;
 }
 
-export default function RoadmapDetail() {
+function RoadmapDetailInner() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -613,5 +613,14 @@ export default function RoadmapDetail() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+import { HubGate as HubGateRoadmap } from '@/components/permissions/HubGate';
+export default function RoadmapDetail() {
+  return (
+    <HubGateRoadmap module="roadmaps" required="view">
+      <RoadmapDetailInner />
+    </HubGateRoadmap>
   );
 }

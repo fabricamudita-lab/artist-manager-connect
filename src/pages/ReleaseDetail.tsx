@@ -133,7 +133,7 @@ const SECTIONS = [
   },
 ];
 
-export default function ReleaseDetail() {
+function ReleaseDetailInner() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading } = useRelease(id);
@@ -468,5 +468,14 @@ export default function ReleaseDetail() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+import { HubGate } from '@/components/permissions/HubGate';
+export default function ReleaseDetail() {
+  return (
+    <HubGate module="releases" required="view">
+      <ReleaseDetailInner />
+    </HubGate>
   );
 }
