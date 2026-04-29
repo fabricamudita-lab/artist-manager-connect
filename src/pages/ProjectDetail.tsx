@@ -2299,15 +2299,31 @@ export default function ProjectDetail() {
             {/* ── FINANZAS ─────────────────────────────────────────── */}
             <TabsContent value="finanzas" className="mt-0 space-y-6">
               {(() => {
+                // ── Helper: estado efectivo combinando booking_offer.phase y budget_status/show_status ──
+                const getBudgetEffectiveStatus = (b: any): 'confirmado' | 'negociacion' | 'otros' => {
+                  const offerPhase = b?.booking_offer?.phase;
+                  if (offerPhase) {
+                    if (['confirmado', 'facturado'].includes(offerPhase)) return 'confirmado';
+                    if (['interes', 'oferta', 'negociacion'].includes(offerPhase)) return 'negociacion';
+                  }
+                  const bs = b?.budget_status;
+                  const ss = b?.show_status;
+                  if (bs === 'confirmado' || ss === 'confirmado') return 'confirmado';
+                  if (['negociacion', 'pendiente'].includes(bs) || ['negociacion', 'pendiente'].includes(ss)) return 'negociacion';
+                  return 'otros';
+                };
+                // Fee efectivo: usa el del budget; si es 0/null y hay booking_offer, usa el fee de la offer
+                const getEffectiveFee = (b: any): number => {
+                  const bf = Number(b?.fee || 0);
+                  if (bf > 0) return bf;
+                  return Number(b?.booking_offer?.fee || 0);
+                };
+
                 // ── Presupuestos del proyecto ──
-                const presupuestosConfirmadosList = budgets.filter(b =>
-                  b.budget_status === 'confirmado' || b.show_status === 'confirmado'
-                );
-                const presupuestosNegociacionList = budgets.filter(b =>
-                  b.budget_status === 'negociacion' || b.budget_status === 'pendiente' || b.show_status === 'negociacion'
-                );
-                const presupuestosConfirmados = presupuestosConfirmadosList.reduce((s: number, b: any) => s + Number(b.fee || 0), 0);
-                const presupuestosNegociacion = presupuestosNegociacionList.reduce((s: number, b: any) => s + Number(b.fee || 0), 0);
+                const presupuestosConfirmadosList = budgets.filter(b => getBudgetEffectiveStatus(b) === 'confirmado');
+                const presupuestosNegociacionList = budgets.filter(b => getBudgetEffectiveStatus(b) === 'negociacion');
+                const presupuestosConfirmados = presupuestosConfirmadosList.reduce((s: number, b: any) => s + getEffectiveFee(b), 0);
+                const presupuestosNegociacion = presupuestosNegociacionList.reduce((s: number, b: any) => s + getEffectiveFee(b), 0);
 
                 // ── Booking offers vinculados directamente al proyecto ──
                 // Evitar doble conteo: ignorar offers que ya tienen un budget cargado
