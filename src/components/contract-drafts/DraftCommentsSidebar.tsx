@@ -383,14 +383,14 @@ export function DraftCommentsSidebar({
                     § {clauseKey === 'general' ? 'General' : clauseKey} · {items.length}
                   </span>
                 </div>
-                <div className={wideMode ? 'columns-2 gap-3 space-y-3' : 'space-y-3'}>
+                <div className="space-y-3">
                   {items.map(renderCommentCard)}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className={wideMode ? 'columns-2 gap-3 space-y-3' : 'space-y-3'}>
+          <div className="space-y-3">
             {filteredComments.map(renderCommentCard)}
           </div>
         )}
