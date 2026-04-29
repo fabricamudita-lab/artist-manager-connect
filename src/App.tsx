@@ -376,14 +376,18 @@ const App = () => (
               <Route path="/releases" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Releases />
+                    <HubGate module="releases" required="view">
+                      <Releases />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseDetail />
+                    <HubGate module="releases" required="view">
+                      <ReleaseDetail />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
