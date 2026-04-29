@@ -1272,6 +1272,16 @@ export default function Teams() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => navigate('/teams/roles')}
+            title="Ver y configurar permisos por rol funcional"
+          >
+            <Shield className="w-3.5 h-3.5 mr-1.5" />
+            Roles y permisos
+          </Button>
+          <Button
             variant={selectionMode ? 'default' : 'ghost'}
             size="sm"
             onClick={() => {
