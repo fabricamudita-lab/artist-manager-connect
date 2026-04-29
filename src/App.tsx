@@ -302,13 +302,17 @@ const App = () => (
               } />
               <Route path="/proyectos" element={
                 <ProtectedRoute>
-                  <Proyectos />
+                  <HubGate module="projects" required="view">
+                    <Proyectos />
+                  </HubGate>
                 </ProtectedRoute>
               } />
               <Route path="/projects" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Projects />
+                    <HubGate module="projects" required="view">
+                      <Projects />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
@@ -319,7 +323,9 @@ const App = () => (
               } />
               <Route path="/drive" element={
                 <ProtectedRoute>
-                  <Drive />
+                  <HubGate module="drive" required="view">
+                    <Drive />
+                  </HubGate>
                 </ProtectedRoute>
               } />
               <Route path="/projects/:id" element={
