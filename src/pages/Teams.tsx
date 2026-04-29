@@ -152,6 +152,7 @@ function FunctionalRoleCombobox({ value, onChange }: { value: string; onChange: 
 
 export default function Teams() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamContacts, setTeamContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
