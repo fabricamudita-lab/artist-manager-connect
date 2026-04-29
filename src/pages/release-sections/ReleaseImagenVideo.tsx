@@ -40,6 +40,19 @@ export default function ReleaseImagenVideo() {
   const [addDialogStage, setAddDialogStage] = useState<string | undefined>();
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
 
+  // Lightbox
+  const [lightboxAssets, setLightboxAssets] = useState<DAMAsset[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const openLightbox = useCallback((asset: DAMAsset, list: DAMAsset[]) => {
+    const visible = list.filter(a => a.type === 'image' || a.type === 'video');
+    const idx = visible.findIndex(a => a.id === asset.id);
+    setLightboxAssets(visible);
+    setLightboxIndex(Math.max(0, idx));
+    setLightboxOpen(true);
+  }, []);
+
   // Fetch assets
   const { data: allAssets = [], isLoading: loadingAssets } = useQuery({
     queryKey: ['dam-assets', id],
