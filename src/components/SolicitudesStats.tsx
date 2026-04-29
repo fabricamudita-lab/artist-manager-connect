@@ -176,27 +176,6 @@ export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
     });
   }, [solicitudes, range]);
 
-    const statusDistribution = [
-      { name: 'Pendientes', value: pendientes.length, fill: 'hsl(var(--warning))' },
-      { name: 'Aprobadas', value: aprobadas.length, fill: 'hsl(var(--success))' },
-      { name: 'Denegadas', value: denegadas.length, fill: 'hsl(var(--destructive))' },
-    ];
-
-    return {
-      total: active.length,
-      pendientes: pendientes.length,
-      aprobadas: aprobadas.length,
-      denegadas: denegadas.length,
-      archivadas: archivadas.length,
-      overdue: overdue.length,
-      urgent: urgent.length,
-      avgResponseTime,
-      approvalRate,
-      typeDistribution,
-      last30Days,
-      statusDistribution,
-    };
-  }, [solicitudes]);
 
   const formatResponseTime = (hours: number) => {
     if (hours < 24) return `${Math.round(hours)}h`;
