@@ -142,7 +142,9 @@ const App = () => (
               <Route path="/sincronizaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Sincronizaciones />
+                    <HubGate module="solicitudes" required="view">
+                      <Sincronizaciones />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
