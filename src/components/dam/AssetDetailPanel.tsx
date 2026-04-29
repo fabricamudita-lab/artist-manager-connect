@@ -191,9 +191,22 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLight
       <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="p-4 space-y-4">
           {/* Preview */}
-          <div className="rounded-lg bg-muted overflow-hidden">
+          <div
+            className={cn(
+              'rounded-lg bg-muted overflow-hidden relative group',
+              (isImage || isVideo) && onOpenLightbox && 'cursor-zoom-in',
+            )}
+            onClick={() => (isImage || isVideo) && onOpenLightbox?.()}
+          >
             {isImage ? (
-              <img src={asset.file_url} alt={asset.title} className="w-full max-h-64 object-contain" />
+              <>
+                <img src={asset.file_url} alt={asset.title} className="w-full max-h-64 object-contain" />
+                {onOpenLightbox && (
+                  <div className="absolute top-2 right-2 bg-black/60 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 className="h-3.5 w-3.5 text-white" />
+                  </div>
+                )}
+              </>
             ) : isVideo ? (
               (() => {
                 const thumb = getVideoThumbnail(asset.external_url);
@@ -201,7 +214,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLight
                   <div className="relative">
                     <img src={thumb} alt={asset.title} className="w-full max-h-64 object-contain" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <a href={asset.external_url || '#'} target="_blank" rel="noreferrer" className="bg-black/50 rounded-full p-3 hover:bg-black/70 transition-colors">
+                      <a href={asset.external_url || '#'} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="bg-black/50 rounded-full p-3 hover:bg-black/70 transition-colors">
                         <Play className="h-8 w-8 text-white" />
                       </a>
                     </div>
@@ -209,12 +222,12 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLight
                 ) : asset.external_url ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2">
                     <Video className="h-10 w-10 text-muted-foreground" />
-                    <a href={asset.external_url} target="_blank" rel="noreferrer" className="text-xs text-primary flex items-center gap-1">
+                    <a href={asset.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-primary flex items-center gap-1">
                       <ExternalLink className="h-3 w-3" /> Ver enlace externo
                     </a>
                   </div>
                 ) : (
-                  <video src={asset.file_url} controls className="w-full max-h-64" />
+                  <video src={asset.file_url} controls className="w-full max-h-64" onClick={e => e.stopPropagation()} />
                 );
               })()
             ) : (
