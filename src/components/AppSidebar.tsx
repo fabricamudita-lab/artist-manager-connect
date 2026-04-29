@@ -36,6 +36,24 @@ import { useNavigate } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import { useState } from 'react';
 import { useActionCenter } from '@/hooks/useActionCenter';
+import { useCan } from '@/hooks/useFunctionalPermissions';
+import type { ModuleKey } from '@/lib/permissions/types';
+
+// Mapa URL → módulo funcional (para filtrar sidebar por permisos).
+// Las URLs no listadas son siempre visibles (Dashboard, Chat, Ajustes, etc.).
+const URL_TO_MODULE: Record<string, ModuleKey> = {
+  '/booking': 'bookings',
+  '/finanzas': 'cashflow',
+  '/analytics': 'analytics',
+  '/proyectos': 'projects',
+  '/releases': 'releases',
+  '/drive': 'drive',
+  '/documents': 'contracts',
+  '/roadmaps': 'roadmaps',
+  '/solicitudes': 'solicitudes',
+  '/automatizaciones': 'automations',
+  '/agenda': 'contacts',
+};
 
 // ─── NAV ITEM TYPE ────────────────────────────────────────────────────────────
 
