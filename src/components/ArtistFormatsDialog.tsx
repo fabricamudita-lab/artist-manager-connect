@@ -3,6 +3,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTeamMembersByArtist, TeamMemberWithCategory } from '@/hooks/useTeamMembersByArtist';
+import { useArtistTeamMembers } from '@/hooks/useArtistTeamMembers';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   DndContext,
   closestCenter,
@@ -306,7 +325,35 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
   
   // Fetch team members for this artist
   const selectedArtistIds = useMemo(() => (artistId ? [artistId] : []), [artistId]);
-  const { allTeamMembers, filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
+  const { allTeamMembers, filteredMembers, groupedByCategory: _legacyGrouped, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
+  // Strict team for the artist (only contacts with explicit assignment)
+  const { groupedByCategory, loading: loadingArtistTeam } = useArtistTeamMembers(artistId);
+
+  // All workspace contacts, used by the "Importar contacto" tab
+  const { data: allContacts = [] } = useQuery({
+    queryKey: ['all-contacts-for-format-crew', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as Array<{ id: string; name: string; stage_name: string | null; category: string | null; role: string | null }>;
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, category, role')
+        .eq('created_by', user.id)
+        .order('name');
+      if (error) throw error;
+      return (data || []) as Array<{ id: string; name: string; stage_name: string | null; category: string | null; role: string | null }>;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Local UI state for the picker tabs
+  const [crewPickerTab, setCrewPickerTab] = useState<'team' | 'import' | 'new'>('team');
+  const [importQuery, setImportQuery] = useState('');
+  const [importAssignToArtist, setImportAssignToArtist] = useState(true);
+  const [newCrewName, setNewCrewName] = useState('');
+  const [newCrewRole, setNewCrewRole] = useState('');
+  const [newCrewCategory, setNewCrewCategory] = useState<string>('banda');
+  const [newCrewAssignToArtist, setNewCrewAssignToArtist] = useState(true);
+  const [creatingNewCrew, setCreatingNewCrew] = useState(false);
 
   // Fetch artist profile data
   const { data: artistProfile } = useQuery({
@@ -527,6 +574,99 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
       crewMembers: format.crewMembers.filter(cm => cm.memberId !== memberId),
     });
   };
+
+  // Import an existing workspace contact into the format crew (and optionally
+  // assign it permanently to this artist's team).
+  const handleImportContactAsCrew = async (
+    formatIndex: number,
+    contact: { id: string; name: string; stage_name: string | null; role: string | null },
+    assignToArtist: boolean,
+  ) => {
+    handleAddCrewMember(formatIndex, {
+      id: contact.id,
+      name: contact.stage_name || contact.name,
+      role: contact.role || undefined,
+      type: 'contact',
+    });
+
+    if (assignToArtist && artistId) {
+      try {
+        await supabase
+          .from('contact_artist_assignments')
+          .upsert(
+            [{ contact_id: contact.id, artist_id: artistId }],
+            { onConflict: 'contact_id,artist_id', ignoreDuplicates: true },
+          );
+        await queryClient.invalidateQueries({ queryKey: ['artist-team-members-strict', artistId] });
+      } catch (err) {
+        console.warn('No se pudo asignar el contacto al artista', err);
+      }
+    }
+  };
+
+  // Create a brand new contact and add it to the format crew in one step.
+  const handleCreateNewCrewContact = async (
+    formatIndex: number,
+    payload: { name: string; role: string; category: string; assignToArtist: boolean },
+  ) => {
+    if (!user?.id) return;
+    if (!payload.name.trim()) {
+      toast.error('Introduce un nombre');
+      return;
+    }
+    setCreatingNewCrew(true);
+    try {
+      const { data: inserted, error } = await supabase
+        .from('contacts')
+        .insert({
+          name: payload.name.trim(),
+          role: payload.role.trim() || null,
+          category: payload.category,
+          created_by: user.id,
+          field_config: {
+            is_team_member: true,
+            is_management_team: false,
+            team_categories: [payload.category],
+          },
+        })
+        .select('id, name, stage_name, role')
+        .single();
+      if (error) throw error;
+      if (!inserted) throw new Error('No se pudo crear el contacto');
+
+      handleAddCrewMember(formatIndex, {
+        id: inserted.id,
+        name: inserted.stage_name || inserted.name,
+        role: inserted.role || undefined,
+        type: 'contact',
+      });
+
+      if (payload.assignToArtist && artistId) {
+        await supabase
+          .from('contact_artist_assignments')
+          .upsert(
+            [{ contact_id: inserted.id, artist_id: artistId }],
+            { onConflict: 'contact_id,artist_id', ignoreDuplicates: true },
+          );
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['artist-team-members-strict', artistId] });
+      await queryClient.invalidateQueries({ queryKey: ['all-contacts-for-format-crew', user.id] });
+
+      // Reset new-form state
+      setNewCrewName('');
+      setNewCrewRole('');
+      setNewCrewCategory('banda');
+      setCrewPickerTab('team');
+      toast.success(`${inserted.stage_name || inserted.name} añadido al equipo`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error al crear el contacto');
+    } finally {
+      setCreatingNewCrew(false);
+    }
+  };
+
 
   const handleUpdateCrewRole = (formatIndex: number, memberId: string, roleLabel: string) => {
     const format = formats[formatIndex];
@@ -868,95 +1008,238 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
                               <X className="w-4 h-4" />
                             </Button>
                           </div>
-                          
-                          {loadingTeam ? (
-                            <div className="flex items-center justify-center py-4">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            </div>
-                          ) : (
-                            <ScrollArea className="h-48">
-                              <div className="space-y-3">
-                                {/* Artist Profile - Highlighted at top */}
-                                {artistProfile && (
-                                  <div>
-                                    <p className="text-xs font-medium text-primary mb-1">
-                                      Artista Principal
-                                    </p>
-                                    <div className="space-y-1">
-                                      {(() => {
-                                        const isSelected = format.crewMembers.some(
-                                          cm => cm.memberId === artistProfile.id
-                                        );
-                                        return (
-                                          <div
-                                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer bg-primary/10 border border-primary/20"
-                                              onClick={() => {
-                                                if (isSelected) {
-                                                  handleRemoveCrewMember(index, artistProfile.id);
-                                                } else {
-                                                  handleAddCrewMember(index, {
-                                                    id: artistProfile.id,
-                                                    name: artistProfile.name,
-                                                    role: 'Artista principal',
-                                                    type: 'artist',
-                                                  });
-                                                }
-                                              }}
-                                          >
-                                            <Checkbox checked={isSelected} />
-                                            <span className="text-sm font-medium">{artistProfile.name}</span>
-                                            <Badge className="text-xs bg-primary/20 text-primary">
-                                              Artista
-                                            </Badge>
-                                          </div>
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                )}
 
-                                {/* Team categories */}
-                                {groupedByCategory.map((category) => (
-                                  <div key={category.value}>
-                                    <p className="text-xs font-medium text-muted-foreground mb-1">
-                                      {category.label}
-                                    </p>
-                                    <div className="space-y-1">
-                                      {category.members.map((member) => {
-                                        const isSelected = format.crewMembers.some(
-                                          cm => cm.memberId === member.id
-                                        );
+                          <Tabs value={crewPickerTab} onValueChange={(v) => setCrewPickerTab(v as 'team' | 'import' | 'new')}>
+                            <TabsList className="grid w-full grid-cols-3">
+                              <TabsTrigger value="team" className="gap-1.5 text-xs">
+                                <Users className="h-3.5 w-3.5" />
+                                Equipo del artista
+                              </TabsTrigger>
+                              <TabsTrigger value="import" className="gap-1.5 text-xs">
+                                <UserPlus className="h-3.5 w-3.5" />
+                                Importar contacto
+                              </TabsTrigger>
+                              <TabsTrigger value="new" className="gap-1.5 text-xs">
+                                <Plus className="h-3.5 w-3.5" />
+                                Nuevo
+                              </TabsTrigger>
+                            </TabsList>
+
+                            {/* TAB 1: only the artist's strict team */}
+                            <TabsContent value="team" className="mt-3">
+                              {loadingArtistTeam ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </div>
+                              ) : (
+                                <ScrollArea className="h-56">
+                                  <div className="space-y-3">
+                                    {/* Artist Profile - Highlighted at top */}
+                                    {artistProfile && (
+                                      <div>
+                                        <p className="text-xs font-medium text-primary mb-1">
+                                          Artista Principal
+                                        </p>
+                                        <div className="space-y-1">
+                                          {(() => {
+                                            const isSelected = format.crewMembers.some(
+                                              cm => cm.memberId === artistProfile.id
+                                            );
+                                            return (
+                                              <div
+                                                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer bg-primary/10 border border-primary/20"
+                                                onClick={() => {
+                                                  if (isSelected) {
+                                                    handleRemoveCrewMember(index, artistProfile.id);
+                                                  } else {
+                                                    handleAddCrewMember(index, {
+                                                      id: artistProfile.id,
+                                                      name: artistProfile.name,
+                                                      role: 'Artista principal',
+                                                      type: 'artist',
+                                                    });
+                                                  }
+                                                }}
+                                              >
+                                                <Checkbox checked={isSelected} />
+                                                <span className="text-sm font-medium">{artistProfile.name}</span>
+                                                <Badge className="text-xs bg-primary/20 text-primary">
+                                                  Artista
+                                                </Badge>
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {groupedByCategory.length === 0 && (
+                                      <div className="text-center py-6 text-xs text-muted-foreground">
+                                        Este artista aún no tiene equipo asignado.
+                                        <br />
+                                        Usa <span className="font-medium">Importar contacto</span> o <span className="font-medium">Nuevo</span> para añadir miembros.
+                                      </div>
+                                    )}
+
+                                    {/* Strict team grouped by category */}
+                                    {groupedByCategory.map((category) => (
+                                      <div key={category.value}>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                                          {category.label}
+                                        </p>
+                                        <div className="space-y-1">
+                                          {category.members.map((member) => {
+                                            const isSelected = format.crewMembers.some(
+                                              cm => cm.memberId === member.id
+                                            );
+                                            return (
+                                              <div
+                                                key={member.id}
+                                                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer"
+                                                onClick={() => {
+                                                  if (isSelected) {
+                                                    handleRemoveCrewMember(index, member.id);
+                                                  } else {
+                                                    handleAddCrewMember(index, member);
+                                                  }
+                                                }}
+                                              >
+                                                <Checkbox checked={isSelected} />
+                                                <div className="flex flex-col flex-1">
+                                                  <span className="text-sm">{member.name}</span>
+                                                  {member.role && (
+                                                    <span className="text-xs text-muted-foreground">{member.role}</span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              )}
+                            </TabsContent>
+
+                            {/* TAB 2: import any workspace contact */}
+                            <TabsContent value="import" className="mt-3 space-y-2">
+                              <Command className="rounded-lg border">
+                                <CommandInput
+                                  placeholder="Buscar contacto del workspace..."
+                                  value={importQuery}
+                                  onValueChange={setImportQuery}
+                                />
+                                <CommandList className="max-h-56">
+                                  <CommandEmpty>Sin resultados.</CommandEmpty>
+                                  <CommandGroup heading="Contactos">
+                                    {allContacts
+                                      .filter(c => !format.crewMembers.some(cm => cm.memberId === c.id))
+                                      .map((c) => {
+                                        const display = c.stage_name || c.name;
                                         return (
-                                          <div
-                                            key={member.id}
-                                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer"
-                                            onClick={() => {
-                                              if (isSelected) {
-                                                handleRemoveCrewMember(index, member.id);
-                                              } else {
-                                                handleAddCrewMember(index, member);
-                                              }
-                                            }}
+                                          <CommandItem
+                                            key={c.id}
+                                            value={`${display}-${c.id}`}
+                                            onSelect={() =>
+                                              handleImportContactAsCrew(index, c, importAssignToArtist)
+                                            }
+                                            className="cursor-pointer"
                                           >
-                                            <Checkbox checked={isSelected} />
+                                            <UserPlus className="mr-2 h-4 w-4 text-muted-foreground" />
                                             <div className="flex flex-col flex-1">
-                                              <span className="text-sm">{member.name}</span>
-                                              {member.role && (
-                                                <span className="text-xs text-muted-foreground">{member.role}</span>
+                                              <span className="text-sm">{display}</span>
+                                              {c.role && (
+                                                <span className="text-xs text-muted-foreground">{c.role}</span>
                                               )}
                                             </div>
-                                            <Badge variant="secondary" className="text-xs">
-                                              {member.type === 'workspace' ? 'Usuario' : 'Contacto'}
-                                            </Badge>
-                                          </div>
+                                            {c.category && (
+                                              <Badge variant="secondary" className="text-[10px] capitalize">
+                                                {c.category}
+                                              </Badge>
+                                            )}
+                                          </CommandItem>
                                         );
                                       })}
-                                    </div>
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                              <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground cursor-pointer">
+                                <Checkbox
+                                  checked={importAssignToArtist}
+                                  onCheckedChange={(v) => setImportAssignToArtist(v === true)}
+                                />
+                                Asignar también al equipo de {artistName}
+                              </label>
+                            </TabsContent>
+
+                            {/* TAB 3: create a brand new contact */}
+                            <TabsContent value="new" className="mt-3 space-y-3">
+                              <div className="space-y-2">
+                                <div>
+                                  <Label className="text-xs">Nombre *</Label>
+                                  <Input
+                                    value={newCrewName}
+                                    onChange={(e) => setNewCrewName(e.target.value)}
+                                    placeholder="Ej. Marta Ruiz"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">Rol / Instrumento</Label>
+                                    <Input
+                                      value={newCrewRole}
+                                      onChange={(e) => setNewCrewRole(e.target.value)}
+                                      placeholder="Ej. Bajo"
+                                    />
                                   </div>
-                                ))}
+                                  <div>
+                                    <Label className="text-xs">Categoría</Label>
+                                    <Select value={newCrewCategory} onValueChange={setNewCrewCategory}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {TEAM_CATEGORIES.map((cat) => (
+                                          <SelectItem key={cat.value} value={cat.value}>
+                                            {cat.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                                  <Checkbox
+                                    checked={newCrewAssignToArtist}
+                                    onCheckedChange={(v) => setNewCrewAssignToArtist(v === true)}
+                                  />
+                                  Asignar al equipo de {artistName}
+                                </label>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="w-full"
+                                  disabled={creatingNewCrew || !newCrewName.trim()}
+                                  onClick={() =>
+                                    handleCreateNewCrewContact(index, {
+                                      name: newCrewName,
+                                      role: newCrewRole,
+                                      category: newCrewCategory,
+                                      assignToArtist: newCrewAssignToArtist,
+                                    })
+                                  }
+                                >
+                                  {creatingNewCrew ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Plus className="w-4 h-4 mr-2" />
+                                  )}
+                                  Crear y añadir
+                                </Button>
                               </div>
-                            </ScrollArea>
-                          )}
+                            </TabsContent>
+                          </Tabs>
                         </div>
                       ) : (
                         <Button
