@@ -237,7 +237,7 @@ export function DraftCommentsSidebar({
           <span className="font-medium text-xs">{comment.author_name}</span>
           <span className="text-[10px] text-muted-foreground">{formatTime(comment.created_at)}</span>
         </div>
-        <p className="text-sm mt-0.5">{comment.message}</p>
+        <p className={`mt-0.5 whitespace-pre-wrap ${isWide ? 'text-base leading-relaxed' : 'text-sm'}`}>{comment.message}</p>
       </div>
 
       {comment.proposed_change && (comment.comment_status === 'pending_approval' || comment.comment_status === 'proposing_change') && (
