@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard } from 'lucide-react';
+import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard, Shield } from 'lucide-react';
+import { PermissionsByRoleTab } from '@/pages/teams/PermissionsByRoleTab';
+import { RolePermissionSummary } from '@/components/permissions/RolePermissionSummary';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -163,7 +165,7 @@ export default function Teams() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [teamManagerOpen, setTeamManagerOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'free'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'free' | 'permissions'>('grid');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -1361,6 +1363,15 @@ export default function Teams() {
           >
             <Move className="h-3.5 w-3.5" />
           </Button>
+          <Button
+            variant={viewMode === 'permissions' ? 'secondary' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('permissions')}
+            className="h-7 w-7"
+            title="Permisos por rol"
+          >
+            <Shield className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -1371,8 +1382,19 @@ export default function Teams() {
         </p>
       )}
 
-      {/* Members Grid/List */}
-      {teamMembers.length === 0 && teamContacts.length === 0 ? (
+      {/* Permissions tab — separated UI */}
+      {viewMode === 'permissions' ? (
+        <PermissionsByRoleTab
+          rolesInUse={Array.from(
+            teamMembers.reduce((acc, m) => {
+              const role = (m.functional_role || '').trim();
+              if (!role) return acc;
+              acc.set(role, (acc.get(role) ?? 0) + 1);
+              return acc;
+            }, new Map<string, number>()),
+          ).map(([role, count]) => ({ role, count }))}
+        />
+      ) : teamMembers.length === 0 && teamContacts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -1862,6 +1884,19 @@ export default function Teams() {
               <p className="text-xs text-muted-foreground">
                 Elige uno de la lista o escribe uno personalizado en el buscador.
               </p>
+              {newFunctionalRole.trim() && (
+                <RolePermissionSummary roleName={newFunctionalRole.trim()} />
+              )}
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => {
+                  setEditingMemberRole(null);
+                  setViewMode('permissions');
+                }}
+              >
+                Ver matriz completa de permisos →
+              </button>
             </div>
 
             <div className="border-t pt-4 space-y-2">
