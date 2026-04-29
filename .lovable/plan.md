@@ -1,48 +1,57 @@
 
 ## Problema
 
-En el panel **Comentarios** del contrato los comentarios aparecen ordenados por fecha (más nuevo arriba). En la captura, "§ 2.1" se muestra antes que "§ Manifiestan-I", aunque "Manifiestan" aparece antes en el documento. Esto rompe la coherencia: al recorrer los comentarios no sigues el flujo del contrato.
+Al ensanchar el panel lateral de comentarios del contrato arrastrando la barra, la UI no aprovecha el espacio extra:
 
-## Causa
-
-En `src/components/contract-drafts/DraftCommentsSidebar.tsx`:
-
-- `rootComments` (línea 72) hereda el orden tal como llega de Supabase y no se reordena.
-- El agrupador `grouped` (línea 102-110) ordena las **claves de cláusula alfabéticamente** con `localeCompare` numérico, así que cualquier sección con prefijo no numérico ("manifiestan-I") queda detrás de "2.1".
-- Cuando el usuario aplica un filtro distinto a "Todos" (Abiertos/Pendientes/Resueltos), se renderiza la lista plana sin grupos (línea 350) y tampoco se ordena.
+- La cita del texto seleccionado (amarillo) está truncada a **120 caracteres** sin importar el ancho (`DraftCommentsSidebar.tsx` línea 224). Si el comentario es sobre un párrafo entero, sólo se ve el inicio + "…".
+- A partir de 520px, el panel pasa a **2 columnas** (`wideMode`, líneas 149/379/386). Eso reparte el contenido en columnas estrechas en vez de dar más ancho de lectura — exactamente lo contrario a lo que se pide.
+- La tipografía y padding son fijos (`text-sm`, `text-xs`, `p-3`), así que el modo amplio no resulta más cómodo de leer.
 
 ## Solución
 
-Ordenar siempre por **posición real en el documento** usando `selection_start` (campo `integer` ya existente en `contract_draft_comments` que indica el offset del rango seleccionado). Cascada de criterios:
+Hacer la UI realmente adaptativa al `sidebarWidth`, dando más texto y mejor lectura cuanto más ancho:
 
-1. `selection_start` ascendente.
-2. Si falta, `clause_number` con `localeCompare` numérico.
-3. Si empata, `created_at` ascendente.
+### 1. Sustituir `wideMode` por una escala de breakpoints internos
 
-Aplicarlo en dos sitios de `DraftCommentsSidebar.tsx`:
+```ts
+const isRoomy  = sidebarWidth >= 480;  // > móvil estándar
+const isWide   = sidebarWidth >= 640;  // ya hay sitio cómodo
+const isXWide  = sidebarWidth >= 820;  // panel "lectura"
+```
 
-### a) Lista plana de raíces
+### 2. Truncado adaptativo del `selected_text`
 
-Reemplazar `rootComments`/`getReplies` por versiones que clonen y ordenen:
-- `rootComments` → ordenado con `compareByDocPosition`.
-- `getReplies` → ordenado por `created_at` ascendente (las respuestas son una conversación, ahí sí tiene sentido cronológico).
+Reemplazar el `> 120` fijo por un límite dinámico:
 
-### b) Agrupado por cláusula
+```ts
+const excerptLimit = isXWide ? 800 : isWide ? 480 : isRoomy ? 280 : 120;
+```
 
-En `grouped` (vista "Todos"):
-- Construir un `Map<clave, primera_posición>` con el `selection_start` mínimo de cada grupo.
-- Ordenar los grupos por esa posición (no alfabéticamente).
-- Ordenar también el contenido interno de cada grupo con `compareByDocPosition` para mantener consistencia entre comentarios de la misma cláusula con offsets distintos.
+Aplicar en línea 224 y, mientras estamos, mostrar el texto en un bloque con `whitespace-pre-wrap` y altura máxima con scroll suave (`max-h-40 overflow-auto`) para los casos extremos en que el párrafo siga siendo muy largo.
 
-## Resultado esperado
+### 3. Quitar el layout en columnas y dejar tarjetas a ancho completo
 
-- "§ Manifiestan-I" aparece antes que "§ 2.1" porque su `selection_start` es menor.
-- Dentro de cada cláusula, los comentarios siguen el orden del texto.
-- Los filtros Abiertos/Pendientes/Resueltos también respetan el orden del documento.
-- Las respuestas (replies) siguen mostrándose en orden cronológico dentro de su hilo.
+En las dos llamadas a `wideMode ? 'columns-2 gap-3 space-y-3' : 'space-y-3'` (líneas 379 y 386), usar siempre `space-y-3` (una sola columna). El usuario quiere "leer más cantidad de texto", no más tarjetas a la vez. Como ahora todo va en una columna, también elimino la clase `break-inside-avoid` de la tarjeta.
 
-## Archivos a modificar
+### 4. Padding y tamaño de texto adaptativos
 
-- `src/components/contract-drafts/DraftCommentsSidebar.tsx` (líneas 72-73 y 101-110).
+En `renderCommentCard`:
+- Padding: `p-3` por defecto, `p-4` cuando `isWide`.
+- Mensaje principal (`p.text-sm mt-0.5`, línea 233): `text-sm` por defecto, `text-base leading-relaxed` cuando `isWide` y mantener `whitespace-pre-wrap` para respetar saltos de línea de párrafos largos.
+- Cita amarilla (`text-xs`): `text-sm` cuando `isRoomy`.
 
-Sin migraciones de BD ni cambios en el hook de carga: `useContractDrafts.fetchComments` ya devuelve `selection_start` y `clause_number`.
+### 5. Limpiar la prop `wideMode`
+
+Sustituir todos los usos por los nuevos breakpoints (`isRoomy`/`isWide`/`isXWide`).
+
+## Archivo a modificar
+
+- `src/components/contract-drafts/DraftCommentsSidebar.tsx` (líneas 149, 200-234, 379, 386).
+
+Sin cambios de DB, props ni en `ContractDraftView` (`sidebarWidth` ya se está pasando correctamente).
+
+## Resultado
+
+- Panel angosto (~360 px): igual que ahora.
+- Panel medio (~480-640 px): cita ampliada a 280-480 caracteres, texto del comentario más legible.
+- Panel ancho/extra-ancho (≥640/820 px): cita casi completa (hasta 800 caracteres) con scroll si excede, tipografía mayor y tarjetas a todo el ancho — ideal para revisar párrafos enteros.

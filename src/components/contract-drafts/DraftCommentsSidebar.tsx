@@ -146,7 +146,14 @@ export function DraftCommentsSidebar({
     });
   }, [filteredComments]);
 
-  const wideMode = sidebarWidth >= 520;
+  // Adaptive layout based on sidebar width — wider panels show longer
+  // excerpts and roomier typography so users can review long paragraphs
+  // without having to open each comment individually.
+  const isRoomy = sidebarWidth >= 480;
+  const isWide = sidebarWidth >= 640;
+  const isXWide = sidebarWidth >= 820;
+  // Selected-text truncation grows with the panel width
+  const excerptLimit = isXWide ? 800 : isWide ? 480 : isRoomy ? 280 : 120;
 
   const handleSubmit = async () => {
     if (!newMessage.trim() || !authorName.trim()) return;
