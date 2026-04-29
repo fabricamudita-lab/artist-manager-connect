@@ -1,33 +1,41 @@
-## Objetivo
+## Diagnóstico
 
-Permitir al usuario cambiar el rango temporal del gráfico **"Actividad"** en `SolicitudesStats` entre:
+El componente `ProjectChecklistManager` se queda con "Cargando tareas..." indefinidamente cuando un proyecto **no tiene aún ningún checklist** creado.
 
-- Últimos 30 días
-- Últimos 3 meses
-- Últimos 6 meses
-- Último año
+### Causa raíz
 
-## Cambios
+En `src/components/ProjectChecklistManager.tsx`:
 
-Modificar **`src/components/SolicitudesStats.tsx`**:
+1. El estado inicial es `const [loading, setLoading] = useState(true)` (línea 94).
+2. `setLoading(false)` solo se llama dentro de `fetchChecklistItems` (línea 394).
+3. `fetchChecklistItems` solo se invoca cuando hay un `activeChecklistId`:
+   ```ts
+   useEffect(() => {
+     if (activeChecklistId) {
+       fetchChecklistItems();
+     }
+   }, [activeChecklistId]);
+   ```
+4. Si el proyecto no tiene checklists, `fetchChecklists` deja `activeChecklistId = null`, por lo que **`fetchChecklistItems` nunca se ejecuta** y `loading` se queda en `true` para siempre. El render se queda atascado en el bloque `if (loading)` (línea 1116) mostrando "Cargando tareas...". El bloque que muestra el botón "Crear primer checklist" (`checklists.length === 0 && !loading`, línea 1202) nunca se alcanza.
 
-1. Añadir estado local `range` con valores `'30d' | '3m' | '6m' | '1y'` (default `'30d'`).
-2. Sustituir el cálculo fijo `last30Days` (líneas 83-101) por una función que, según `range`, genere puntos con la **granularidad adecuada** para evitar gráficos ilegibles:
-   - **30d** → 30 puntos diarios (como ahora).
-   - **3m** (~13 puntos) → agrupados por **semana** (`startOfWeek`).
-   - **6m** (~26 puntos) → agrupados por **semana**.
-   - **1y** → 12 puntos por **mes** (`startOfMonth`).
-   
-   Para cada bucket: contar `solicitudes` cuya `fecha_creacion` cae dentro → `creadas`; cuya `decision_fecha` cae dentro → `resueltas`. Etiqueta del eje X formateada con `date-fns/locale/es` (ej. `dd MMM` para días/semanas, `MMM yy` para meses).
-3. Mover `last30Days` fuera del `useMemo` principal o añadir `range` como dependencia. Renombrar internamente a `timelineData`.
-4. En la cabecera del Card del gráfico:
-   - Título dinámico: "Actividad — Últimos 30 días / 3 meses / 6 meses / Último año".
-   - Añadir a la derecha un `<Select>` compacto (w-[160px]) con las 4 opciones.
-   - Layout: `CardHeader` con `flex items-center justify-between`.
-5. Mantener el resto del componente intacto (KPIs, distribuciones, etc.).
+## Solución
 
-## Detalles técnicos
+Modificar el `useEffect` que reacciona a `activeChecklistId` (líneas 182-186) para que, cuando no haya checklist activo, **vacíe los items y desactive `loading`**:
 
-- Usar `date-fns`: `subDays`, `subMonths`, `startOfWeek({ weekStartsOn: 1 })`, `startOfMonth`, `format`, `locale: es`.
-- Construir buckets con `Map<string, { creadas, resueltas }>` indexado por la fecha de inicio del bucket en ISO, recorriendo cada solicitud una sola vez (más eficiente que el doble `filter` actual).
-- Sin cambios en BD ni props del componente.
+```ts
+useEffect(() => {
+  if (activeChecklistId) {
+    fetchChecklistItems();
+  } else {
+    setItems([]);
+    setLoading(false);
+  }
+}, [activeChecklistId]);
+```
+
+Esto permite que el componente muestre correctamente el estado vacío con el botón para crear el primer checklist desde plantilla o en blanco.
+
+### Fuera de alcance
+
+- No se toca la lógica de fetching ni la BD.
+- No se cambian otros componentes.
