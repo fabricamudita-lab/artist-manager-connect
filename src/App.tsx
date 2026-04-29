@@ -126,7 +126,9 @@ const App = () => (
               <Route path="/booking" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Booking />
+                    <HubGate module="bookings" required="view">
+                      <Booking />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
