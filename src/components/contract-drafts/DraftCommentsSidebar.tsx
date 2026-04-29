@@ -69,8 +69,31 @@ export function DraftCommentsSidebar({
     }
   }, [pendingSelection]);
 
-  const rootComments = comments.filter(c => !c.parent_comment_id);
-  const getReplies = (parentId: string) => comments.filter(c => c.parent_comment_id === parentId);
+  // Order by position in the document (selection_start). Comments without
+  // selection_start fall back to clause_number, then created_at, so the
+  // sidebar stays coherent with the order users encounter while reading.
+  const compareByDocPosition = (a: DraftComment, b: DraftComment) => {
+    const sa = a.selection_start;
+    const sb = b.selection_start;
+    if (sa != null && sb != null && sa !== sb) return sa - sb;
+    if (sa != null && sb == null) return -1;
+    if (sa == null && sb != null) return 1;
+    const ca = (a.clause_number || '').toString();
+    const cb = (b.clause_number || '').toString();
+    const byClause = ca.localeCompare(cb, undefined, { numeric: true, sensitivity: 'base' });
+    if (byClause !== 0) return byClause;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  };
+
+  const rootComments = comments
+    .filter(c => !c.parent_comment_id)
+    .slice()
+    .sort(compareByDocPosition);
+  const getReplies = (parentId: string) =>
+    comments
+      .filter(c => c.parent_comment_id === parentId)
+      .slice()
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   // Counts for filter pills
   const counts = useMemo(() => ({
@@ -98,15 +121,29 @@ export function DraftCommentsSidebar({
     );
   }
 
-  // Group by clause when filter = 'all'
+  // Group by clause when filter = 'all'. Group order follows the first
+  // appearance of each clause in the document, NOT alphabetical key order,
+  // so "Manifiestan" (early in the doc) shows before "§ 2.1".
   const grouped = useMemo(() => {
     const map = new Map<string, DraftComment[]>();
+    const firstPos = new Map<string, number>();
     for (const c of filteredComments) {
       const key = c.clause_number || 'general';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(c);
+      const pos = c.selection_start ?? Number.POSITIVE_INFINITY;
+      if (!firstPos.has(key) || pos < (firstPos.get(key) as number)) {
+        firstPos.set(key, pos);
+      }
     }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+    // Sort each group internally by document position
+    for (const [, list] of map) list.sort(compareByDocPosition);
+    return Array.from(map.entries()).sort((a, b) => {
+      const pa = firstPos.get(a[0]) ?? Number.POSITIVE_INFINITY;
+      const pb = firstPos.get(b[0]) ?? Number.POSITIVE_INFINITY;
+      if (pa !== pb) return pa - pb;
+      return a[0].localeCompare(b[0], undefined, { numeric: true });
+    });
   }, [filteredComments]);
 
   const wideMode = sidebarWidth >= 520;
