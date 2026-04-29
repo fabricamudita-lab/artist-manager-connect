@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard, Shield } from 'lucide-react';
 import { PermissionsByRoleTab } from '@/pages/teams/PermissionsByRoleTab';
 import { RolePermissionSummary } from '@/components/permissions/RolePermissionSummary';
