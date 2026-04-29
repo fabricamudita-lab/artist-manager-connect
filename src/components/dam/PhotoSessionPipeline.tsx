@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Plus, Camera, Trash2, ArrowUpRight, ArrowDownLeft, Link2 } from 'lucide-react';
-import { STAGE_LABELS, PHOTO_STAGES } from './DAMConstants';
+import { ChevronRight, Plus, Camera, Trash2, ArrowUpRight, ArrowDownLeft, Link2, X, CircleDot, Star } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { STAGE_LABELS, PHOTO_STAGES, ASSET_STATUSES, STATUS_LABELS } from './DAMConstants';
 import type { DAMAsset, PhotoSession } from './DAMTypes';
 import DAMAssetCard from './DAMAssetCard';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,11 @@ interface PhotoSessionPipelineProps {
   onUploadToStage: (sessionId: string, stage: string) => void;
   onDeleteSession: (session: PhotoSession) => void;
   onPromoteAsset?: (asset: DAMAsset, newStage: string) => void;
+  onQuickStatusChange?: (asset: DAMAsset, status: string) => void;
+  onSetAsCover?: (asset: DAMAsset) => void;
+  onOpenLightbox?: (asset: DAMAsset, list: DAMAsset[]) => void;
+  onBulkUpdate?: (assetIds: string[], patch: { status?: string; stage?: string }) => void;
+  onBulkDelete?: (assetIds: string[]) => void;
 }
 
 export default function PhotoSessionPipeline({
@@ -42,11 +48,16 @@ export default function PhotoSessionPipeline({
   onUploadToStage,
   onDeleteSession,
   onPromoteAsset,
+  onQuickStatusChange,
+  onSetAsCover,
+  onOpenLightbox,
+  onBulkUpdate,
+  onBulkDelete,
 }: PhotoSessionPipelineProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('backup');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Cumulative counts
   const counts = useMemo(() => ({
     backup: assets.length,
     seleccionadas: assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= 1).length,
@@ -54,12 +65,36 @@ export default function PhotoSessionPipeline({
     compartir: assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= 3).length,
   }), [assets]);
 
-  // Filter assets based on active tab (cumulative)
   const filteredAssets = useMemo(() => {
     const minLevel = STAGE_LEVEL[activeTab] || 0;
-    if (minLevel === 0) return assets; // backup = show all
+    if (minLevel === 0) return assets;
     return assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= minLevel);
   }, [assets, activeTab]);
+
+  const toggleSelect = (asset: DAMAsset, e: React.MouseEvent) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (e.shiftKey && next.size > 0) {
+        // Range select from last selected to this one in current filtered list
+        const ids = filteredAssets.map(a => a.id);
+        const lastId = Array.from(next).pop()!;
+        const start = ids.indexOf(lastId);
+        const end = ids.indexOf(asset.id);
+        if (start !== -1 && end !== -1) {
+          const [from, to] = [Math.min(start, end), Math.max(start, end)];
+          for (let i = from; i <= to; i++) next.add(ids[i]);
+          return next;
+        }
+      }
+      if (next.has(asset.id)) next.delete(asset.id);
+      else next.add(asset.id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+  const selectedCount = selectedIds.size;
+  const selectedAssets = useMemo(() => assets.filter(a => selectedIds.has(a.id)), [assets, selectedIds]);
 
   return (
     <Card className="border-dashed">
@@ -82,6 +117,58 @@ export default function PhotoSessionPipeline({
 
       {expanded && (
         <CardContent className="pt-0 pb-4">
+          {/* Bulk action bar */}
+          {selectedCount > 0 && (
+            <div className="sticky top-0 z-20 -mx-6 px-6 py-2 mb-3 bg-primary/10 border-y border-primary/30 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="default">{selectedCount} seleccionada{selectedCount !== 1 ? 's' : ''}</Badge>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={clearSelection}>
+                  <X className="h-3 w-3 mr-1" /> Limpiar
+                </Button>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {onBulkUpdate && (
+                  <>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          <CircleDot className="h-3 w-3 mr-1" /> Estado
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel className="text-[10px] uppercase">Cambiar a</DropdownMenuLabel>
+                        {ASSET_STATUSES.map(s => (
+                          <DropdownMenuItem key={s} onClick={() => { onBulkUpdate(Array.from(selectedIds), { status: s }); clearSelection(); }}>
+                            {STATUS_LABELS[s]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          <ArrowUpRight className="h-3 w-3 mr-1" /> Mover a etapa
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        {PHOTO_STAGES.map(s => (
+                          <DropdownMenuItem key={s} onClick={() => { onBulkUpdate(Array.from(selectedIds), { stage: s }); clearSelection(); }}>
+                            {STAGE_LABELS[s]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
+                {onBulkDelete && (
+                  <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => { onBulkDelete(Array.from(selectedIds)); clearSelection(); }}>
+                    <Trash2 className="h-3 w-3 mr-1" /> Eliminar
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Pipeline tabs */}
           <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
             {PHOTO_STAGES.map((stage, idx) => (
@@ -106,9 +193,9 @@ export default function PhotoSessionPipeline({
             ))}
           </div>
 
-          {/* Upload button — always adds to backup */}
+          {/* Upload button */}
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] text-muted-foreground italic">Las imágenes se añaden siempre a Backup.</p>
+            <p className="text-[11px] text-muted-foreground italic">Pulsa el checkbox para selección múltiple. Shift+click para rangos.</p>
             <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onUploadToStage(session.id, 'backup')}>
               <Plus className="h-3 w-3 mr-1" /> Añadir
             </Button>
@@ -120,12 +207,20 @@ export default function PhotoSessionPipeline({
               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {filteredAssets.map(a => (
                   <div key={a.id} className="space-y-1">
-                    <DAMAssetCard asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="grid" />
-                    {/* Stage badge */}
+                    <DAMAssetCard
+                      asset={a}
+                      onSelect={onSelectAsset}
+                      onDelete={onDeleteAsset}
+                      viewMode="grid"
+                      onQuickStatusChange={onQuickStatusChange}
+                      onSetAsCover={onSetAsCover}
+                      onOpenLightbox={(asset) => onOpenLightbox?.(asset, filteredAssets)}
+                      onToggleSelect={toggleSelect}
+                      selected={selectedIds.has(a.id)}
+                    />
                     <Badge className={cn('text-[10px] w-full justify-center', STAGE_BADGE_COLORS[a.stage || 'backup'])}>
                       {STAGE_LABELS[a.stage || 'backup']}
                     </Badge>
-                    {/* Stage action button */}
                     <StageActionButton asset={a} onPromote={onPromoteAsset} onUploadEdited={() => onUploadToStage(session.id, 'editadas')} />
                   </div>
                 ))}
@@ -135,7 +230,17 @@ export default function PhotoSessionPipeline({
                 {filteredAssets.map(a => (
                   <div key={a.id} className="flex items-center gap-2">
                     <div className="flex-1">
-                      <DAMAssetCard asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="list" />
+                      <DAMAssetCard
+                        asset={a}
+                        onSelect={onSelectAsset}
+                        onDelete={onDeleteAsset}
+                        viewMode="list"
+                        onQuickStatusChange={onQuickStatusChange}
+                        onSetAsCover={onSetAsCover}
+                        onOpenLightbox={(asset) => onOpenLightbox?.(asset, filteredAssets)}
+                        onToggleSelect={toggleSelect}
+                        selected={selectedIds.has(a.id)}
+                      />
                     </div>
                     <Badge className={cn('text-[10px] flex-shrink-0', STAGE_BADGE_COLORS[a.stage || 'backup'])}>
                       {STAGE_LABELS[a.stage || 'backup']}

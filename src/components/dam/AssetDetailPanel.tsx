@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
-import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play, Music } from 'lucide-react';
+import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play, Music, Maximize2 } from 'lucide-react';
 import { getVideoThumbnail } from '@/lib/video-thumbnails';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -21,14 +21,16 @@ import {
 import type { DAMAsset, AssetComment } from './DAMTypes';
 import { cn } from '@/lib/utils';
 import { detectImageDimensionsFromUrl } from './utils/detectImageDimensions';
+import { syncCoverIfNeeded } from './utils/coverSync';
 
 interface AssetDetailPanelProps {
   asset: DAMAsset;
   onClose: () => void;
   onUpdate: () => void;
+  onOpenLightbox?: () => void;
 }
 
-export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDetailPanelProps) {
+export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLightbox }: AssetDetailPanelProps) {
   const { user } = useAuth();
   const { data: tracks } = useTracks(asset.release_id);
   const [editing, setEditing] = useState(false);
@@ -126,21 +128,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
         .eq('id', asset.id);
       if (error) throw error;
       // Auto-sync cover to release — only for Cover Álbum, never for Cover Single
-      const subTypeChangedToCover = form.sub_type === 'Cover Álbum' && asset.sub_type !== 'Cover Álbum';
-      const statusChangedToReady = ['listo', 'publicado'].includes(form.status) && !['listo', 'publicado'].includes(asset.status || '');
-      if (
-        asset.section === 'artwork' &&
-        form.sub_type === 'Cover Álbum' &&
-        ['listo', 'publicado'].includes(form.status) &&
-        (subTypeChangedToCover || statusChangedToReady) &&
-        asset.file_url &&
-        (asset as any).release_id
-      ) {
-        await supabase
-          .from('releases')
-          .update({ cover_image_url: asset.file_url } as any)
-          .eq('id', (asset as any).release_id);
-      }
+      await syncCoverIfNeeded(asset, form.sub_type || null, form.status);
 
       toast({ title: 'Asset actualizado' });
       setEditing(false);
@@ -203,9 +191,22 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
       <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="p-4 space-y-4">
           {/* Preview */}
-          <div className="rounded-lg bg-muted overflow-hidden">
+          <div
+            className={cn(
+              'rounded-lg bg-muted overflow-hidden relative group',
+              (isImage || isVideo) && onOpenLightbox && 'cursor-zoom-in',
+            )}
+            onClick={() => (isImage || isVideo) && onOpenLightbox?.()}
+          >
             {isImage ? (
-              <img src={asset.file_url} alt={asset.title} className="w-full max-h-64 object-contain" />
+              <>
+                <img src={asset.file_url} alt={asset.title} className="w-full max-h-64 object-contain" />
+                {onOpenLightbox && (
+                  <div className="absolute top-2 right-2 bg-black/60 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 className="h-3.5 w-3.5 text-white" />
+                  </div>
+                )}
+              </>
             ) : isVideo ? (
               (() => {
                 const thumb = getVideoThumbnail(asset.external_url);
@@ -213,7 +214,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                   <div className="relative">
                     <img src={thumb} alt={asset.title} className="w-full max-h-64 object-contain" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <a href={asset.external_url || '#'} target="_blank" rel="noreferrer" className="bg-black/50 rounded-full p-3 hover:bg-black/70 transition-colors">
+                      <a href={asset.external_url || '#'} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="bg-black/50 rounded-full p-3 hover:bg-black/70 transition-colors">
                         <Play className="h-8 w-8 text-white" />
                       </a>
                     </div>
@@ -221,12 +222,12 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                 ) : asset.external_url ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2">
                     <Video className="h-10 w-10 text-muted-foreground" />
-                    <a href={asset.external_url} target="_blank" rel="noreferrer" className="text-xs text-primary flex items-center gap-1">
+                    <a href={asset.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-primary flex items-center gap-1">
                       <ExternalLink className="h-3 w-3" /> Ver enlace externo
                     </a>
                   </div>
                 ) : (
-                  <video src={asset.file_url} controls className="w-full max-h-64" />
+                  <video src={asset.file_url} controls className="w-full max-h-64" onClick={e => e.stopPropagation()} />
                 );
               })()
             ) : (
@@ -290,18 +291,45 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                   <Select value={form.format_spec} onValueChange={v => setForm(f => ({ ...f, format_spec: v }))}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                     <SelectContent>
-                      {FORMAT_SPECS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                      {Array.from(new Set([
+                        ...FORMAT_SPECS,
+                        ...(detectedDims?.formatSpec ? [detectedDims.formatSpec] : []),
+                        ...(form.format_spec ? [form.format_spec] : []),
+                      ].filter(Boolean))).map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Resolución</Label>
-                  <Select value={form.resolution} onValueChange={v => setForm(f => ({ ...f, resolution: v }))}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>
-                      {RESOLUTION_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Resolución</span>
+                    {detectedDims?.resolution && form.resolution !== detectedDims.resolution && (
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline"
+                        onClick={() => setForm(f => ({ ...f, resolution: detectedDims.resolution }))}
+                      >
+                        Usar {detectedDims.resolution} (auto)
+                      </button>
+                    )}
+                  </Label>
+                  <Input
+                    value={form.resolution}
+                    onChange={e => setForm(f => ({ ...f, resolution: e.target.value }))}
+                    placeholder={detectedDims?.resolution ? `Sugerido: ${detectedDims.resolution}` : 'Ej: 3000×3000'}
+                    className="h-8 text-sm"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {RESOLUTION_OPTIONS.map(r => (
+                      <Badge
+                        key={r}
+                        variant={form.resolution === r ? 'default' : 'outline'}
+                        className="text-[10px] cursor-pointer"
+                        onClick={() => setForm(f => ({ ...f, resolution: r }))}
+                      >
+                        {r}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">Fecha entrega</Label>

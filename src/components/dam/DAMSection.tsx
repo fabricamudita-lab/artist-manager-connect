@@ -33,7 +33,10 @@ interface DAMSectionProps {
   onDeleteAsset: (asset: DAMAsset) => void;
   onAddAsset: (section: string) => void;
   defaultOpen?: boolean;
-  children?: React.ReactNode; // For photo sessions
+  children?: React.ReactNode;
+  onQuickStatusChange?: (asset: DAMAsset, status: string) => void;
+  onSetAsCover?: (asset: DAMAsset) => void;
+  onOpenLightbox?: (asset: DAMAsset, list: DAMAsset[]) => void;
 }
 
 export default function DAMSectionComponent({
@@ -45,6 +48,9 @@ export default function DAMSectionComponent({
   onAddAsset,
   defaultOpen = true,
   children,
+  onQuickStatusChange,
+  onSetAsCover,
+  onOpenLightbox,
 }: DAMSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const label = SECTION_LABELS[sectionKey] || sectionKey;
@@ -90,13 +96,31 @@ export default function DAMSectionComponent({
               viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {assets.map(a => (
-                    <DAMAssetCard key={a.id} asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="grid" />
+                    <DAMAssetCard
+                      key={a.id}
+                      asset={a}
+                      onSelect={onSelectAsset}
+                      onDelete={onDeleteAsset}
+                      viewMode="grid"
+                      onQuickStatusChange={onQuickStatusChange}
+                      onSetAsCover={onSetAsCover}
+                      onOpenLightbox={(asset) => onOpenLightbox?.(asset, assets)}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {assets.map(a => (
-                    <DAMAssetCard key={a.id} asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="list" />
+                    <DAMAssetCard
+                      key={a.id}
+                      asset={a}
+                      onSelect={onSelectAsset}
+                      onDelete={onDeleteAsset}
+                      viewMode="list"
+                      onQuickStatusChange={onQuickStatusChange}
+                      onSetAsCover={onSetAsCover}
+                      onOpenLightbox={(asset) => onOpenLightbox?.(asset, assets)}
+                    />
                   ))}
                 </div>
               )
@@ -107,3 +131,4 @@ export default function DAMSectionComponent({
     </Collapsible>
   );
 }
+

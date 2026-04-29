@@ -18,6 +18,8 @@ import PhotoSessionPipeline from '@/components/dam/PhotoSessionPipeline';
 import AssetDetailPanel from '@/components/dam/AssetDetailPanel';
 import AddAssetDialog from '@/components/dam/AddAssetDialog';
 import CreateSessionDialog from '@/components/dam/CreateSessionDialog';
+import AssetLightbox from '@/components/dam/AssetLightbox';
+import { syncCoverIfNeeded } from '@/components/dam/utils/coverSync';
 
 export default function ReleaseImagenVideo() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +39,19 @@ export default function ReleaseImagenVideo() {
   const [addDialogSessionId, setAddDialogSessionId] = useState<string | undefined>();
   const [addDialogStage, setAddDialogStage] = useState<string | undefined>();
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
+
+  // Lightbox
+  const [lightboxAssets, setLightboxAssets] = useState<DAMAsset[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const openLightbox = useCallback((asset: DAMAsset, list: DAMAsset[]) => {
+    const visible = list.filter(a => a.type === 'image' || a.type === 'video');
+    const idx = visible.findIndex(a => a.id === asset.id);
+    setLightboxAssets(visible);
+    setLightboxIndex(Math.max(0, idx));
+    setLightboxOpen(true);
+  }, []);
 
   // Fetch assets
   const { data: allAssets = [], isLoading: loadingAssets } = useQuery({
@@ -192,9 +207,66 @@ export default function ReleaseImagenVideo() {
     }
   };
 
-  if (loadingRelease) {
-    return <Skeleton className="h-64 w-full" />;
-  }
+  const handleQuickStatusChange = async (asset: DAMAsset, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update({ status: newStatus } as any)
+        .eq('id', asset.id);
+      if (error) throw error;
+      await syncCoverIfNeeded(asset, asset.sub_type || null, newStatus);
+      toast({ title: `Estado: ${STATUS_LABELS[newStatus] || newStatus}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al cambiar estado', variant: 'destructive' });
+    }
+  };
+
+  const handleSetAsCover = async (asset: DAMAsset) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update({ sub_type: 'Cover Álbum', status: 'listo' } as any)
+        .eq('id', asset.id);
+      if (error) throw error;
+      await syncCoverIfNeeded(asset, 'Cover Álbum', 'listo');
+      toast({ title: 'Marcada como cover del álbum' });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al marcar cover', variant: 'destructive' });
+    }
+  };
+
+  const handleBulkUpdate = async (assetIds: string[], patch: { status?: string; stage?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update(patch as any)
+        .in('id', assetIds);
+      if (error) throw error;
+      toast({ title: `${assetIds.length} archivo${assetIds.length !== 1 ? 's' : ''} actualizado${assetIds.length !== 1 ? 's' : ''}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error en cambio masivo', variant: 'destructive' });
+    }
+  };
+
+  const handleBulkDelete = async (assetIds: string[]) => {
+    if (!confirm(`¿Eliminar ${assetIds.length} archivo${assetIds.length !== 1 ? 's' : ''}?`)) return;
+    try {
+      const toDelete = allAssets.filter(a => assetIds.includes(a.id));
+      const buckets = toDelete.map(a => a.file_bucket).filter(Boolean) as string[];
+      if (buckets.length > 0) {
+        await supabase.storage.from('release-assets').remove(buckets);
+      }
+      const { error } = await supabase.from('release_assets').delete().in('id', assetIds);
+      if (error) throw error;
+      toast({ title: `${assetIds.length} eliminado${assetIds.length !== 1 ? 's' : ''}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al eliminar', variant: 'destructive' });
+    }
+  };
 
   const sectionsToShow = sectionFilter === 'all' ? [...DAM_SECTIONS] : [sectionFilter as typeof DAM_SECTIONS[number]];
 
@@ -276,6 +348,9 @@ export default function ReleaseImagenVideo() {
                   onSelectAsset={setSelectedAsset}
                   onDeleteAsset={handleDeleteAsset}
                   onAddAsset={handleAddAsset}
+                  onQuickStatusChange={handleQuickStatusChange}
+                  onSetAsCover={handleSetAsCover}
+                  onOpenLightbox={openLightbox}
                 >
                   {photoSessions.length > 0 && (
                     <div className="space-y-3 mb-4">
@@ -290,6 +365,11 @@ export default function ReleaseImagenVideo() {
                           onUploadToStage={handleUploadToStage}
                           onDeleteSession={handleDeleteSession}
                           onPromoteAsset={handlePromoteAsset}
+                          onQuickStatusChange={handleQuickStatusChange}
+                          onSetAsCover={handleSetAsCover}
+                          onOpenLightbox={openLightbox}
+                          onBulkUpdate={handleBulkUpdate}
+                          onBulkDelete={handleBulkDelete}
                         />
                       ))}
                     </div>
@@ -308,6 +388,9 @@ export default function ReleaseImagenVideo() {
                 onDeleteAsset={handleDeleteAsset}
                 onAddAsset={handleAddAsset}
                 defaultOpen={section !== 'formatos_fisicos'}
+                onQuickStatusChange={handleQuickStatusChange}
+                onSetAsCover={handleSetAsCover}
+                onOpenLightbox={openLightbox}
               />
             );
           })}
@@ -319,14 +402,28 @@ export default function ReleaseImagenVideo() {
         <AssetDetailPanel
           asset={selectedAsset}
           onClose={() => setSelectedAsset(null)}
+          onOpenLightbox={() => {
+            // Open lightbox with peer assets (same section / session)
+            const peers = selectedAsset.session_id
+              ? allAssets.filter(a => a.session_id === selectedAsset.session_id)
+              : allAssets.filter(a => a.section === selectedAsset.section && !a.session_id);
+            openLightbox(selectedAsset, peers);
+          }}
           onUpdate={() => {
             refreshData();
-            // Refresh the selected asset
             supabase.from('release_assets').select('*').eq('id', selectedAsset.id).single()
               .then(({ data }) => { if (data) setSelectedAsset(data as DAMAsset); });
           }}
         />
       )}
+
+      {/* Lightbox */}
+      <AssetLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        assets={lightboxAssets}
+        initialIndex={lightboxIndex}
+      />
 
       {/* Add asset dialog */}
       <AddAssetDialog
