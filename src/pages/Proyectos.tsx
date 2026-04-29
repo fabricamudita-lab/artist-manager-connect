@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProjectSettingsDialog, DEFAULT_CARD_CONFIG, type CardDisplayConfig } from '@/components/ProjectSettingsDialog';
+import { HubGate } from '@/components/permissions/HubGate';
 import { 
   FolderOpen, 
   Search, 
@@ -36,7 +37,7 @@ const STATUS_COLORS: Record<string, string> = {
   archivado: 'bg-muted text-muted-foreground',
 };
 
-export default function Proyectos() {
+function ProyectosInner() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterArtist, setFilterArtist] = useState('all');
@@ -385,5 +386,13 @@ export default function Proyectos() {
         })()}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function Proyectos() {
+  return (
+    <HubGate module="projects" required="view">
+      <ProyectosInner />
+    </HubGate>
   );
 }

@@ -36,6 +36,24 @@ import { useNavigate } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import { useState } from 'react';
 import { useActionCenter } from '@/hooks/useActionCenter';
+import { useCan } from '@/hooks/useFunctionalPermissions';
+import type { ModuleKey } from '@/lib/permissions/types';
+
+// Mapa URL → módulo funcional (para filtrar sidebar por permisos).
+// Las URLs no listadas son siempre visibles (Dashboard, Chat, Ajustes, etc.).
+const URL_TO_MODULE: Record<string, ModuleKey> = {
+  '/booking': 'bookings',
+  '/finanzas': 'cashflow',
+  '/analytics': 'analytics',
+  '/proyectos': 'projects',
+  '/releases': 'releases',
+  '/drive': 'drive',
+  '/documents': 'contracts',
+  '/roadmaps': 'roadmaps',
+  '/solicitudes': 'solicitudes',
+  '/automatizaciones': 'automations',
+  '/agenda': 'contacts',
+};
 
 // ─── NAV ITEM TYPE ────────────────────────────────────────────────────────────
 
@@ -174,7 +192,16 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const isManagement = profile?.active_role === 'management' && !isImpersonating;
+  const { can, loading: permsLoading } = useCan();
   const navigationGroups = getNavigationGroups(isManagement, linkedArtist?.id);
+
+  // Filtra entradas según permiso funcional (en management). Mientras carga, no oculta nada.
+  const isItemAllowed = (url: string): boolean => {
+    if (!isManagement || permsLoading) return true;
+    const mod = URL_TO_MODULE[url];
+    if (!mod) return true;
+    return can(mod, 'view');
+  };
 
   // Badge counts — no extra queries, uses data already fetched
   const { items: actionItems } = useActionCenter({ status: ['pending', 'in_review'] });
@@ -248,9 +275,12 @@ export function AppSidebar() {
   };
 
   const renderGroup = (group: NavGroup, index: number) => {
-    const allItems = isManagement && group.managementExtra
+    const allItems = (isManagement && group.managementExtra
       ? [...group.items, ...group.managementExtra]
-      : group.items;
+      : group.items
+    ).filter(it => isItemAllowed(it.url));
+
+    if (allItems.length === 0) return null;
 
     return (
       <div key={group.label ?? 'inicio'}>

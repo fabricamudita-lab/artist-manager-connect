@@ -31,6 +31,7 @@ import { DocumentStats } from '@/components/DocumentStats';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
+import { HubGate } from '@/components/permissions/HubGate';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,7 +75,7 @@ const CATEGORIES = [
   { value: 'other', label: 'Otros' },
 ];
 
-export default function Documents() {
+function DocumentsInner() {
   usePageTitle('Documentos');
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -807,5 +808,13 @@ export default function Documents() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function Documents() {
+  return (
+    <HubGate module="contracts" required="view">
+      <DocumentsInner />
+    </HubGate>
   );
 }

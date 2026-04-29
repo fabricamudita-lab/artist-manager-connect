@@ -35,6 +35,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useRoadmaps, TourRoadmap } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
+import { HubGate } from '@/components/permissions/HubGate';
 
 const statusConfig: Record<TourRoadmap['status'], { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   draft: { label: 'Borrador', variant: 'secondary' },
@@ -43,7 +44,7 @@ const statusConfig: Record<TourRoadmap['status'], { label: string; variant: 'def
   cancelled: { label: 'Cancelado', variant: 'destructive' },
 };
 
-export default function Roadmaps() {
+function RoadmapsInner() {
   const navigate = useNavigate();
   const { roadmaps, isLoading, createRoadmap, deleteRoadmap } = useRoadmaps();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -486,5 +487,13 @@ export default function Roadmaps() {
         onSelect={handleBookingSelect}
       />
     </div>
+  );
+}
+
+export default function Roadmaps() {
+  return (
+    <HubGate module="roadmaps" required="view">
+      <RoadmapsInner />
+    </HubGate>
   );
 }

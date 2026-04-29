@@ -7,8 +7,9 @@ import { AUTOMATION_MODULES, AUTOMATIONS } from '@/lib/automationDefinitions';
 import { useAutomationConfigs } from '@/hooks/useAutomationConfigs';
 import { AutomationCard } from '@/components/AutomationCard';
 import { toast } from '@/hooks/use-toast';
+import { HubGate } from '@/components/permissions/HubGate';
 
-export default function Automatizaciones() {
+function AutomatizacionesInner() {
   const { configs, isLoading, upsertConfig, enableAllRecommended, activeCount, totalCount, artists } = useAutomationConfigs();
   const [activeTab, setActiveTab] = useState('booking');
 
@@ -99,5 +100,13 @@ export default function Automatizaciones() {
         ))}
       </Tabs>
     </div>
+  );
+}
+
+export default function Automatizaciones() {
+  return (
+    <HubGate module="automations" required="view">
+      <AutomatizacionesInner />
+    </HubGate>
   );
 }

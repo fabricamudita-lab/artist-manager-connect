@@ -13,6 +13,7 @@ import ImportPlatformDialog from '@/components/releases/ImportPlatformDialog';
 import AllCronogramasView from '@/components/releases/AllCronogramasView';
 import { ReleasesFiltersToolbar, ReleasesFiltersState } from '@/components/releases/ReleasesFiltersToolbar';
 import { useReleasesWithSearch } from '@/hooks/useReleasesSearch';
+import { HubGate } from '@/components/permissions/HubGate';
 
 const TYPE_ICONS = {
   album: Album,
@@ -34,7 +35,7 @@ const STATUS_LABELS = {
   archived: 'Archivado',
 };
 
-export default function Releases() {
+function ReleasesInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');
@@ -225,5 +226,13 @@ export default function Releases() {
         onOpenChange={setImportDialogOpen}
       />
     </div>
+  );
+}
+
+export default function Releases() {
+  return (
+    <HubGate module="releases" required="view">
+      <ReleasesInner />
+    </HubGate>
   );
 }
