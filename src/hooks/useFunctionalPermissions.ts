@@ -8,6 +8,7 @@ import {
   type PermissionLevel,
 } from '@/lib/permissions/types';
 import {
+  getActiveFunctionalRole,
   getEffectivePermissions,
   hasPermission,
   invalidatePermissionsCache,
@@ -18,6 +19,7 @@ interface State {
   perms: EffectivePermissions;
   workspaceId: string | null;
   isWorkspaceAdmin: boolean;
+  roleName: string | null;
 }
 
 /**
@@ -31,6 +33,7 @@ export function useFunctionalPermissions(): State {
     perms: { ...EMPTY_PERMISSIONS },
     workspaceId: null,
     isWorkspaceAdmin: false,
+    roleName: null,
   });
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export function useFunctionalPermissions(): State {
             perms: { ...EMPTY_PERMISSIONS },
             workspaceId: null,
             isWorkspaceAdmin: false,
+            roleName: null,
           });
         }
         return;
@@ -68,14 +72,18 @@ export function useFunctionalPermissions(): State {
             perms: { ...EMPTY_PERMISSIONS },
             workspaceId: null,
             isWorkspaceAdmin: false,
+            roleName: null,
           });
         }
         return;
       }
 
-      const perms = await getEffectivePermissions(user.id, workspaceId);
+      const [perms, roleName] = await Promise.all([
+        getEffectivePermissions(user.id, workspaceId),
+        getActiveFunctionalRole(user.id, workspaceId),
+      ]);
       if (!cancelled) {
-        setState({ loading: false, perms, workspaceId, isWorkspaceAdmin });
+        setState({ loading: false, perms, workspaceId, isWorkspaceAdmin, roleName });
       }
     }
 
@@ -126,10 +134,11 @@ export function useFunctionalPermissions(): State {
  * Helper hook: devuelve `(module, level) => boolean`.
  */
 export function useCan() {
-  const { perms, loading } = useFunctionalPermissions();
+  const { perms, loading, roleName } = useFunctionalPermissions();
   return {
     loading,
     perms,
+    roleName,
     can: (module: ModuleKey, required: PermissionLevel) => hasPermission(perms, module, required),
   };
 }
