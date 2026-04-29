@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProjectSettingsDialog, DEFAULT_CARD_CONFIG, type CardDisplayConfig } from '@/components/ProjectSettingsDialog';
 import { HubGate } from '@/components/permissions/HubGate';
+import { IfCan } from '@/components/permissions/PermissionGuard';
 import { 
   FolderOpen, 
   Search, 
@@ -177,10 +178,12 @@ function ProyectosInner() {
                 Gestiona todos tus proyectos en un solo lugar
               </p>
             </div>
-            <Button onClick={() => navigate('/projects')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Proyecto
-            </Button>
+            <IfCan module="projects" required="edit">
+              <Button onClick={() => navigate('/projects')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Proyecto
+              </Button>
+            </IfCan>
           </div>
 
           {/* Filters */}
@@ -256,10 +259,12 @@ function ProyectosInner() {
                 ? 'No se encontraron proyectos con esos filtros'
                 : 'Crea un proyecto para organizar tu trabajo'}
             </p>
-            <Button onClick={() => navigate('/projects')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Proyecto
-            </Button>
+            <IfCan module="projects" required="edit">
+              <Button onClick={() => navigate('/projects')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Proyecto
+              </Button>
+            </IfCan>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

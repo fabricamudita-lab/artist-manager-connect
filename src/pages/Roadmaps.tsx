@@ -36,6 +36,7 @@ import { useRoadmaps, TourRoadmap } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
 import { HubGate } from '@/components/permissions/HubGate';
+import { IfCan } from '@/components/permissions/PermissionGuard';
 
 const statusConfig: Record<TourRoadmap['status'], { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   draft: { label: 'Borrador', variant: 'secondary' },
@@ -171,10 +172,12 @@ function RoadmapsInner() {
               <List className="w-4 h-4" />
             </Button>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nueva Hoja de Ruta
-          </Button>
+          <IfCan module="roadmaps" required="edit">
+            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nueva Hoja de Ruta
+            </Button>
+          </IfCan>
         </div>
       </div>
 
@@ -394,10 +397,12 @@ function RoadmapsInner() {
               </p>
             </div>
             {!hasActiveFilters && (
-              <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nueva Hoja de Ruta
-              </Button>
+              <IfCan module="roadmaps" required="edit">
+                <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Nueva Hoja de Ruta
+                </Button>
+              </IfCan>
             )}
           </div>
         </Card>

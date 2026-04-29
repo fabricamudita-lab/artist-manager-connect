@@ -14,6 +14,7 @@ import AllCronogramasView from '@/components/releases/AllCronogramasView';
 import { ReleasesFiltersToolbar, ReleasesFiltersState } from '@/components/releases/ReleasesFiltersToolbar';
 import { useReleasesWithSearch } from '@/hooks/useReleasesSearch';
 import { HubGate } from '@/components/permissions/HubGate';
+import { IfCan } from '@/components/permissions/PermissionGuard';
 
 const TYPE_ICONS = {
   album: Album,
@@ -114,10 +115,12 @@ function ReleasesInner() {
             <Download className="mr-2 h-4 w-4" />
             Importar desde plataforma
           </Button>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Lanzamiento
-          </Button>
+          <IfCan module="releases" required="edit">
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Lanzamiento
+            </Button>
+          </IfCan>
         </div>
       </div>
 
@@ -209,10 +212,12 @@ function ReleasesInner() {
               : 'Crea tu primer álbum, EP o single'}
           </p>
           {!(filters.search || filters.status !== 'all' || filters.type !== 'all' || filters.artistId !== 'all') && (
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Lanzamiento
-            </Button>
+            <IfCan module="releases" required="edit">
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo Lanzamiento
+              </Button>
+            </IfCan>
           )}
         </Card>
       )}
