@@ -769,7 +769,8 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
                         <ContactSelector
                           value={formData.promotor_contact_id}
                           onValueChange={(value) => setFormData({ ...formData, promotor_contact_id: value })}
-                          placeholder="Buscar contacto..."
+                          artistId={formData.artist_id || undefined}
+                          placeholder={formData.artist_id ? "Buscar contacto del artista..." : "Selecciona primero un artista"}
                         />
                       </div>
                     </TabsContent>

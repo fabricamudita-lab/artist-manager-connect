@@ -55,6 +55,35 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
   const fetchContacts = async () => {
     setLoading(true);
     try {
+      let contactIds: string[] | null = null;
+
+      // Si hay artista, obtenemos los contactos asignados a ese artista
+      // a través de la tabla puente `contact_artist_assignments`, que es
+      // la fuente de verdad para la asociación contacto↔artista.
+      if (artistId) {
+        const { data: assignments, error: assignErr } = await supabase
+          .from('contact_artist_assignments')
+          .select('contact_id')
+          .eq('artist_id', artistId);
+        if (assignErr) throw assignErr;
+        contactIds = (assignments || []).map((a: any) => a.contact_id);
+
+        // Compatibilidad: incluir también contactos con `contacts.artist_id`
+        // igual al artista (modelo legado).
+        const { data: legacy } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('artist_id', artistId);
+        for (const row of (legacy || []) as any[]) {
+          if (!contactIds.includes(row.id)) contactIds.push(row.id);
+        }
+
+        if (contactIds.length === 0) {
+          setContacts([]);
+          return;
+        }
+      }
+
       let query = supabase
         .from('contacts')
         .select(`
@@ -63,9 +92,8 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
         `)
         .order('name', { ascending: true });
 
-      // Filter by artist if specified
-      if (artistId) {
-        query = query.eq('artist_id', artistId);
+      if (contactIds) {
+        query = query.in('id', contactIds);
       }
 
       const { data, error } = await query;
@@ -115,6 +143,17 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
         .single();
 
       if (error) throw error;
+
+      // Si hay artista seleccionado, crear también la asignación en
+      // `contact_artist_assignments` para que aparezca al filtrar por artista.
+      if (artistId && data?.id) {
+        const { error: assignErr } = await supabase
+          .from('contact_artist_assignments')
+          .insert([{ contact_id: data.id, artist_id: artistId }]);
+        if (assignErr) {
+          console.error('Error linking contact to artist:', assignErr);
+        }
+      }
 
       toast({
         title: "Éxito",
