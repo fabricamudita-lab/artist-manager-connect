@@ -1,68 +1,33 @@
-# Mostrar mensaje de "Sin permisos" en hubs principales
+He revisado el estado actual y el caso concreto de Perfil Test:
 
-## Problema
+- Perfil Test está como `workspace_role = MEMBER`, no debería tener bypass de OWNER/TEAM_MANAGER.
+- Su rol funcional activo es `Booking Agent`.
+- En la matriz, `Booking Agent` tiene `releases = none`.
+- Aun así la pantalla de Discografía está renderizando el contenido vacío, así que el problema está en la resolución/uso del permiso en frontend, no en la intención de la matriz.
 
-Cuando "Perfil Test" tiene un rol funcional limitado (p. ej. **Booking Agent**) y entra a **Discografía**, no ve el mensaje de bloqueo: ve la pantalla vacía "Sin lanzamientos". Esto pasa porque:
+Plan de corrección:
 
-- En `src/App.tsx`, las rutas **top-level** (`/releases`, `/booking`, `/finanzas`, `/projects`, `/drive`, `/documents`, `/roadmaps`, `/sincronizaciones`, `/analytics`, `/automatizaciones`, `/agenda`) **no están envueltas en `<HubGate>`**.
-- Sólo las sub-rutas de Releases (`/releases/:id/cronograma`, etc.) tienen `HubGate`. RLS bloquea los datos a nivel BD, pero la UI muestra el estado vacío en lugar del mensaje claro.
+1. Hacer que `HubGate` resuelva el permiso de forma autoritativa
+   - Ahora `HubGate` depende de permisos calculados en el cliente.
+   - Lo reforzaré para que, al entrar en un módulo, consulte el permiso funcional real mediante la función de base de datos `get_functional_permission`/RPC equivalente o una comprobación directa fiable.
+   - Si `releases = none`, mostrará `ForbiddenView` aunque la query de lanzamientos devuelva 0 filas.
 
-## Solución
+2. Asegurar que Discografía no pueda mostrar empty-state cuando el permiso es `none`
+   - En `/releases`, antes de renderizar filtros, botones o “Sin lanzamientos”, se mostrará el bloqueo.
+   - Mensaje esperado para Perfil Test:
+     `El perfil Booking Agent tiene limitaciones. Tu rol actual no permite ver Releases/Discografía. Pide al creador del workspace que ajuste tus permisos para acceder a esta información.`
 
-### 1. Envolver hubs principales con `HubGate`
+3. Corregir el refresco tras cambiar roles desde “Gestionar acceso artista”
+   - Invalidar correctamente caché local y queries cuando cambia el rol funcional del contacto espejo.
+   - Evitar que una sesión en incógnito mantenga permisos antiguos por caché en memoria durante el TTL.
+   - Forzar `bypassCache` en las comprobaciones de entrada a hubs críticos.
 
-En `src/App.tsx`, añadir `<HubGate module="X" required="view">` dentro del `DashboardLayout` para cada ruta top-level, mapeando ruta → módulo del catálogo:
+4. Alinear cliente y base de datos
+   - Revisar `getEffectivePermissions`, `getActiveFunctionalRole` y `useFunctionalPermissions` para que no haya diferencias entre los defaults TypeScript y los defaults guardados en Supabase.
+   - Mantener el bypass solo para `OWNER` y `TEAM_MANAGER`, nunca para `MEMBER` con perfil management.
 
-| Ruta | Módulo |
-|---|---|
-| `/releases` | `releases` |
-| `/booking` | `bookings` |
-| `/finanzas` | `budgets` (hub financiero principal) |
-| `/projects` y `/proyectos` | `projects` |
-| `/drive` | `drive` |
-| `/documents` | `contracts` |
-| `/roadmaps` | `roadmaps` |
-| `/sincronizaciones` | `solicitudes` |
-| `/analytics` | `analytics` |
-| `/automatizaciones` | `automations` |
-| `/agenda` | `bookings` (calendario de directos) |
-
-`HubGate` ya muestra spinner mientras carga y `ForbiddenView` cuando no hay permiso, así que no hay riesgo de "flash" de contenido.
-
-### 2. Personalizar el mensaje con el rol funcional actual
-
-Para que el aviso diga literalmente algo como *"El perfil **Booking Agent** tiene limitaciones para ver Releases. Pide al creador del workspace que ajuste tus permisos."*, hay que exponer el nombre del rol:
-
-- **`src/lib/permissions/service.ts`**: nueva función `getActiveFunctionalRole(userId, workspaceId)` que reutiliza la query del contacto-espejo (ya existe inline en `getEffectivePermissions`) y devuelve el `role_name` actual. Cachear junto con los perms.
-- **`src/hooks/useFunctionalPermissions.ts`**: cargar también el `roleName` y devolverlo en el state (`{ loading, perms, workspaceId, isWorkspaceAdmin, roleName }`). `useCan()` también lo expone.
-- **`src/components/permissions/HubGate.tsx`**: pasar `roleName` a `ForbiddenView`.
-- **`src/components/permissions/ForbiddenView.tsx`**:
-  - Nueva prop opcional `roleName?: string`.
-  - Si llega, el copy pasa a:
-    > **El perfil _{roleName}_ tiene limitaciones**
-    >
-    > Tu rol actual no permite {ver/editar/gestionar} **{Módulo}**. Pide al creador del workspace que ajuste tus permisos para acceder a esta información.
-  - Si `roleName` es null (caso raro: sin contacto-espejo) se mantiene el copy genérico actual.
-
-Botones existentes ("Ir al Dashboard" / "Ver matriz de roles") se conservan.
-
-### 3. Sin cambios destructivos
-
-- No se tocan las RLS ya endurecidas en la migración anterior.
-- No se tocan las sub-rutas que ya tienen `HubGate`.
-- El bypass para `OWNER`/`TEAM_MANAGER` sigue intacto: nunca verán el mensaje.
-
-## Archivos modificados
-
-- `src/App.tsx` — wrap de 11 rutas top-level.
-- `src/lib/permissions/service.ts` — `getActiveFunctionalRole` + cache.
-- `src/hooks/useFunctionalPermissions.ts` — exponer `roleName`.
-- `src/components/permissions/HubGate.tsx` — propagar `roleName`.
-- `src/components/permissions/ForbiddenView.tsx` — copy personalizado.
-
-## Verificación manual
-
-1. Con "Perfil Test" como **Booking Agent**, ir a `/releases` → debe verse el mensaje "El perfil _Booking Agent_ tiene limitaciones…".
-2. Ir a `/booking` → acceso permitido (su módulo).
-3. Cambiar el rol a **Road Manager** y volver a `/releases` → mensaje actualizado al instante (gracias al realtime de `artist_role_bindings` ya implementado).
-4. Como OWNER → todos los hubs siguen accesibles sin mensaje.
+5. Validación específica
+   - Verificar con Perfil Test / Booking Agent que `/releases` muestra el mensaje de limitación.
+   - Verificar que Booking sigue accesible para Booking Agent.
+   - Verificar que OWNER/TEAM_MANAGER siguen viendo Discografía normalmente.
+   - Verificar que los botones de creación/importación no aparecen antes del bloqueo.
