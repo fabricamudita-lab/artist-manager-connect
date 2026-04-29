@@ -144,6 +144,17 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
 
       if (error) throw error;
 
+      // Si hay artista seleccionado, crear también la asignación en
+      // `contact_artist_assignments` para que aparezca al filtrar por artista.
+      if (artistId && data?.id) {
+        const { error: assignErr } = await supabase
+          .from('contact_artist_assignments')
+          .insert([{ contact_id: data.id, artist_id: artistId }]);
+        if (assignErr) {
+          console.error('Error linking contact to artist:', assignErr);
+        }
+      }
+
       toast({
         title: "Éxito",
         description: "Contacto creado correctamente.",
