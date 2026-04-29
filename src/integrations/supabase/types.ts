@@ -8500,6 +8500,18 @@ export type Database = {
         Returns: Json
       }
       can_close_budget: { Args: { p_budget_id: string }; Returns: Json }
+      can_edit_release: {
+        Args: { _release_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_manage_release: {
+        Args: { _release_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_release: {
+        Args: { _release_id: string; _user_id: string }
+        Returns: boolean
+      }
       check_epk_password_attempts: {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: Json

@@ -33,7 +33,9 @@ export function PermissionGuard({
   tooltip,
 }: PermissionGuardProps) {
   const { can, loading } = useCan();
-  const allowed = loading ? true : can(module, required);
+  // Durante la carga, considerar NO permitido para acciones sensibles —
+  // así no aparecen botones de editar/borrar antes de aplicar el bloqueo.
+  const allowed = loading ? false : can(module, required);
 
   if (allowed || !withTooltip) return <>{children(allowed)}</>;
 
@@ -66,6 +68,8 @@ interface IfCanProps {
 /** Atajo declarativo: muestra `children` solo si se cumple el permiso. */
 export function IfCan({ module, required, children, fallback = null }: IfCanProps) {
   const { can, loading } = useCan();
-  if (loading) return <>{children}</>;
+  // Durante la carga ocultamos el contenido protegido para evitar
+  // que se filtren acciones a usuarios sin permiso.
+  if (loading) return <>{fallback}</>;
   return <>{can(module, required) ? children : fallback}</>;
 }
