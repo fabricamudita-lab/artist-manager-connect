@@ -1451,7 +1451,7 @@ const confirmStatusChange = async (comment: string) => {
 
       {/* Stats View */}
       {viewMode === 'stats' && (
-        <SolicitudesStats solicitudes={solicitudes} />
+        <SolicitudesStats solicitudes={filteredSolicitudes} />
       )}
 
       {/* Kanban View */}
