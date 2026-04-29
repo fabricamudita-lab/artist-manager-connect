@@ -35,11 +35,11 @@ const WORKFLOW_COLORS: Record<string, [number, number, number]> = {
   directo: [34, 197, 94],
 };
 
-const STATUS_BAR_OPACITY: Record<TaskStatus, number> = {
-  pendiente: 0.35,
-  en_proceso: 0.85,
-  completado: 1,
-  retrasado: 0.85,
+const STATUS_COLORS: Record<TaskStatus, [number, number, number]> = {
+  pendiente: [156, 163, 175], // gris
+  en_proceso: [59, 130, 246], // azul
+  completado: [34, 197, 94],  // verde
+  retrasado: [239, 68, 68],   // rojo
 };
 
 export function exportCronogramaGanttPDF(
