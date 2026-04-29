@@ -810,7 +810,7 @@ export default function ProjectDetail() {
     const loadLinked = async () => {
       try {
         const [bRes, cRes, dRes, sRes, tRes] = await Promise.all([
-          supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, formato, artist:artist_id(name, stage_name)').eq('project_id', id).order('created_at', { ascending: false }),
+          supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, formato, booking_offer_id, artist:artist_id(name, stage_name), booking_offer:booking_offer_id(id, phase, fee), budget_items(quantity, unit_price)').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('contracts').select('id, title, status, file_path').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('documents').select('id, title, file_url, category').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('solicitudes').select('id, nombre_solicitante, estado, fecha_creacion').eq('project_id', id).order('fecha_creacion', { ascending: false }),
@@ -1135,7 +1135,7 @@ export default function ProjectDetail() {
 
   const refreshBudgets = async () => {
     try {
-      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, artist:artist_id(name, stage_name)').eq('project_id', id).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, booking_offer_id, artist:artist_id(name, stage_name), booking_offer:booking_offer_id(id, phase, fee), budget_items(quantity, unit_price)').eq('project_id', id).order('created_at', { ascending: false });
       if (!error) setBudgets(data || []);
     } catch (e) {
       console.error('Error refreshing budgets', e);
