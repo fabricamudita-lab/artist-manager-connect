@@ -348,6 +348,9 @@ export default function ReleaseImagenVideo() {
                   onSelectAsset={setSelectedAsset}
                   onDeleteAsset={handleDeleteAsset}
                   onAddAsset={handleAddAsset}
+                  onQuickStatusChange={handleQuickStatusChange}
+                  onSetAsCover={handleSetAsCover}
+                  onOpenLightbox={openLightbox}
                 >
                   {photoSessions.length > 0 && (
                     <div className="space-y-3 mb-4">
@@ -362,6 +365,11 @@ export default function ReleaseImagenVideo() {
                           onUploadToStage={handleUploadToStage}
                           onDeleteSession={handleDeleteSession}
                           onPromoteAsset={handlePromoteAsset}
+                          onQuickStatusChange={handleQuickStatusChange}
+                          onSetAsCover={handleSetAsCover}
+                          onOpenLightbox={openLightbox}
+                          onBulkUpdate={handleBulkUpdate}
+                          onBulkDelete={handleBulkDelete}
                         />
                       ))}
                     </div>
@@ -380,6 +388,9 @@ export default function ReleaseImagenVideo() {
                 onDeleteAsset={handleDeleteAsset}
                 onAddAsset={handleAddAsset}
                 defaultOpen={section !== 'formatos_fisicos'}
+                onQuickStatusChange={handleQuickStatusChange}
+                onSetAsCover={handleSetAsCover}
+                onOpenLightbox={openLightbox}
               />
             );
           })}
@@ -391,14 +402,28 @@ export default function ReleaseImagenVideo() {
         <AssetDetailPanel
           asset={selectedAsset}
           onClose={() => setSelectedAsset(null)}
+          onOpenLightbox={() => {
+            // Open lightbox with peer assets (same section / session)
+            const peers = selectedAsset.session_id
+              ? allAssets.filter(a => a.session_id === selectedAsset.session_id)
+              : allAssets.filter(a => a.section === selectedAsset.section && !a.session_id);
+            openLightbox(selectedAsset, peers);
+          }}
           onUpdate={() => {
             refreshData();
-            // Refresh the selected asset
             supabase.from('release_assets').select('*').eq('id', selectedAsset.id).single()
               .then(({ data }) => { if (data) setSelectedAsset(data as DAMAsset); });
           }}
         />
       )}
+
+      {/* Lightbox */}
+      <AssetLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        assets={lightboxAssets}
+        initialIndex={lightboxIndex}
+      />
 
       {/* Add asset dialog */}
       <AddAssetDialog
