@@ -31,8 +31,8 @@ import { DocumentStats } from '@/components/DocumentStats';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import { ContractTypeSelector } from '@/components/ContractTypeSelector';
 import { IPLicenseGenerator } from '@/components/IPLicenseGenerator';
-import {
 import { HubGate } from '@/components/permissions/HubGate';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
