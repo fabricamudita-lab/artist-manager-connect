@@ -146,7 +146,14 @@ export function DraftCommentsSidebar({
     });
   }, [filteredComments]);
 
-  const wideMode = sidebarWidth >= 520;
+  // Adaptive layout based on sidebar width — wider panels show longer
+  // excerpts and roomier typography so users can review long paragraphs
+  // without having to open each comment individually.
+  const isRoomy = sidebarWidth >= 480;
+  const isWide = sidebarWidth >= 640;
+  const isXWide = sidebarWidth >= 820;
+  // Selected-text truncation grows with the panel width
+  const excerptLimit = isXWide ? 800 : isWide ? 480 : isRoomy ? 280 : 120;
 
   const handleSubmit = async () => {
     if (!newMessage.trim() || !authorName.trim()) return;
@@ -202,7 +209,7 @@ export function DraftCommentsSidebar({
       key={comment.id}
       id={`comment-${comment.id}`}
       onClick={() => onScrollToHighlight?.(comment.id)}
-      className={`rounded-lg border p-3 text-sm space-y-2 transition-all cursor-pointer hover:bg-muted/50 hover:border-primary/40 break-inside-avoid ${
+      className={`rounded-lg border ${isWide ? 'p-4' : 'p-3'} text-sm space-y-2 transition-all cursor-pointer hover:bg-muted/50 hover:border-primary/40 ${
         comment.resolved || comment.comment_status === 'resolved' || comment.comment_status === 'approved' ? 'opacity-50' : ''
       } ${activeCommentId === comment.id ? 'ring-2 ring-primary animate-pulse' : ''}`}
     >
@@ -220,8 +227,8 @@ export function DraftCommentsSidebar({
       </div>
 
       {comment.selected_text && (
-        <div className="bg-amber-50 border-l-2 border-amber-400 px-2 py-1 text-xs italic text-amber-800 rounded-r">
-          "{comment.selected_text.length > 120 ? comment.selected_text.slice(0, 120) + '...' : comment.selected_text}"
+        <div className={`bg-amber-50 border-l-2 border-amber-400 px-2 py-1 ${isRoomy ? 'text-sm' : 'text-xs'} italic text-amber-800 rounded-r whitespace-pre-wrap max-h-40 overflow-auto`}>
+          "{comment.selected_text.length > excerptLimit ? comment.selected_text.slice(0, excerptLimit) + '...' : comment.selected_text}"
         </div>
       )}
 
@@ -230,7 +237,7 @@ export function DraftCommentsSidebar({
           <span className="font-medium text-xs">{comment.author_name}</span>
           <span className="text-[10px] text-muted-foreground">{formatTime(comment.created_at)}</span>
         </div>
-        <p className="text-sm mt-0.5">{comment.message}</p>
+        <p className={`mt-0.5 whitespace-pre-wrap ${isWide ? 'text-base leading-relaxed' : 'text-sm'}`}>{comment.message}</p>
       </div>
 
       {comment.proposed_change && (comment.comment_status === 'pending_approval' || comment.comment_status === 'proposing_change') && (
@@ -376,14 +383,14 @@ export function DraftCommentsSidebar({
                     § {clauseKey === 'general' ? 'General' : clauseKey} · {items.length}
                   </span>
                 </div>
-                <div className={wideMode ? 'columns-2 gap-3 space-y-3' : 'space-y-3'}>
+                <div className="space-y-3">
                   {items.map(renderCommentCard)}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className={wideMode ? 'columns-2 gap-3 space-y-3' : 'space-y-3'}>
+          <div className="space-y-3">
             {filteredComments.map(renderCommentCard)}
           </div>
         )}
