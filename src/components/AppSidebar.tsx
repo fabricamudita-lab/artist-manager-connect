@@ -192,7 +192,16 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const isManagement = profile?.active_role === 'management' && !isImpersonating;
+  const { can, loading: permsLoading } = useCan();
   const navigationGroups = getNavigationGroups(isManagement, linkedArtist?.id);
+
+  // Filtra entradas según permiso funcional (en management). Mientras carga, no oculta nada.
+  const isItemAllowed = (url: string): boolean => {
+    if (!isManagement || permsLoading) return true;
+    const mod = URL_TO_MODULE[url];
+    if (!mod) return true;
+    return can(mod, 'view');
+  };
 
   // Badge counts — no extra queries, uses data already fetched
   const { items: actionItems } = useActionCenter({ status: ['pending', 'in_review'] });
