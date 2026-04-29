@@ -82,7 +82,8 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
     const fetchArtists = async () => {
       const { data } = await supabase
         .from('artists')
-        .select('id, name, stage_name')
+        .select('id, name, stage_name, artist_type')
+        .in('artist_type', ['roster', 'collaborator'])
         .order('name');
       setArtists(data || []);
     };
