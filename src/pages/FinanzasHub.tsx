@@ -26,7 +26,7 @@ function getTabFromPath(pathname: string): string {
   return match?.value ?? 'panel';
 }
 
-export default function FinanzasHub() {
+function FinanzasHubInner() {
   usePageTitle('Finanzas');
   useAutoRealizado();
   const navigate = useNavigate();
