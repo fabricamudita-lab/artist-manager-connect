@@ -615,3 +615,12 @@ function RoadmapDetailInner() {
     </div>
   );
 }
+
+import { HubGate as HubGateRoadmap } from '@/components/permissions/HubGate';
+export default function RoadmapDetail() {
+  return (
+    <HubGateRoadmap module="roadmaps" required="view">
+      <RoadmapDetailInner />
+    </HubGateRoadmap>
+  );
+}

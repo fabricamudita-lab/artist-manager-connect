@@ -470,3 +470,12 @@ function ReleaseDetailInner() {
     </div>
   );
 }
+
+import { HubGate } from '@/components/permissions/HubGate';
+export default function ReleaseDetail() {
+  return (
+    <HubGate module="releases" required="view">
+      <ReleaseDetailInner />
+    </HubGate>
+  );
+}

@@ -680,3 +680,12 @@ function ProjectsInner() {
     </TooltipProvider>
   );
 }
+
+import { HubGate as HubGateProjects } from '@/components/permissions/HubGate';
+export default function Projects() {
+  return (
+    <HubGateProjects module="projects" required="view">
+      <ProjectsInner />
+    </HubGateProjects>
+  );
+}
