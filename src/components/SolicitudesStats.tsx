@@ -41,7 +41,18 @@ const typeConfig: Record<string, { label: string; icon: typeof Mic; color: strin
 
 const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#14b8a6', '#6b7280'];
 
+type TimelineRange = '30d' | '3m' | '6m' | '1y';
+
+const RANGE_LABELS: Record<TimelineRange, string> = {
+  '30d': 'Últimos 30 días',
+  '3m': 'Últimos 3 meses',
+  '6m': 'Últimos 6 meses',
+  '1y': 'Último año',
+};
+
 export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
+  const [range, setRange] = useState<TimelineRange>('30d');
+
   const stats = useMemo(() => {
     const active = solicitudes.filter(s => !s.archived);
     const pendientes = active.filter(s => s.estado === 'pendiente');
@@ -82,27 +93,89 @@ export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
       color: typeConfig[tipo as keyof typeof typeConfig].color,
     })).filter(t => t.value > 0);
 
-    // Timeline data (last 30 days)
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = subDays(now, 29 - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const created = solicitudes.filter(s => 
-        s.fecha_creacion.split('T')[0] === dateStr
-      ).length;
-      
-      const resolved = solicitudes.filter(s => 
-        s.decision_fecha && s.decision_fecha.split('T')[0] === dateStr
-      ).length;
+    // Status distribution for bar chart
+    const statusDistribution = [
+      { name: 'Pendientes', value: pendientes.length, fill: 'hsl(var(--warning))' },
+      { name: 'Aprobadas', value: aprobadas.length, fill: 'hsl(var(--success))' },
+      { name: 'Denegadas', value: denegadas.length, fill: 'hsl(var(--destructive))' },
+    ];
 
-      return {
-        date: date.toLocaleDateString('es', { day: '2-digit', month: 'short' }),
-        creadas: created,
-        resueltas: resolved,
-      };
+    return {
+      total: active.length,
+      pendientes: pendientes.length,
+      aprobadas: aprobadas.length,
+      denegadas: denegadas.length,
+      archivadas: archivadas.length,
+      overdue: overdue.length,
+      urgent: urgent.length,
+      avgResponseTime,
+      approvalRate,
+      typeDistribution,
+      statusDistribution,
+    };
+  }, [solicitudes]);
+
+  // Timeline computed independently to react to range changes
+  const timelineData = useMemo(() => {
+    const now = new Date();
+    type Bucket = 'day' | 'week' | 'month';
+    const config: Record<TimelineRange, { count: number; bucket: Bucket; labelFmt: string }> = {
+      '30d': { count: 30, bucket: 'day', labelFmt: 'dd MMM' },
+      '3m': { count: 13, bucket: 'week', labelFmt: 'dd MMM' },
+      '6m': { count: 26, bucket: 'week', labelFmt: 'dd MMM' },
+      '1y': { count: 12, bucket: 'month', labelFmt: "MMM ''yy" },
+    };
+    const { count, bucket, labelFmt } = config[range];
+
+    const startOfBucket = (d: Date): Date => {
+      if (bucket === 'day') return startOfDay(d);
+      if (bucket === 'week') return startOfWeek(d, { weekStartsOn: 1 });
+      return startOfMonth(d);
+    };
+
+    const points: { key: string; date: Date }[] = [];
+    for (let i = count - 1; i >= 0; i--) {
+      let d: Date;
+      if (bucket === 'day') d = subDays(now, i);
+      else if (bucket === 'week') d = subDays(now, i * 7);
+      else d = subMonths(now, i);
+      const start = startOfBucket(d);
+      points.push({ key: start.toISOString(), date: start });
+    }
+
+    const buckets = new Map<string, { creadas: number; resueltas: number }>();
+    points.forEach(p => buckets.set(p.key, { creadas: 0, resueltas: 0 }));
+
+    const earliest = points[0].date;
+    solicitudes.forEach(s => {
+      if (s.fecha_creacion) {
+        const d = new Date(s.fecha_creacion);
+        if (d >= earliest) {
+          const key = startOfBucket(d).toISOString();
+          const b = buckets.get(key);
+          if (b) b.creadas += 1;
+        }
+      }
+      if (s.decision_fecha) {
+        const d = new Date(s.decision_fecha);
+        if (d >= earliest) {
+          const key = startOfBucket(d).toISOString();
+          const b = buckets.get(key);
+          if (b) b.resueltas += 1;
+        }
+      }
     });
 
-    // Status distribution for bar chart
+    return points.map(p => {
+      const b = buckets.get(p.key)!;
+      return {
+        date: format(p.date, labelFmt, { locale: es }),
+        creadas: b.creadas,
+        resueltas: b.resueltas,
+      };
+    });
+  }, [solicitudes, range]);
+
     const statusDistribution = [
       { name: 'Pendientes', value: pendientes.length, fill: 'hsl(var(--warning))' },
       { name: 'Aprobadas', value: aprobadas.length, fill: 'hsl(var(--success))' },
