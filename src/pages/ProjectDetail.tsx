@@ -2299,12 +2299,45 @@ export default function ProjectDetail() {
             {/* ── FINANZAS ─────────────────────────────────────────── */}
             <TabsContent value="finanzas" className="mt-0 space-y-6">
               {(() => {
-                const ingresosConfirmados = budgets
-                  .filter(b => b.budget_status === 'confirmado' || b.show_status === 'confirmado')
-                  .reduce((sum: number, b: any) => sum + (b.fee || 0), 0);
-                const enNegociacion = budgets
-                  .filter(b => b.budget_status === 'negociacion' || b.budget_status === 'pendiente' || b.show_status === 'negociacion')
-                  .reduce((sum: number, b: any) => sum + (b.fee || 0), 0);
+                // ── Presupuestos del proyecto ──
+                const presupuestosConfirmadosList = budgets.filter(b =>
+                  b.budget_status === 'confirmado' || b.show_status === 'confirmado'
+                );
+                const presupuestosNegociacionList = budgets.filter(b =>
+                  b.budget_status === 'negociacion' || b.budget_status === 'pendiente' || b.show_status === 'negociacion'
+                );
+                const presupuestosConfirmados = presupuestosConfirmadosList.reduce((s: number, b: any) => s + Number(b.fee || 0), 0);
+                const presupuestosNegociacion = presupuestosNegociacionList.reduce((s: number, b: any) => s + Number(b.fee || 0), 0);
+
+                // ── Booking offers vinculados directamente al proyecto ──
+                // Evitar doble conteo: ignorar offers que ya tienen un budget cargado
+                const budgetBookingIds = new Set(budgets.map((b: any) => b.booking_offer_id).filter(Boolean));
+                const bookingExtraConfList = bookingOffers.filter((o: any) =>
+                  !budgetBookingIds.has(o.id) && ['confirmado', 'facturado'].includes(o.phase)
+                );
+                const bookingExtraNegList = bookingOffers.filter((o: any) =>
+                  !budgetBookingIds.has(o.id) && ['interes', 'oferta'].includes(o.phase)
+                );
+                const bookingExtraConfirmado = bookingExtraConfList.reduce((s: number, o: any) => s + Number(o.fee || 0), 0);
+                const bookingExtraNegociacion = bookingExtraNegList.reduce((s: number, o: any) => s + Number(o.fee || 0), 0);
+
+                // ── Sync offers ──
+                const syncTotal = (o: any) => {
+                  const sf = Number(o.sync_fee || 0);
+                  if (sf > 0) return sf;
+                  return Number(o.master_fee || 0) + Number(o.publishing_fee || 0);
+                };
+                const syncConfList = syncOffers.filter((o: any) => ['confirmado', 'facturado', 'aprobado'].includes(o.phase));
+                const syncNegList = syncOffers.filter((o: any) => ['solicitud', 'negociacion', 'pendiente', 'oferta'].includes(o.phase));
+                const syncConfirmado = syncConfList.reduce((s: number, o: any) => s + syncTotal(o), 0);
+                const syncNegociacion = syncNegList.reduce((s: number, o: any) => s + syncTotal(o), 0);
+
+                // ── Totales agregados ──
+                const ingresosConfirmados = presupuestosConfirmados + bookingExtraConfirmado + syncConfirmado;
+                const enNegociacion = presupuestosNegociacion + bookingExtraNegociacion + syncNegociacion;
+                const fuentesConfirmadas = presupuestosConfirmadosList.length + bookingExtraConfList.length + syncConfList.length;
+                const fuentesNegociacion = presupuestosNegociacionList.length + bookingExtraNegList.length + syncNegList.length;
+
                 const gastosEjecutados = budgets.reduce((sum: number, b: any) => {
                   const items = b.budget_items || [];
                   return sum + items.reduce((s: number, item: any) => s + ((item.quantity || 0) * (item.unit_price || 0)), 0);
@@ -2326,6 +2359,14 @@ export default function ProjectDetail() {
                 const balanceReal = cobrosCobrado - gastosEjecutados;
                 const artistId = (project as any)?.artist_id;
 
+                // Desglose por origen (suma confirmados + negociación)
+                const breakdown = [
+                  { label: 'Presupuestos', emoji: '📋', value: presupuestosConfirmados + presupuestosNegociacion, count: presupuestosConfirmadosList.length + presupuestosNegociacionList.length },
+                  { label: 'Bookings (sin presupuesto)', emoji: '🎤', value: bookingExtraConfirmado + bookingExtraNegociacion, count: bookingExtraConfList.length + bookingExtraNegList.length },
+                  { label: 'Sincronizaciones', emoji: '🎬', value: syncConfirmado + syncNegociacion, count: syncConfList.length + syncNegList.length },
+                ].filter(b => b.value > 0 || b.count > 0);
+                const breakdownTotal = breakdown.reduce((s, b) => s + b.value, 0);
+
                 // Linked entities with economic value
                 const entitiesWithValue = linkedEntities.filter((e: any) => e.entity_status);
                 const typeConfig: Record<string, { emoji: string; label: string }> = {
@@ -2345,14 +2386,14 @@ export default function ProjectDetail() {
                         <CardContent className="p-4">
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Ingresos confirmados</p>
                           <p className="text-2xl font-bold text-green-600 mt-1">{ingresosConfirmados.toLocaleString('es-ES')} €</p>
-                          <p className="text-xs text-muted-foreground mt-1">{budgets.filter(b => b.budget_status === 'confirmado' || b.show_status === 'confirmado').length} presupuestos</p>
+                          <p className="text-xs text-muted-foreground mt-1">{fuentesConfirmadas} fuentes</p>
                         </CardContent>
                       </Card>
                       <Card className="border-l-4 border-l-amber-500">
                         <CardContent className="p-4">
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">En negociación</p>
                           <p className="text-2xl font-bold text-amber-600 mt-1">{enNegociacion.toLocaleString('es-ES')} €</p>
-                          <p className="text-xs text-muted-foreground mt-1">{budgets.filter(b => b.budget_status === 'negociacion' || b.budget_status === 'pendiente').length} presupuestos</p>
+                          <p className="text-xs text-muted-foreground mt-1">{fuentesNegociacion} fuentes</p>
                         </CardContent>
                       </Card>
                       <Card className="border-l-4 border-l-blue-500">
@@ -2372,6 +2413,34 @@ export default function ProjectDetail() {
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Desglose por origen */}
+                    {breakdown.length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-semibold">Desglose por origen</CardTitle>
+                          <p className="text-xs text-muted-foreground">Suma de confirmados + en negociación vinculados al proyecto</p>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="space-y-2">
+                            {breakdown.map((b) => (
+                              <div key={b.label} className="flex items-center justify-between py-2 border-b last:border-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base">{b.emoji}</span>
+                                  <span className="text-sm font-medium">{b.label}</span>
+                                  <Badge variant="outline" className="h-5 text-[10px]">{b.count}</Badge>
+                                </div>
+                                <span className="text-sm font-semibold tabular-nums">{b.value.toLocaleString('es-ES')} €</span>
+                              </div>
+                            ))}
+                            <div className="flex items-center justify-between pt-3 mt-1 border-t-2">
+                              <span className="text-sm font-bold">Total pipeline</span>
+                              <span className="text-base font-bold text-primary tabular-nums">{breakdownTotal.toLocaleString('es-ES')} €</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {/* Cobros reales */}
                     <Card>
