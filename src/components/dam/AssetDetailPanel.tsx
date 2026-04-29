@@ -128,21 +128,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate, onOpenLight
         .eq('id', asset.id);
       if (error) throw error;
       // Auto-sync cover to release — only for Cover Álbum, never for Cover Single
-      const subTypeChangedToCover = form.sub_type === 'Cover Álbum' && asset.sub_type !== 'Cover Álbum';
-      const statusChangedToReady = ['listo', 'publicado'].includes(form.status) && !['listo', 'publicado'].includes(asset.status || '');
-      if (
-        asset.section === 'artwork' &&
-        form.sub_type === 'Cover Álbum' &&
-        ['listo', 'publicado'].includes(form.status) &&
-        (subTypeChangedToCover || statusChangedToReady) &&
-        asset.file_url &&
-        (asset as any).release_id
-      ) {
-        await supabase
-          .from('releases')
-          .update({ cover_image_url: asset.file_url } as any)
-          .eq('id', (asset as any).release_id);
-      }
+      await syncCoverIfNeeded(asset, form.sub_type || null, form.status);
 
       toast({ title: 'Asset actualizado' });
       setEditing(false);
