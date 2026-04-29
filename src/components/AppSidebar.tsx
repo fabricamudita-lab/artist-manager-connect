@@ -275,9 +275,12 @@ export function AppSidebar() {
   };
 
   const renderGroup = (group: NavGroup, index: number) => {
-    const allItems = isManagement && group.managementExtra
+    const allItems = (isManagement && group.managementExtra
       ? [...group.items, ...group.managementExtra]
-      : group.items;
+      : group.items
+    ).filter(it => isItemAllowed(it.url));
+
+    if (allItems.length === 0) return null;
 
     return (
       <div key={group.label ?? 'inicio'}>
