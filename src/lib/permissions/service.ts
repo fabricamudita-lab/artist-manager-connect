@@ -89,7 +89,7 @@ export async function getEffectivePermissions(
       (acc, m) => ({ ...acc, [m]: 'manage' as PermissionLevel }),
       {} as EffectivePermissions,
     );
-    cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms });
+    cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms, roleName: null });
     return perms;
   }
 
@@ -103,10 +103,10 @@ export async function getEffectivePermissions(
     .limit(1)
     .maybeSingle();
 
-  const roleName = contactRow?.role?.trim();
+  const roleName = contactRow?.role?.trim() ?? null;
   if (!roleName) {
     const perms = { ...EMPTY_PERMISSIONS };
-    cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms });
+    cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms, roleName: null });
     return perms;
   }
 
@@ -136,8 +136,26 @@ export async function getEffectivePermissions(
     perms[row.module as ModuleKey] = row.level as PermissionLevel;
   }
 
-  cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms });
+  cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms, roleName });
   return perms;
+}
+
+/**
+ * Devuelve el nombre del rol funcional activo del usuario en el workspace.
+ * Reutiliza el cache de `getEffectivePermissions` y, si está frío, lo carga.
+ * Devuelve `null` si el usuario es OWNER/TEAM_MANAGER (no aplica) o no tiene
+ * un contacto-espejo con rol asignado.
+ */
+export async function getActiveFunctionalRole(
+  userId: string,
+  workspaceId: string,
+): Promise<string | null> {
+  if (!userId || !workspaceId) return null;
+  const key = cacheKey(userId, workspaceId);
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.roleName;
+  await getEffectivePermissions(userId, workspaceId);
+  return cache.get(key)?.roleName ?? null;
 }
 
 export function hasPermission(
