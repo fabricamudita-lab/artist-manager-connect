@@ -1884,6 +1884,19 @@ export default function Teams() {
               <p className="text-xs text-muted-foreground">
                 Elige uno de la lista o escribe uno personalizado en el buscador.
               </p>
+              {newFunctionalRole.trim() && (
+                <RolePermissionSummary roleName={newFunctionalRole.trim()} />
+              )}
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => {
+                  setEditingMemberRole(null);
+                  setViewMode('permissions');
+                }}
+              >
+                Ver matriz completa de permisos →
+              </button>
             </div>
 
             <div className="border-t pt-4 space-y-2">
