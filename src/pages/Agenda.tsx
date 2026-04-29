@@ -20,6 +20,7 @@ import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialo
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
 import { TEAM_CATEGORIES, TeamCategoryOption, getTeamCategoryLabel, getTeamCategoryIcon } from '@/lib/teamCategories';
 import { deduplicateContacts } from '@/lib/deduplicateContacts';
+import { HubGate } from '@/components/permissions/HubGate';
 
 interface Contact {
   id: string;
@@ -54,7 +55,7 @@ interface Contact {
 
 // Categories unified with Teams via TEAM_CATEGORIES
 
-export default function Agenda() {
+function AgendaInner() {
   const navigate = useNavigate();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
@@ -741,5 +742,13 @@ export default function Agenda() {
         onReorder={handleCategoryReorder}
       />
     </div>
+  );
+}
+
+export default function Agenda() {
+  return (
+    <HubGate module="bookings" required="view">
+      <AgendaInner />
+    </HubGate>
   );
 }

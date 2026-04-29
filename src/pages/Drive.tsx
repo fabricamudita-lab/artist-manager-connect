@@ -1,8 +1,9 @@
 // Drive page now redirects to Carpetas which has the full functionality
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { HubGate } from '@/components/permissions/HubGate';
 
-export default function Drive() {
+function DriveInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -27,4 +28,12 @@ export default function Drive() {
   }, [navigate, searchParams]);
 
   return null;
+}
+
+export default function Drive() {
+  return (
+    <HubGate module="drive" required="view">
+      <DriveInner />
+    </HubGate>
+  );
 }

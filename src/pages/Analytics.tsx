@@ -12,8 +12,9 @@ import { BookingPipelineFunnel } from '@/components/analytics/BookingPipelineFun
 import { EventProfitabilityTable } from '@/components/analytics/EventProfitabilityTable';
 import { AnalyticsEmptyState } from '@/components/analytics/AnalyticsEmptyState';
 import { BarChart3 } from 'lucide-react';
+import { HubGate } from '@/components/permissions/HubGate';
 
-export default function Analytics() {
+function AnalyticsInner() {
   usePageTitle('Analytics');
   const {
     filters, dateRange, previousRange,
@@ -106,5 +107,13 @@ export default function Analytics() {
         </>
       )}
     </div>
+  );
+}
+
+export default function Analytics() {
+  return (
+    <HubGate module="analytics" required="view">
+      <AnalyticsInner />
+    </HubGate>
   );
 }

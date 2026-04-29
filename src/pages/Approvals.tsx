@@ -1,8 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { ApprovalsModule } from '@/components/ApprovalsModule';
 import { usePageTitle } from '@/hooks/useCommon';
+import { HubGate } from '@/components/permissions/HubGate';
 
-export default function Approvals() {
+function ApprovalsInner() {
   usePageTitle('Aprobaciones');
   const { id: projectId } = useParams();
 
@@ -18,5 +19,13 @@ export default function Approvals() {
       artist={{ id: 'demo-artist', name: 'Rita Payés' }}
       project={{ id: projectId, name: 'Gira 2025' }}
     />
+  );
+}
+
+export default function Approvals() {
+  return (
+    <HubGate module="solicitudes" required="view">
+      <ApprovalsInner />
+    </HubGate>
   );
 }
