@@ -1,15 +1,7 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-// Extend jsPDF type for autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
@@ -134,7 +126,7 @@ export function exportCronogramaPDF(
       ];
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Tarea', 'Responsable', 'Inicio', 'Fin', 'Días', 'Estado']],
       body: tableData,
       startY: yPosition,
@@ -164,7 +156,7 @@ export function exportCronogramaPDF(
       },
     });
 
-    yPosition = doc.lastAutoTable.finalY + 10;
+    yPosition = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // Save

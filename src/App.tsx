@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, ForbiddenPage } from "@/components/ProtectedRoute";
+import { HubGate } from "@/components/permissions/HubGate";
 
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -361,56 +362,72 @@ const App = () => (
               <Route path="/releases/:id/cronograma" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseCronograma />
+                    <HubGate module="releases" required="view">
+                      <ReleaseCronograma />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/presupuestos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleasePresupuestos />
+                    <HubGate module="releases" required="view">
+                      <ReleasePresupuestos />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/imagen-video" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseImagenVideo />
+                    <HubGate module="releases" required="view">
+                      <ReleaseImagenVideo />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/creditos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseCreditos />
+                    <HubGate module="releases" required="view">
+                      <ReleaseCreditos />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/audio" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseAudio />
+                    <HubGate module="releases" required="view">
+                      <ReleaseAudio />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/epf" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseEPF />
+                    <HubGate module="releases" required="view">
+                      <ReleaseEPF />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/pitch" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleasePitch />
+                    <HubGate module="releases" required="view">
+                      <ReleasePitch />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
               <Route path="/releases/:id/contratos" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <ReleaseContratos />
+                    <HubGate module="releases" required="view">
+                      <ReleaseContratos />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
