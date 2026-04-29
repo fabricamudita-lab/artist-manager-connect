@@ -21,11 +21,13 @@ import {
 import type { DAMAsset, AssetComment } from './DAMTypes';
 import { cn } from '@/lib/utils';
 import { detectImageDimensionsFromUrl } from './utils/detectImageDimensions';
+import { syncCoverIfNeeded } from './utils/coverSync';
 
 interface AssetDetailPanelProps {
   asset: DAMAsset;
   onClose: () => void;
   onUpdate: () => void;
+  onOpenLightbox?: () => void;
 }
 
 export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDetailPanelProps) {
