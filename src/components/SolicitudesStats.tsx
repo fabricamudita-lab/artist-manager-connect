@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -6,7 +6,9 @@ import {
   Clock, CheckCircle, XCircle, AlertTriangle, TrendingUp, 
   Calendar, Mic, Music, HelpCircle, Info, FileText, BarChart3
 } from 'lucide-react';
-import { differenceInCalendarDays, differenceInHours, subDays, isAfter } from 'date-fns';
+import { differenceInCalendarDays, differenceInHours, subDays, subMonths, startOfWeek, startOfMonth, startOfDay, format, isAfter } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
@@ -39,7 +41,18 @@ const typeConfig: Record<string, { label: string; icon: typeof Mic; color: strin
 
 const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#14b8a6', '#6b7280'];
 
+type TimelineRange = '30d' | '3m' | '6m' | '1y';
+
+const RANGE_LABELS: Record<TimelineRange, string> = {
+  '30d': 'Últimos 30 días',
+  '3m': 'Últimos 3 meses',
+  '6m': 'Últimos 6 meses',
+  '1y': 'Último año',
+};
+
 export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
+  const [range, setRange] = useState<TimelineRange>('30d');
+
   const stats = useMemo(() => {
     const active = solicitudes.filter(s => !s.archived);
     const pendientes = active.filter(s => s.estado === 'pendiente');
@@ -80,26 +93,6 @@ export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
       color: typeConfig[tipo as keyof typeof typeConfig].color,
     })).filter(t => t.value > 0);
 
-    // Timeline data (last 30 days)
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = subDays(now, 29 - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const created = solicitudes.filter(s => 
-        s.fecha_creacion.split('T')[0] === dateStr
-      ).length;
-      
-      const resolved = solicitudes.filter(s => 
-        s.decision_fecha && s.decision_fecha.split('T')[0] === dateStr
-      ).length;
-
-      return {
-        date: date.toLocaleDateString('es', { day: '2-digit', month: 'short' }),
-        creadas: created,
-        resueltas: resolved,
-      };
-    });
-
     // Status distribution for bar chart
     const statusDistribution = [
       { name: 'Pendientes', value: pendientes.length, fill: 'hsl(var(--warning))' },
@@ -118,10 +111,71 @@ export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
       avgResponseTime,
       approvalRate,
       typeDistribution,
-      last30Days,
       statusDistribution,
     };
   }, [solicitudes]);
+
+  // Timeline computed independently to react to range changes
+  const timelineData = useMemo(() => {
+    const now = new Date();
+    type Bucket = 'day' | 'week' | 'month';
+    const config: Record<TimelineRange, { count: number; bucket: Bucket; labelFmt: string }> = {
+      '30d': { count: 30, bucket: 'day', labelFmt: 'dd MMM' },
+      '3m': { count: 13, bucket: 'week', labelFmt: 'dd MMM' },
+      '6m': { count: 26, bucket: 'week', labelFmt: 'dd MMM' },
+      '1y': { count: 12, bucket: 'month', labelFmt: "MMM ''yy" },
+    };
+    const { count, bucket, labelFmt } = config[range];
+
+    const startOfBucket = (d: Date): Date => {
+      if (bucket === 'day') return startOfDay(d);
+      if (bucket === 'week') return startOfWeek(d, { weekStartsOn: 1 });
+      return startOfMonth(d);
+    };
+
+    const points: { key: string; date: Date }[] = [];
+    for (let i = count - 1; i >= 0; i--) {
+      let d: Date;
+      if (bucket === 'day') d = subDays(now, i);
+      else if (bucket === 'week') d = subDays(now, i * 7);
+      else d = subMonths(now, i);
+      const start = startOfBucket(d);
+      points.push({ key: start.toISOString(), date: start });
+    }
+
+    const buckets = new Map<string, { creadas: number; resueltas: number }>();
+    points.forEach(p => buckets.set(p.key, { creadas: 0, resueltas: 0 }));
+
+    const earliest = points[0].date;
+    solicitudes.forEach(s => {
+      if (s.fecha_creacion) {
+        const d = new Date(s.fecha_creacion);
+        if (d >= earliest) {
+          const key = startOfBucket(d).toISOString();
+          const b = buckets.get(key);
+          if (b) b.creadas += 1;
+        }
+      }
+      if (s.decision_fecha) {
+        const d = new Date(s.decision_fecha);
+        if (d >= earliest) {
+          const key = startOfBucket(d).toISOString();
+          const b = buckets.get(key);
+          if (b) b.resueltas += 1;
+        }
+      }
+    });
+
+    return points.map(p => {
+      const b = buckets.get(p.key)!;
+      return {
+        date: format(p.date, labelFmt, { locale: es }),
+        creadas: b.creadas,
+        resueltas: b.resueltas,
+      };
+    });
+  }, [solicitudes, range]);
+
 
   const formatResponseTime = (hours: number) => {
     if (hours < 24) return `${Math.round(hours)}h`;
@@ -302,13 +356,24 @@ export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
 
       {/* Timeline Chart */}
       <Card className="card-moodita">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Actividad Últimos 30 Días</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-sm font-medium">Actividad — {RANGE_LABELS[range]}</CardTitle>
+          <Select value={range} onValueChange={(v) => setRange(v as TimelineRange)}>
+            <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="30d">Últimos 30 días</SelectItem>
+              <SelectItem value="3m">Últimos 3 meses</SelectItem>
+              <SelectItem value="6m">Últimos 6 meses</SelectItem>
+              <SelectItem value="1y">Último año</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.last30Days}>
+              <AreaChart data={timelineData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
                 <XAxis 
                   dataKey="date" 
