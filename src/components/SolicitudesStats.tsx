@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -6,7 +6,9 @@ import {
   Clock, CheckCircle, XCircle, AlertTriangle, TrendingUp, 
   Calendar, Mic, Music, HelpCircle, Info, FileText, BarChart3
 } from 'lucide-react';
-import { differenceInCalendarDays, differenceInHours, subDays, isAfter } from 'date-fns';
+import { differenceInCalendarDays, differenceInHours, subDays, subMonths, startOfWeek, startOfMonth, startOfDay, format, isAfter } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
