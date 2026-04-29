@@ -325,7 +325,35 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
   
   // Fetch team members for this artist
   const selectedArtistIds = useMemo(() => (artistId ? [artistId] : []), [artistId]);
-  const { allTeamMembers, filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
+  const { allTeamMembers, filteredMembers, groupedByCategory: _legacyGrouped, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
+  // Strict team for the artist (only contacts with explicit assignment)
+  const { groupedByCategory, loading: loadingArtistTeam } = useArtistTeamMembers(artistId);
+
+  // All workspace contacts, used by the "Importar contacto" tab
+  const { data: allContacts = [] } = useQuery({
+    queryKey: ['all-contacts-for-format-crew', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as Array<{ id: string; name: string; stage_name: string | null; category: string | null; role: string | null }>;
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, category, role')
+        .eq('created_by', user.id)
+        .order('name');
+      if (error) throw error;
+      return (data || []) as Array<{ id: string; name: string; stage_name: string | null; category: string | null; role: string | null }>;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Local UI state for the picker tabs
+  const [crewPickerTab, setCrewPickerTab] = useState<'team' | 'import' | 'new'>('team');
+  const [importQuery, setImportQuery] = useState('');
+  const [importAssignToArtist, setImportAssignToArtist] = useState(true);
+  const [newCrewName, setNewCrewName] = useState('');
+  const [newCrewRole, setNewCrewRole] = useState('');
+  const [newCrewCategory, setNewCrewCategory] = useState<string>('banda');
+  const [newCrewAssignToArtist, setNewCrewAssignToArtist] = useState(true);
+  const [creatingNewCrew, setCreatingNewCrew] = useState(false);
 
   // Fetch artist profile data
   const { data: artistProfile } = useQuery({
