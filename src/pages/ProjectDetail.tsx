@@ -935,6 +935,26 @@ export default function ProjectDetail() {
       } catch (e) { console.error('Error loading cobros', e); }
     };
 
+    const loadBookingOffers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('booking_offers')
+          .select('id, fee, phase, event_date, project_id, artist_name, venue, city')
+          .eq('project_id', id);
+        if (!error) setBookingOffers(data || []);
+      } catch (e) { console.error('Error loading booking offers', e); }
+    };
+
+    const loadSyncOffers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sync_offers')
+          .select('id, sync_fee, master_fee, publishing_fee, phase, project_id, production_title, song_title')
+          .eq('project_id', id);
+        if (!error) setSyncOffers(data || []);
+      } catch (e) { console.error('Error loading sync offers', e); }
+    };
+
     load();
     loadLinked();
     loadLinkedEntities();
@@ -942,6 +962,8 @@ export default function ProjectDetail() {
     loadQuestions();
     loadTasks();
     loadCobros();
+    loadBookingOffers();
+    loadSyncOffers();
   }, [id]);
 
   // Team member management functions
