@@ -207,9 +207,66 @@ export default function ReleaseImagenVideo() {
     }
   };
 
-  if (loadingRelease) {
-    return <Skeleton className="h-64 w-full" />;
-  }
+  const handleQuickStatusChange = async (asset: DAMAsset, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update({ status: newStatus } as any)
+        .eq('id', asset.id);
+      if (error) throw error;
+      await syncCoverIfNeeded(asset, asset.sub_type || null, newStatus);
+      toast({ title: `Estado: ${STATUS_LABELS[newStatus] || newStatus}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al cambiar estado', variant: 'destructive' });
+    }
+  };
+
+  const handleSetAsCover = async (asset: DAMAsset) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update({ sub_type: 'Cover Álbum', status: 'listo' } as any)
+        .eq('id', asset.id);
+      if (error) throw error;
+      await syncCoverIfNeeded(asset, 'Cover Álbum', 'listo');
+      toast({ title: 'Marcada como cover del álbum' });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al marcar cover', variant: 'destructive' });
+    }
+  };
+
+  const handleBulkUpdate = async (assetIds: string[], patch: { status?: string; stage?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update(patch as any)
+        .in('id', assetIds);
+      if (error) throw error;
+      toast({ title: `${assetIds.length} archivo${assetIds.length !== 1 ? 's' : ''} actualizado${assetIds.length !== 1 ? 's' : ''}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error en cambio masivo', variant: 'destructive' });
+    }
+  };
+
+  const handleBulkDelete = async (assetIds: string[]) => {
+    if (!confirm(`¿Eliminar ${assetIds.length} archivo${assetIds.length !== 1 ? 's' : ''}?`)) return;
+    try {
+      const toDelete = allAssets.filter(a => assetIds.includes(a.id));
+      const buckets = toDelete.map(a => a.file_bucket).filter(Boolean) as string[];
+      if (buckets.length > 0) {
+        await supabase.storage.from('release-assets').remove(buckets);
+      }
+      const { error } = await supabase.from('release_assets').delete().in('id', assetIds);
+      if (error) throw error;
+      toast({ title: `${assetIds.length} eliminado${assetIds.length !== 1 ? 's' : ''}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al eliminar', variant: 'destructive' });
+    }
+  };
 
   const sectionsToShow = sectionFilter === 'all' ? [...DAM_SECTIONS] : [sectionFilter as typeof DAM_SECTIONS[number]];
 
