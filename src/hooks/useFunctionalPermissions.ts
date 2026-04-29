@@ -82,7 +82,9 @@ export function useFunctionalPermissions(): State {
     setState((s) => ({ ...s, loading: true }));
     load();
 
-    // Realtime: invalidar y recargar cuando cambien overrides del workspace
+    // Realtime: invalidar y recargar cuando cambien overrides, contactos
+    // espejo o asignaciones de artistas (cambian el rol funcional efectivo
+    // o el conjunto de artistas accesibles).
     const channel = supabase
       .channel('functional-perms-' + (user?.id ?? 'anon'))
       .on(
@@ -96,6 +98,14 @@ export function useFunctionalPermissions(): State {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'contacts' },
+        () => {
+          invalidatePermissionsCache();
+          load();
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'artist_role_bindings' },
         () => {
           invalidatePermissionsCache();
           load();
