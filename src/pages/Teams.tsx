@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard, Shield } from 'lucide-react';
 import { PermissionsByRoleTab } from '@/pages/teams/PermissionsByRoleTab';
 import { RolePermissionSummary } from '@/components/permissions/RolePermissionSummary';
@@ -152,6 +152,7 @@ function FunctionalRoleCombobox({ value, onChange }: { value: string; onChange: 
 
 export default function Teams() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamContacts, setTeamContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1271,6 +1272,16 @@ export default function Teams() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => navigate('/teams/roles')}
+            title="Ver y configurar permisos por rol funcional"
+          >
+            <Shield className="w-3.5 h-3.5 mr-1.5" />
+            Roles y permisos
+          </Button>
           <Button
             variant={selectionMode ? 'default' : 'ghost'}
             size="sm"
