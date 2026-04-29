@@ -1,8 +1,13 @@
 import { ApprovalDetail } from '@/components/ApprovalDetail';
 import { usePageTitle } from '@/hooks/useCommon';
+import { HubGate } from '@/components/permissions/HubGate';
 
 export default function ApprovalDetailPage() {
   usePageTitle('Detalle de Aprobación');
-  
-  return <ApprovalDetail />;
+
+  return (
+    <HubGate module="solicitudes" required="view">
+      <ApprovalDetail />
+    </HubGate>
+  );
 }
