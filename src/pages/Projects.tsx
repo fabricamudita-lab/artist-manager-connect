@@ -49,7 +49,7 @@ interface ProjectListItem {
   parent_folder_id: string | null;
 }
 
-export default function Projects() {
+function ProjectsInner() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');

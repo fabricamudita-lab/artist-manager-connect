@@ -133,7 +133,7 @@ const SECTIONS = [
   },
 ];
 
-export default function ReleaseDetail() {
+function ReleaseDetailInner() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading } = useRelease(id);

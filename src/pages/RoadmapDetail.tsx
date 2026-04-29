@@ -93,7 +93,7 @@ interface LinkedBookingWithLinkId extends LinkedBooking {
   linkId: string;
 }
 
-export default function RoadmapDetail() {
+function RoadmapDetailInner() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
