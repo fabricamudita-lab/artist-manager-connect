@@ -259,7 +259,9 @@ const App = () => (
               <Route path="/agenda" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Agenda />
+                    <HubGate module="bookings" required="view">
+                      <Agenda />
+                    </HubGate>
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
