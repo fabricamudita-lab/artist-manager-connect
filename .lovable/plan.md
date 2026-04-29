@@ -1,64 +1,68 @@
-He confirmado el problema: el acceso por artista sí cambia correctamente, pero el permiso funcional de Road Manager no está cerrando Releases de forma efectiva en todos los puntos.
+# Mostrar mensaje de "Sin permisos" en hubs principales
 
-Hallazgos clave:
-- `Perfil Test` es `MEMBER`, tiene rol funcional `Road Manager` y `releases = none`.
-- La función SQL `has_functional_permission(..., 'releases', 'view')` devuelve `false` para ese usuario, así que la matriz funcional está bien.
-- El fallo viene de dos capas:
-  1. En UI, `HubGate` deja renderizar contenido mientras los permisos cargan. Esto puede permitir ver datos o entrar en rutas antes de que el bloqueo se aplique.
-  2. En base de datos hay políticas RLS permisivas antiguas que siguen abiertas, por ejemplo `releases_select_strict` permite ver releases si el usuario tiene acceso al artista, aunque `releases = none`. Además, tablas relacionadas como `release_artists`, `release_assets`, `release_budgets`, `release_milestones`, `tracks` y `track_credits` tienen políticas tipo `auth.role() = authenticated` o `true`, que saltan el permiso funcional.
+## Problema
 
-Plan de corrección:
+Cuando "Perfil Test" tiene un rol funcional limitado (p. ej. **Booking Agent**) y entra a **Discografía**, no ve el mensaje de bloqueo: ve la pantalla vacía "Sin lanzamientos". Esto pasa porque:
 
-1. Corregir el bloqueo visual de módulos
-- Cambiar `HubGate` para que mientras carga no muestre el contenido protegido, sino un estado de carga/skeleton.
-- Cambiar `IfCan` y `PermissionGuard` para que durante carga no muestren acciones protegidas como botones de editar/crear.
-- Resultado: sin “flash” de contenido no autorizado.
+- En `src/App.tsx`, las rutas **top-level** (`/releases`, `/booking`, `/finanzas`, `/projects`, `/drive`, `/documents`, `/roadmaps`, `/sincronizaciones`, `/analytics`, `/automatizaciones`, `/agenda`) **no están envueltas en `<HubGate>`**.
+- Sólo las sub-rutas de Releases (`/releases/:id/cronograma`, etc.) tienen `HubGate`. RLS bloquea los datos a nivel BD, pero la UI muestra el estado vacío en lugar del mensaje claro.
 
-2. Proteger todas las rutas de Releases
-- Añadir `HubGate module="releases" required="view"` a las subrutas que ahora no lo tienen:
-  - `/releases/:id/cronograma`
-  - `/releases/:id/presupuestos`
-  - `/releases/:id/imagen-video`
-  - `/releases/:id/creditos`
-  - `/releases/:id/audio`
-  - `/releases/:id/epf`
-  - `/releases/:id/pitch`
-  - `/releases/:id/contratos`
-- Mantener el guard existente en `/releases` y `/releases/:id`.
+## Solución
 
-3. Endurecer RLS en base de datos con una nueva migración
-- Crear una migración que elimine o reemplace las políticas permisivas conflictivas.
-- Para `releases`, dejar el SELECT autenticado condicionado por:
-  - acceso al artista (`user_can_see_artist`) y
-  - permiso funcional `releases:view`.
-- Para INSERT/UPDATE/DELETE, exigir `releases:edit/manage` además del acceso de artista correspondiente.
-- Para `release_artists`, `tracks`, `track_credits`, `release_assets`, `release_milestones` y `release_budgets`, restringir lectura/escritura usando el release padre y el permiso funcional de Releases.
-- Mantener las políticas públicas necesarias para enlaces compartidos (`share_token`, `pitch_token`) sin afectar usuarios autenticados normales.
-- Con esto, aunque alguien acceda por URL directa o modifique el frontend, Supabase no devolverá los datos.
+### 1. Envolver hubs principales con `HubGate`
 
-4. Añadir helpers SQL seguros para no duplicar lógica
-- Crear funciones `can_view_release`, `can_edit_release` y `can_manage_release` con `SECURITY DEFINER`, usando `auth.uid()` y el `workspace_id` del artista.
-- Soportar releases con `artist_id` y también releases multi-artista vía `release_artists`.
-- Deny-by-default para releases sin artista salvo reglas específicas de creador si hace falta.
+En `src/App.tsx`, añadir `<HubGate module="X" required="view">` dentro del `DashboardLayout` para cada ruta top-level, mapeando ruta → módulo del catálogo:
 
-5. Invalidación y actualización en tiempo real de permisos
-- Ampliar `useFunctionalPermissions` para invalidar caché también cuando cambie `artist_role_bindings` y cuando cambie el contacto espejo del usuario actual.
-- Así, al cambiar el rol funcional o el acceso a artistas desde Teams, una ventana ya abierta se actualiza sin mantener permisos viejos durante 60 segundos.
+| Ruta | Módulo |
+|---|---|
+| `/releases` | `releases` |
+| `/booking` | `bookings` |
+| `/finanzas` | `budgets` (hub financiero principal) |
+| `/projects` y `/proyectos` | `projects` |
+| `/drive` | `drive` |
+| `/documents` | `contracts` |
+| `/roadmaps` | `roadmaps` |
+| `/sincronizaciones` | `solicitudes` |
+| `/analytics` | `analytics` |
+| `/automatizaciones` | `automations` |
+| `/agenda` | `bookings` (calendario de directos) |
 
-6. Ajustar queries de Releases para ser coherentes con la seguridad
-- En `useReleasesWithSearch` y `useRelease`, mantener las queries limpias, pero depender de RLS como autoridad final.
-- Añadir manejo de errores 403/RLS para mostrar “Sin acceso” en lugar de “no encontrado” cuando corresponda.
-- Evitar que búsquedas relacionadas consulten tablas si no hay releases visibles.
+`HubGate` ya muestra spinner mientras carga y `ForbiddenView` cuando no hay permiso, así que no hay riesgo de "flash" de contenido.
 
-7. Corregir el error runtime detectado en PDF
-- Cambiar `src/utils/exportCronogramaPDF.ts` para usar `import autoTable from 'jspdf-autotable'` y `autoTable(doc, ...)`, igual que ya se hace en otros componentes.
-- Esto corrige `doc.autoTable is not a function` sin cambiar el diseño del PDF.
+### 2. Personalizar el mensaje con el rol funcional actual
 
-Validación esperada después de implementar:
-- Con `Perfil Test` como Road Manager:
-  - no aparece Releases en sidebar,
-  - `/releases` muestra acceso denegado,
-  - `/releases/:id` y cualquier subruta de release muestran acceso denegado,
-  - las queries directas a `releases` y tablas relacionadas no devuelven datos,
-  - si se cambia a un rol con `releases:view`, vuelve a ver solo los artistas asignados.
-- El acceso por “Gestionar acceso a artistas” seguirá filtrando correctamente por artista, pero ya no podrá ampliar módulos que el rol funcional tiene en `none`.
+Para que el aviso diga literalmente algo como *"El perfil **Booking Agent** tiene limitaciones para ver Releases. Pide al creador del workspace que ajuste tus permisos."*, hay que exponer el nombre del rol:
+
+- **`src/lib/permissions/service.ts`**: nueva función `getActiveFunctionalRole(userId, workspaceId)` que reutiliza la query del contacto-espejo (ya existe inline en `getEffectivePermissions`) y devuelve el `role_name` actual. Cachear junto con los perms.
+- **`src/hooks/useFunctionalPermissions.ts`**: cargar también el `roleName` y devolverlo en el state (`{ loading, perms, workspaceId, isWorkspaceAdmin, roleName }`). `useCan()` también lo expone.
+- **`src/components/permissions/HubGate.tsx`**: pasar `roleName` a `ForbiddenView`.
+- **`src/components/permissions/ForbiddenView.tsx`**:
+  - Nueva prop opcional `roleName?: string`.
+  - Si llega, el copy pasa a:
+    > **El perfil _{roleName}_ tiene limitaciones**
+    >
+    > Tu rol actual no permite {ver/editar/gestionar} **{Módulo}**. Pide al creador del workspace que ajuste tus permisos para acceder a esta información.
+  - Si `roleName` es null (caso raro: sin contacto-espejo) se mantiene el copy genérico actual.
+
+Botones existentes ("Ir al Dashboard" / "Ver matriz de roles") se conservan.
+
+### 3. Sin cambios destructivos
+
+- No se tocan las RLS ya endurecidas en la migración anterior.
+- No se tocan las sub-rutas que ya tienen `HubGate`.
+- El bypass para `OWNER`/`TEAM_MANAGER` sigue intacto: nunca verán el mensaje.
+
+## Archivos modificados
+
+- `src/App.tsx` — wrap de 11 rutas top-level.
+- `src/lib/permissions/service.ts` — `getActiveFunctionalRole` + cache.
+- `src/hooks/useFunctionalPermissions.ts` — exponer `roleName`.
+- `src/components/permissions/HubGate.tsx` — propagar `roleName`.
+- `src/components/permissions/ForbiddenView.tsx` — copy personalizado.
+
+## Verificación manual
+
+1. Con "Perfil Test" como **Booking Agent**, ir a `/releases` → debe verse el mensaje "El perfil _Booking Agent_ tiene limitaciones…".
+2. Ir a `/booking` → acceso permitido (su módulo).
+3. Cambiar el rol a **Road Manager** y volver a `/releases` → mensaje actualizado al instante (gracias al realtime de `artist_role_bindings` ya implementado).
+4. Como OWNER → todos los hubs siguen accesibles sin mensaje.
