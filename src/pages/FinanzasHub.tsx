@@ -11,6 +11,7 @@ import { LiquidacionesTab } from '@/components/finanzas/LiquidacionesTab';
 import { FiscalTab } from '@/components/finanzas/FiscalTab';
 import Budgets from '@/pages/Budgets';
 import { useAutoRealizado } from '@/hooks/useAutoRealizado';
+import { HubGate } from '@/components/permissions/HubGate';
 
 const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
@@ -96,5 +97,14 @@ function FinanzasHubInner() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function FinanzasHub() {
+  // Cashflow gate cubre todas las pestañas operativas; presupuestos tiene su propio gate aparte si se accede directo.
+  return (
+    <HubGate module="cashflow" required="view">
+      <FinanzasHubInner />
+    </HubGate>
   );
 }
