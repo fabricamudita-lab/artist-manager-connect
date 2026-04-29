@@ -18,6 +18,8 @@ import PhotoSessionPipeline from '@/components/dam/PhotoSessionPipeline';
 import AssetDetailPanel from '@/components/dam/AssetDetailPanel';
 import AddAssetDialog from '@/components/dam/AddAssetDialog';
 import CreateSessionDialog from '@/components/dam/CreateSessionDialog';
+import AssetLightbox from '@/components/dam/AssetLightbox';
+import { syncCoverIfNeeded } from '@/components/dam/utils/coverSync';
 
 export default function ReleaseImagenVideo() {
   const { id } = useParams<{ id: string }>();
