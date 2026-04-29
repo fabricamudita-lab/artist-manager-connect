@@ -1008,95 +1008,238 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
                               <X className="w-4 h-4" />
                             </Button>
                           </div>
-                          
-                          {loadingTeam ? (
-                            <div className="flex items-center justify-center py-4">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            </div>
-                          ) : (
-                            <ScrollArea className="h-48">
-                              <div className="space-y-3">
-                                {/* Artist Profile - Highlighted at top */}
-                                {artistProfile && (
-                                  <div>
-                                    <p className="text-xs font-medium text-primary mb-1">
-                                      Artista Principal
-                                    </p>
-                                    <div className="space-y-1">
-                                      {(() => {
-                                        const isSelected = format.crewMembers.some(
-                                          cm => cm.memberId === artistProfile.id
-                                        );
-                                        return (
-                                          <div
-                                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer bg-primary/10 border border-primary/20"
-                                              onClick={() => {
-                                                if (isSelected) {
-                                                  handleRemoveCrewMember(index, artistProfile.id);
-                                                } else {
-                                                  handleAddCrewMember(index, {
-                                                    id: artistProfile.id,
-                                                    name: artistProfile.name,
-                                                    role: 'Artista principal',
-                                                    type: 'artist',
-                                                  });
-                                                }
-                                              }}
-                                          >
-                                            <Checkbox checked={isSelected} />
-                                            <span className="text-sm font-medium">{artistProfile.name}</span>
-                                            <Badge className="text-xs bg-primary/20 text-primary">
-                                              Artista
-                                            </Badge>
-                                          </div>
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                )}
 
-                                {/* Team categories */}
-                                {groupedByCategory.map((category) => (
-                                  <div key={category.value}>
-                                    <p className="text-xs font-medium text-muted-foreground mb-1">
-                                      {category.label}
-                                    </p>
-                                    <div className="space-y-1">
-                                      {category.members.map((member) => {
-                                        const isSelected = format.crewMembers.some(
-                                          cm => cm.memberId === member.id
-                                        );
+                          <Tabs value={crewPickerTab} onValueChange={(v) => setCrewPickerTab(v as 'team' | 'import' | 'new')}>
+                            <TabsList className="grid w-full grid-cols-3">
+                              <TabsTrigger value="team" className="gap-1.5 text-xs">
+                                <Users className="h-3.5 w-3.5" />
+                                Equipo del artista
+                              </TabsTrigger>
+                              <TabsTrigger value="import" className="gap-1.5 text-xs">
+                                <UserPlus className="h-3.5 w-3.5" />
+                                Importar contacto
+                              </TabsTrigger>
+                              <TabsTrigger value="new" className="gap-1.5 text-xs">
+                                <Plus className="h-3.5 w-3.5" />
+                                Nuevo
+                              </TabsTrigger>
+                            </TabsList>
+
+                            {/* TAB 1: only the artist's strict team */}
+                            <TabsContent value="team" className="mt-3">
+                              {loadingArtistTeam ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </div>
+                              ) : (
+                                <ScrollArea className="h-56">
+                                  <div className="space-y-3">
+                                    {/* Artist Profile - Highlighted at top */}
+                                    {artistProfile && (
+                                      <div>
+                                        <p className="text-xs font-medium text-primary mb-1">
+                                          Artista Principal
+                                        </p>
+                                        <div className="space-y-1">
+                                          {(() => {
+                                            const isSelected = format.crewMembers.some(
+                                              cm => cm.memberId === artistProfile.id
+                                            );
+                                            return (
+                                              <div
+                                                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer bg-primary/10 border border-primary/20"
+                                                onClick={() => {
+                                                  if (isSelected) {
+                                                    handleRemoveCrewMember(index, artistProfile.id);
+                                                  } else {
+                                                    handleAddCrewMember(index, {
+                                                      id: artistProfile.id,
+                                                      name: artistProfile.name,
+                                                      role: 'Artista principal',
+                                                      type: 'artist',
+                                                    });
+                                                  }
+                                                }}
+                                              >
+                                                <Checkbox checked={isSelected} />
+                                                <span className="text-sm font-medium">{artistProfile.name}</span>
+                                                <Badge className="text-xs bg-primary/20 text-primary">
+                                                  Artista
+                                                </Badge>
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {groupedByCategory.length === 0 && (
+                                      <div className="text-center py-6 text-xs text-muted-foreground">
+                                        Este artista aún no tiene equipo asignado.
+                                        <br />
+                                        Usa <span className="font-medium">Importar contacto</span> o <span className="font-medium">Nuevo</span> para añadir miembros.
+                                      </div>
+                                    )}
+
+                                    {/* Strict team grouped by category */}
+                                    {groupedByCategory.map((category) => (
+                                      <div key={category.value}>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                                          {category.label}
+                                        </p>
+                                        <div className="space-y-1">
+                                          {category.members.map((member) => {
+                                            const isSelected = format.crewMembers.some(
+                                              cm => cm.memberId === member.id
+                                            );
+                                            return (
+                                              <div
+                                                key={member.id}
+                                                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer"
+                                                onClick={() => {
+                                                  if (isSelected) {
+                                                    handleRemoveCrewMember(index, member.id);
+                                                  } else {
+                                                    handleAddCrewMember(index, member);
+                                                  }
+                                                }}
+                                              >
+                                                <Checkbox checked={isSelected} />
+                                                <div className="flex flex-col flex-1">
+                                                  <span className="text-sm">{member.name}</span>
+                                                  {member.role && (
+                                                    <span className="text-xs text-muted-foreground">{member.role}</span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              )}
+                            </TabsContent>
+
+                            {/* TAB 2: import any workspace contact */}
+                            <TabsContent value="import" className="mt-3 space-y-2">
+                              <Command className="rounded-lg border">
+                                <CommandInput
+                                  placeholder="Buscar contacto del workspace..."
+                                  value={importQuery}
+                                  onValueChange={setImportQuery}
+                                />
+                                <CommandList className="max-h-56">
+                                  <CommandEmpty>Sin resultados.</CommandEmpty>
+                                  <CommandGroup heading="Contactos">
+                                    {allContacts
+                                      .filter(c => !format.crewMembers.some(cm => cm.memberId === c.id))
+                                      .map((c) => {
+                                        const display = c.stage_name || c.name;
                                         return (
-                                          <div
-                                            key={member.id}
-                                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer"
-                                            onClick={() => {
-                                              if (isSelected) {
-                                                handleRemoveCrewMember(index, member.id);
-                                              } else {
-                                                handleAddCrewMember(index, member);
-                                              }
-                                            }}
+                                          <CommandItem
+                                            key={c.id}
+                                            value={`${display}-${c.id}`}
+                                            onSelect={() =>
+                                              handleImportContactAsCrew(index, c, importAssignToArtist)
+                                            }
+                                            className="cursor-pointer"
                                           >
-                                            <Checkbox checked={isSelected} />
+                                            <UserPlus className="mr-2 h-4 w-4 text-muted-foreground" />
                                             <div className="flex flex-col flex-1">
-                                              <span className="text-sm">{member.name}</span>
-                                              {member.role && (
-                                                <span className="text-xs text-muted-foreground">{member.role}</span>
+                                              <span className="text-sm">{display}</span>
+                                              {c.role && (
+                                                <span className="text-xs text-muted-foreground">{c.role}</span>
                                               )}
                                             </div>
-                                            <Badge variant="secondary" className="text-xs">
-                                              {member.type === 'workspace' ? 'Usuario' : 'Contacto'}
-                                            </Badge>
-                                          </div>
+                                            {c.category && (
+                                              <Badge variant="secondary" className="text-[10px] capitalize">
+                                                {c.category}
+                                              </Badge>
+                                            )}
+                                          </CommandItem>
                                         );
                                       })}
-                                    </div>
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                              <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground cursor-pointer">
+                                <Checkbox
+                                  checked={importAssignToArtist}
+                                  onCheckedChange={(v) => setImportAssignToArtist(v === true)}
+                                />
+                                Asignar también al equipo de {artistName}
+                              </label>
+                            </TabsContent>
+
+                            {/* TAB 3: create a brand new contact */}
+                            <TabsContent value="new" className="mt-3 space-y-3">
+                              <div className="space-y-2">
+                                <div>
+                                  <Label className="text-xs">Nombre *</Label>
+                                  <Input
+                                    value={newCrewName}
+                                    onChange={(e) => setNewCrewName(e.target.value)}
+                                    placeholder="Ej. Marta Ruiz"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">Rol / Instrumento</Label>
+                                    <Input
+                                      value={newCrewRole}
+                                      onChange={(e) => setNewCrewRole(e.target.value)}
+                                      placeholder="Ej. Bajo"
+                                    />
                                   </div>
-                                ))}
+                                  <div>
+                                    <Label className="text-xs">Categoría</Label>
+                                    <Select value={newCrewCategory} onValueChange={setNewCrewCategory}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {TEAM_CATEGORIES.map((cat) => (
+                                          <SelectItem key={cat.value} value={cat.value}>
+                                            {cat.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                                  <Checkbox
+                                    checked={newCrewAssignToArtist}
+                                    onCheckedChange={(v) => setNewCrewAssignToArtist(v === true)}
+                                  />
+                                  Asignar al equipo de {artistName}
+                                </label>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="w-full"
+                                  disabled={creatingNewCrew || !newCrewName.trim()}
+                                  onClick={() =>
+                                    handleCreateNewCrewContact(index, {
+                                      name: newCrewName,
+                                      role: newCrewRole,
+                                      category: newCrewCategory,
+                                      assignToArtist: newCrewAssignToArtist,
+                                    })
+                                  }
+                                >
+                                  {creatingNewCrew ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Plus className="w-4 h-4 mr-2" />
+                                  )}
+                                  Crear y añadir
+                                </Button>
                               </div>
-                            </ScrollArea>
-                          )}
+                            </TabsContent>
+                          </Tabs>
                         </div>
                       ) : (
                         <Button
