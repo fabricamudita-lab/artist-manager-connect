@@ -214,6 +214,29 @@ export function CreateSolicitudFromTemplateDialog({
     fetchArtistFormats();
   }, [formData.artist_id]);
 
+  // Auto-promote booking_status: si se introduce un fee y el usuario no ha tocado
+  // el estado manualmente, pasar de 'interest' a 'offer'. Si se borra el fee, volver.
+  useEffect(() => {
+    if (selectedTemplate !== 'booking') return;
+    if (formData.booking_status_touched) return;
+
+    const hasFee =
+      (formData.deal_type === 'flat_fee' && parseFloat(formData.fee || '0') > 0) ||
+      (formData.deal_type === 'door_split' && parseFloat(formData.door_split_percentage || '0') > 0);
+
+    const desired = hasFee ? 'offer' : 'interest';
+    if (formData.booking_status !== desired) {
+      setFormData(prev => ({ ...prev, booking_status: desired }));
+    }
+  }, [
+    selectedTemplate,
+    formData.fee,
+    formData.door_split_percentage,
+    formData.deal_type,
+    formData.booking_status_touched,
+    formData.booking_status,
+  ]);
+
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
     setStep('form');
@@ -249,7 +272,11 @@ export function CreateSolicitudFromTemplateDialog({
         fee: '',
         door_split_percentage: '',
         condiciones: '',
-        comentarios: ''
+        comentarios: '',
+        // Estado del booking (auto: interest por defecto, offer si hay fee)
+        booking_status: 'interest',
+        booking_status_touched: false,
+        required_approvers: [] as string[],
       }),
       ...(templateId === 'entrevista' && {
         programa: '',
@@ -1105,7 +1132,13 @@ export function CreateSolicitudFromTemplateDialog({
                     <Label htmlFor="booking_status">Estado del Booking</Label>
                     <BookingStatusCombobox
                       value={formData.booking_status || 'interest'}
-                      onValueChange={(value) => setFormData({ ...formData, booking_status: value })}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          booking_status: value,
+                          booking_status_touched: true,
+                        })
+                      }
                       placeholder="Selecciona el estado..."
                     />
                     <p className="text-xs text-muted-foreground">
