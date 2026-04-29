@@ -152,15 +152,26 @@ export function useReleasesWithSearch(filters: ReleasesFiltersState) {
         });
       }
 
-      // Filter by budget presence
+      // Filter by budget presence (check both M2M bridge and legacy direct release_id)
       if (filters.hasBudget && filters.hasBudget !== 'all') {
         const releaseIds = filteredReleases.map(r => r.id);
-        const { data: budgetCounts } = await supabase
-          .from('release_budgets')
-          .select('release_id')
-          .in('release_id', releaseIds);
 
-        const releasesWithBudgets = new Set(budgetCounts?.map(b => b.release_id) || []);
+        const [{ data: linkRows }, { data: directRows }] = await Promise.all([
+          supabase
+            .from('budget_release_links')
+            .select('release_id')
+            .in('release_id', releaseIds),
+          supabase
+            .from('budgets')
+            .select('release_id')
+            .in('release_id', releaseIds)
+            .not('release_id', 'is', null),
+        ]);
+
+        const releasesWithBudgets = new Set<string>([
+          ...((linkRows || []).map((b: any) => b.release_id).filter(Boolean)),
+          ...((directRows || []).map((b: any) => b.release_id).filter(Boolean)),
+        ]);
 
         if (filters.hasBudget === 'with') {
           filteredReleases = filteredReleases.filter(r => releasesWithBudgets.has(r.id));
