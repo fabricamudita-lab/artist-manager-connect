@@ -1132,7 +1132,13 @@ export function CreateSolicitudFromTemplateDialog({
                     <Label htmlFor="booking_status">Estado del Booking</Label>
                     <BookingStatusCombobox
                       value={formData.booking_status || 'interest'}
-                      onValueChange={(value) => setFormData({ ...formData, booking_status: value })}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          booking_status: value,
+                          booking_status_touched: true,
+                        })
+                      }
                       placeholder="Selecciona el estado..."
                     />
                     <p className="text-xs text-muted-foreground">
