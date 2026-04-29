@@ -35,11 +35,11 @@ const WORKFLOW_COLORS: Record<string, [number, number, number]> = {
   directo: [34, 197, 94],
 };
 
-const STATUS_BAR_OPACITY: Record<TaskStatus, number> = {
-  pendiente: 0.35,
-  en_proceso: 0.85,
-  completado: 1,
-  retrasado: 0.85,
+const STATUS_COLORS: Record<TaskStatus, [number, number, number]> = {
+  pendiente: [156, 163, 175], // gris
+  en_proceso: [59, 130, 246], // azul
+  completado: [34, 197, 94],  // verde
+  retrasado: [239, 68, 68],   // rojo
 };
 
 export function exportCronogramaGanttPDF(
@@ -315,13 +315,9 @@ export function exportCronogramaGanttPDF(
         const barH = rowHeight - 3;
         const barW = Math.max(barEnd - barStart, 1.5);
 
-        // Bar opacity based on status
-        const opacity = STATUS_BAR_OPACITY[task.status];
-        const blendedR = Math.round(r * opacity + 255 * (1 - opacity));
-        const blendedG = Math.round(g * opacity + 255 * (1 - opacity));
-        const blendedB = Math.round(b * opacity + 255 * (1 - opacity));
-
-        doc.setFillColor(blendedR, blendedG, blendedB);
+        // Bar color based on status (matches legend)
+        const [sr, sg, sb] = STATUS_COLORS[task.status];
+        doc.setFillColor(sr, sg, sb);
 
         // Rounded rect (manual with small radius)
         const radius = 1.2;
