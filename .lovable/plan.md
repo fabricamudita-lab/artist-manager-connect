@@ -1,123 +1,121 @@
 
-# Continuación: Pestaña informativa de roles + enforcement
+# Enforcement real de permisos funcionales
 
-Ya están listos: catálogo (29 roles × 12 módulos), tablas `functional_role_default_permissions` / `functional_role_permission_overrides`, RPCs `get_functional_permission` / `has_functional_permission`, servicio con cache+Zod, hooks `useFunctionalPermissions` / `useCan`, `<PermissionGuard>` / `<IfCan>`, y la pestaña editable `PermissionsByRoleTab`.
+Objetivo: que los permisos definidos en la matriz **realmente bloqueen** acceso, tanto en la UI como en la base de datos. Hoy se calculan y se muestran, pero no impiden nada.
 
-Falta lo que pediste explícitamente: **una pestaña de "ver información"** (solo lectura, didáctica) que explique qué hace cada rol, qué puede ver, qué puede editar y qué no puede ver — más rematar el enforcement en RLS y UI.
+Principios:
+- **Aditivo, nunca destructivo**: las RLS nuevas se SUMAN a las existentes (OR), no se borran las que ya hay.
+- **OWNER / TEAM_MANAGER**: siempre tienen control total (la RPC `has_functional_permission` ya hace bypass).
+- **Sin tocar** schemas reservados (`auth`, `storage`, `realtime`) ni `types.ts`.
 
 ---
 
-## 1. Nueva pestaña "Información de roles" (read-only, funcional)
+## 1. UI: gating en hubs y sidebar
 
-Archivo nuevo: `src/pages/teams/RoleInfoTab.tsx`, montado en `src/pages/Teams.tsx` junto al modo "Permisos por rol" (icono `Info`).
+Para cada hub, envolver el contenido con `<IfCan module="X" required="view" fallback={<ForbiddenView/>}>` y los CTAs con `<PermissionGuard required="edit|manage">`.
 
-Layout responsive (865px viewport):
+Crear primero un componente compartido `src/components/permissions/ForbiddenView.tsx` con icono de candado, título "No tienes acceso a este módulo" y enlace a Dashboard, para usarlo como fallback en todos los hubs.
+
+Mapeo módulo → archivo:
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│ [Buscar rol…]  [Filtro módulo ▾]  [Solo roles asignados]│
-├──────────────┬──────────────────────────────────────────┤
-│ Roles (29)   │  Detalle del rol seleccionado            │
-│ • Booker  3  │  ──────────────────────────────────────  │
-│ • A&R     1  │  Descripción industria + responsabilidad │
-│ • Manager 2  │                                          │
-│ • …          │  ┌─ Puede gestionar ──────────────────┐  │
-│              │  │ Bookings, Contratos…               │  │
-│              │  ├─ Puede editar ─────────────────────┤  │
-│              │  │ Presupuestos, Roadmaps…            │  │
-│              │  ├─ Solo ver ─────────────────────────┤  │
-│              │  │ Analytics, Cashflow…               │  │
-│              │  ├─ Sin acceso ───────────────────────┤  │
-│              │  │ Automations…                       │  │
-│              │  └────────────────────────────────────┘  │
-│              │  Indicador "Override de workspace" si    │
-│              │  difiere del default industria.          │
-└──────────────┴──────────────────────────────────────────┘
+bookings      → src/pages/Agenda.tsx (calendario), src/components/booking/* (ya bajo Agenda)
+budgets       → src/pages/Budgets.tsx + tab dentro de FinanzasHub
+cashflow      → tabs Cobros/Pagos/Liquidaciones/Fiscal/Panel en FinanzasHub
+contracts     → src/pages/Documents.tsx
+releases      → src/pages/Releases.tsx, src/pages/ReleaseDetail.tsx
+projects      → src/pages/Proyectos.tsx, src/pages/Projects.tsx
+drive         → src/pages/Drive.tsx
+roadmaps      → src/pages/Roadmaps.tsx, src/pages/RoadmapDetail.tsx
+solicitudes   → src/pages/Approvals.tsx, src/pages/ApprovalDetail.tsx
+analytics     → src/pages/Analytics.tsx
+contacts      → src/pages/MyManagement.tsx (Teams ya gestionado por workspace_role)
+automations   → src/pages/Automatizaciones.tsx
 ```
 
-Datos:
-- Lista de roles desde `catalog.ts` + count de miembros con ese `role` en `contacts` (mirror_type = workspace_member) del workspace activo.
-- Por rol: `computeRolePerms(matrix, roleName)` (ya existe en `service.ts`) → agrupar módulos por nivel (`manage` / `edit` / `view` / `none`).
-- Por cada módulo mostrar: label, descripción (de `ModuleDescriptor`), badge de nivel, e icono "modificado por workspace" cuando el override difiere del default.
-- Botón "Ver matriz completa" → cambia al modo edición existente (solo si OWNER/TEAM_MANAGER).
+Tratamiento especial en `FinanzasHub.tsx`: cada tab del array `TABS` se filtra por permiso. `panel/cobros/pagos/liquidaciones/fiscal` requieren `cashflow:view`; `presupuestos` requiere `budgets:view`. Si todas son `none`, mostrar `ForbiddenView`.
 
-Mejoras menores en datos auxiliares:
-- Añadir a `src/lib/permissions/catalog.ts` un mapa `ROLE_DESCRIPTIONS: Record<string,{summary:string; responsibilities:string[]}>` con texto industria (Booker, A&R, Manager, Tour Manager, Product Manager, Label Copy, Sync, Royalties, Legal, Marketing, RRSS, Diseño, Producción musical, Mezcla/Mastering, Distribución, Prensa, Radio, Promo digital, Manager financiero, Admin, etc.) — tomado de los PDFs de industria ya cargados como knowledge.
+CTAs (botones "Nuevo / Crear / Eliminar") usan `<PermissionGuard required="edit">` (o `manage` para borrar y para acciones tipo "Cerrar trimestre", "Configurar automatización").
 
-## 2. Enforcement en módulos (UI)
+Sidebar (`src/components/AppSidebar.tsx` o similar): ocultar entradas de menú cuyo módulo asociado esté en `none` para el usuario actual usando `useCan()`.
 
-Envolver entradas y acciones en cada hub con `<IfCan>` / `<PermissionGuard>`:
+## 2. RLS aditivo en BD (12 tablas)
 
-- `src/pages/FinanzasHub.tsx` → `budgets` y `cashflow` (ocultar tabs `view < 'view'`, deshabilitar CTA `< 'edit'`, "Cerrar trimestre" solo `manage`).
-- `src/pages/Proyectos.tsx`, `src/pages/Projects.tsx` → `projects`.
-- `src/pages/Releases.tsx`, `src/pages/ReleaseDetail.tsx` → `releases` (incluye `creditos`, ruta actual del usuario).
-- `src/pages/Documents.tsx` → `contracts`.
-- `src/pages/Roadmaps.tsx`, `RoadmapDetail.tsx` → `roadmaps`.
-- `src/pages/Drive.tsx` → `drive`.
-- `src/pages/Approvals.tsx` → `solicitudes`.
-- `src/pages/Analytics.tsx` → `analytics`.
-- `src/pages/Automatizaciones.tsx` → `automations`.
-- Sidebar (`src/components/`) → ocultar items con `level === 'none'`.
+Una sola migración SQL con políticas adicionales por tabla. Todas usan la helper `public.has_functional_permission(auth.uid(), <tabla>.workspace_id, '<módulo>', '<nivel>')` que ya existe y hace bypass para OWNER/TEAM_MANAGER.
 
-Patrón estándar:
-```tsx
-<IfCan module="budgets" required="view" fallback={<ForbiddenPage/>}>
-  …contenido…
-</IfCan>
+Plantilla por tabla:
 
-<PermissionGuard module="budgets" required="edit">
-  {(allowed)=> <Button disabled={!allowed}>Nuevo presupuesto</Button>}
-</PermissionGuard>
-```
-
-## 3. Enforcement en BD (RLS aditivo, no destructivo)
-
-Migración nueva: añadir políticas `*_functional_perm` que se suman (OR) a las existentes — nunca eliminar las que ya hay para no romper el flujo.
-
-Plantilla por módulo:
 ```sql
-CREATE POLICY "select_by_functional_perm" ON public.<tabla>
+CREATE POLICY "select_by_func_perm_<modulo>" ON public.<tabla>
 FOR SELECT TO authenticated
-USING (
-  public.has_functional_permission(auth.uid(), workspace_id, '<module>', 'view')
-);
+USING (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'view'));
 
-CREATE POLICY "write_by_functional_perm" ON public.<tabla>
-FOR INSERT/UPDATE/DELETE TO authenticated
-USING (public.has_functional_permission(auth.uid(), workspace_id, '<module>', 'edit'));
+CREATE POLICY "insert_by_func_perm_<modulo>" ON public.<tabla>
+FOR INSERT TO authenticated
+WITH CHECK (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'edit'));
+
+CREATE POLICY "update_by_func_perm_<modulo>" ON public.<tabla>
+FOR UPDATE TO authenticated
+USING (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'edit'));
+
+CREATE POLICY "delete_by_func_perm_<modulo>" ON public.<tabla>
+FOR DELETE TO authenticated
+USING (public.has_functional_permission(auth.uid(), workspace_id, '<modulo>', 'manage'));
 ```
 
-Tablas objetivo (mapeo módulo → tabla principal): `bookings`, `budgets`+`budget_lines`, `cashflow_entries`, `contracts`+`contract_drafts`, `releases`+`tracks`, `projects`, `storage_nodes`/`project_files`, `roadmaps`+`roadmap_items`, `approvals`, `automation_configs`, `contacts`. (Para `analytics` no hay tabla; se gatea solo en UI).
+Mapeo:
 
-Cada migración se hará tabla por tabla, validando que la política previa sigue cubriendo a OWNER/TEAM_MANAGER (la RPC ya hace bypass).
+| Tabla | Módulo |
+|---|---|
+| `bookings` | bookings |
+| `budgets`, `budget_lines` | budgets |
+| `cashflow_entries` | cashflow |
+| `contracts`, `contract_drafts` | contracts |
+| `releases`, `tracks` | releases |
+| `projects` | projects |
+| `storage_nodes`, `project_files` | drive |
+| `roadmaps`, `roadmap_items` | roadmaps |
+| `approvals` | solicitudes |
+| `automation_configs` | automations |
 
-## 4. Índices de rendimiento
+Para tablas hijas sin `workspace_id` directo (`budget_lines`, `tracks`, `roadmap_items`, `contract_drafts`), la policy hace JOIN con la tabla padre vía subselect.
 
-Migración con índices sobre columnas que el sistema consulta a menudo:
-- `functional_role_default_permissions(role_name, module)` (PK ya cubre, añadir `(module)`).
-- `functional_role_permission_overrides(workspace_id, role_name, module)` y `(workspace_id)`.
-- `contacts ((field_config->>'workspace_user_id'))` (ya creado en migración previa) + `((field_config->>'mirror_type'))`.
-- Índices parciales por `workspace_id` en las tablas con políticas funcionales nuevas si faltan.
+`contacts` se deja fuera por ahora: tiene su propio modelo y romperíamos el espejo `mirror_type=workspace_member` que el propio sistema de permisos consulta para resolver el rol del usuario. Se gatea solo en UI.
 
-## 5. Tests / QA mínimo
+`analytics` no tiene tabla → solo UI.
 
-- Smoke manual: con un usuario rol `Booker` debería ver `bookings` (manage) y NO ver `cashflow` ni `automations`.
-- Verificación de la RPC con `supabase--read_query` para 2-3 combinaciones (OWNER, Booker, A&R).
-- Confirmar que la pestaña informativa carga sin permisos de admin (cualquier miembro puede consultarla).
+## 3. Índices de rendimiento
+
+Misma migración:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_contacts_mirror_type
+  ON public.contacts ((field_config->>'mirror_type'));
+CREATE INDEX IF NOT EXISTS idx_frdp_module
+  ON public.functional_role_default_permissions (module);
+```
+
+## 4. QA y memoria
+
+- Smoke checklist: con un usuario `Booker` (rol funcional), confirmar que ve Bookings/Roadmaps, NO ve Cashflow ni Automatizaciones; con `Asesor Legal`, confirmar acceso `manage` a Contratos.
+- Verificar con `supabase--read_query` que `has_functional_permission` devuelve `true` para OWNER en cualquier módulo y `false` para `Backliner` en `cashflow`.
+- Actualizar `mem://features/functional-role-permissions` describiendo el enforcement aplicado (lista de tablas con RLS y hubs con `<IfCan>`).
 
 ## Detalles técnicos
 
-- Mantener separación: lógica en `src/lib/permissions/*`, UI en `src/pages/teams/*` y `src/components/permissions/*`.
-- Paginación ya implementada en `loadPermissionsMatrix` (pageSize 500).
-- Validación Zod ya cubre escrituras; las lecturas son por RPC + select tipados.
-- No tocar `src/integrations/supabase/types.ts` (autogenerado).
-- Sin cambios en `auth.users` ni en schemas reservados.
+- Hooks: `useCan().can(module, level)` ya existe y está cacheado 60s + Realtime.
+- `ForbiddenView` se ubica en `src/components/permissions/` para mantener la separación.
+- Las nuevas RLS son **aditivas**: si el usuario ya tenía acceso por una policy previa (p.ej. ser propietario del recurso), seguirá teniéndolo; si NO tenía acceso pero su rol funcional sí lo concede, ahora podrá acceder. Esto puede ser intencional (un Booker accede a `bookings` aunque no sea creador). Si el usuario quisiera el comportamiento opuesto (intersección en vez de unión) habría que reemplazar policies, lo cual NO se hace en este plan por seguridad.
+- Migración única, idempotente con `DROP POLICY IF EXISTS` antes de cada `CREATE POLICY`.
 
 ## Entregables
 
-1. `src/lib/permissions/catalog.ts` — añadir `ROLE_DESCRIPTIONS` y `getRoleDescription()`.
-2. `src/pages/teams/RoleInfoTab.tsx` — nueva pestaña informativa.
-3. `src/pages/Teams.tsx` — añadir toggle/modo "Información de roles".
-4. Wrap con `<IfCan>` / `<PermissionGuard>` en los 10 hubs listados.
-5. Migración SQL: políticas RLS aditivas + índices.
-6. Actualizar `mem://features/functional-role-permissions` con la nueva pestaña y el enforcement RLS.
+1. `src/components/permissions/ForbiddenView.tsx` (nuevo).
+2. Wraps con `<IfCan>` / `<PermissionGuard>` en los 12 archivos de hubs/páginas listados.
+3. Filtrado del sidebar por `useCan()`.
+4. Migración SQL: ~40 policies aditivas + 2 índices.
+5. Actualización de `mem://features/functional-role-permissions`.
+
+## Aviso
+
+El enforcement de RLS es la red de seguridad real. A partir del momento en que se aplique, **un rol con `cashflow=none` no podrá leer `cashflow_entries` aunque alguien manipule el cliente**. Si algún flujo interno (edge functions con anon key, vistas materializadas, etc.) dependía de leer esas tablas sin autenticación, lo notarás de inmediato. Las edge functions que usan `service_role` no se ven afectadas.
