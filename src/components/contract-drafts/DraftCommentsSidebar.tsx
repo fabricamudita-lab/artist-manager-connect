@@ -209,7 +209,7 @@ export function DraftCommentsSidebar({
       key={comment.id}
       id={`comment-${comment.id}`}
       onClick={() => onScrollToHighlight?.(comment.id)}
-      className={`rounded-lg border p-3 text-sm space-y-2 transition-all cursor-pointer hover:bg-muted/50 hover:border-primary/40 break-inside-avoid ${
+      className={`rounded-lg border ${isWide ? 'p-4' : 'p-3'} text-sm space-y-2 transition-all cursor-pointer hover:bg-muted/50 hover:border-primary/40 ${
         comment.resolved || comment.comment_status === 'resolved' || comment.comment_status === 'approved' ? 'opacity-50' : ''
       } ${activeCommentId === comment.id ? 'ring-2 ring-primary animate-pulse' : ''}`}
     >
@@ -227,8 +227,8 @@ export function DraftCommentsSidebar({
       </div>
 
       {comment.selected_text && (
-        <div className="bg-amber-50 border-l-2 border-amber-400 px-2 py-1 text-xs italic text-amber-800 rounded-r">
-          "{comment.selected_text.length > 120 ? comment.selected_text.slice(0, 120) + '...' : comment.selected_text}"
+        <div className={`bg-amber-50 border-l-2 border-amber-400 px-2 py-1 ${isRoomy ? 'text-sm' : 'text-xs'} italic text-amber-800 rounded-r whitespace-pre-wrap max-h-40 overflow-auto`}>
+          "{comment.selected_text.length > excerptLimit ? comment.selected_text.slice(0, excerptLimit) + '...' : comment.selected_text}"
         </div>
       )}
 
