@@ -1382,8 +1382,19 @@ export default function Teams() {
         </p>
       )}
 
-      {/* Members Grid/List */}
-      {teamMembers.length === 0 && teamContacts.length === 0 ? (
+      {/* Permissions tab — separated UI */}
+      {viewMode === 'permissions' ? (
+        <PermissionsByRoleTab
+          rolesInUse={Array.from(
+            teamMembers.reduce((acc, m) => {
+              const role = (m.functional_role || '').trim();
+              if (!role) return acc;
+              acc.set(role, (acc.get(role) ?? 0) + 1);
+              return acc;
+            }, new Map<string, number>()),
+          ).map(([role, count]) => ({ role, count }))}
+        />
+      ) : teamMembers.length === 0 && teamContacts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
