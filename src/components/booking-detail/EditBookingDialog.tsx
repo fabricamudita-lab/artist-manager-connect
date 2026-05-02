@@ -40,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
@@ -689,9 +690,12 @@ export function EditBookingDialog({
 
             <div className="space-y-2">
               <Label>Lugar / Dirección</Label>
-              <Input
+              <AddressAutocomplete
                 value={formData.lugar || ''}
-                onChange={(e) => updateField('lugar', e.target.value)}
+                onChange={(v) => updateField('lugar', v)}
+                venue={formData.venue || ''}
+                city={formData.ciudad || ''}
+                country={formData.pais || ''}
                 placeholder="Dirección o ubicación específica"
               />
             </div>
