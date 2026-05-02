@@ -1,49 +1,39 @@
-## Por qué aparece "€2" en Estado de Pagos
+## Fix: Error al guardar booking en fase "Negociación"
 
-### Diagnóstico
+### Problema
+El trigger `handle_booking_negotiation()` intenta insertar `'borrador'` en la columna `budget_status`, que es un enum que solo acepta `'nacional'` o `'internacional'`. Esto provoca rollback de la transacción al guardar el booking.
 
-El badge colapsado de "Estado de Pagos" muestra el **caché del booking** (`fee`), no un pago real. Este booking en BBDD tiene `fee = 2000.00 €`.
+### Cambios
 
-El formateo se hace con:
-```ts
-const fmt = (v) => `€${v.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-```
+**1. Migración SQL** (`supabase/migrations/20260502130000_fix_handle_booking_negotiation.sql`)
 
-→ El valor que se está renderizando **es `€2.000` (dos mil euros)**, mostrado en formato europeo donde el `.` es el separador de miles. Lo que parece "€2" es en realidad `€2.000` y el `.000` se está perdiendo visualmente (probablemente por el render del Card colapsado o algún issue de estilo/separador en tu navegador). El dinero **no sale "de la nada"**: es el fee del booking.
+- Redefine `public.handle_booking_negotiation()`:
+  - `budget_status` se asigna correctamente vía CASE: `'internacional'` si `es_internacional = true`, sino `'nacional'`.
+  - `'borrador'` se guarda en `status_negociacion` (columna text).
+  - Vincula budget vía `booking_offer_id` (más fiable que match por nombre).
+  - Bloque `EXCEPTION WHEN OTHERS` para que un fallo creando el budget nunca bloquee el UPDATE del booking (solo loggea warning).
+- Añade índices para acelerar lookups del trigger:
+  - `CREATE INDEX IF NOT EXISTS idx_budgets_booking_offer_id ON public.budgets(booking_offer_id);`
+  - `CREATE INDEX IF NOT EXISTS idx_budgets_artist_id ON public.budgets(artist_id);`
 
-### Por qué confunde
-1. **Etiqueta engañosa**: el badge dice "Estado de Pagos" pero muestra el caché total, no lo cobrado. Si todavía no hay pagos, mostrar el fee como cifra principal hace pensar que ya hay algo cobrado.
-2. **Formato ambiguo**: `€2.000` en formato europeo es legítimo, pero a primera vista sin contexto se puede leer como "€2 con tres ceros decimales raros" o simplemente "€2" si el render visual se corta.
+### Consideraciones de seguridad / integración
 
-### Cambios propuestos
+- **Auth**: el trigger mantiene `SECURITY DEFINER` con `search_path = 'public'`. No cambia el modelo de permisos ni RLS. El UPDATE sigue gobernado por las políticas RLS existentes en `booking_offers`.
+- **Validación**: la lógica del enum se valida vía CASE explícito (no se confía en input del cliente). Como es SQL parametrizado dentro de un trigger, no hay superficie de inyección.
+- **Edge cases cubiertos**:
+  - Booking sin `es_internacional` definido → default a `'nacional'`.
+  - Fallo al crear budget → no bloquea el guardado del booking.
+  - Re-entrada en fase "negociacion" → el trigger no duplica si ya existe budget vinculado por `booking_offer_id`.
+- **Panel de usuario**: no afecta UI; el `EditBookingDialog` y `PaymentStatusCard` actuales seguirán funcionando. Los budgets creados quedan accesibles desde Finanzas y desde el detalle del booking igual que antes.
+- **Separación de capas**: toda la lógica vive en el trigger DB; el frontend no necesita cambios.
 
-**1. Aclarar el badge colapsado** (`src/components/booking-detail/PaymentStatusCard.tsx`, líneas 226-231)
+### Verificación post-migración
 
-Cuando NO hay pagos registrados, en vez de mostrar el fee directo, mostrar:
-- Etiqueta clara: `Total: €2.000` (o `Caché: €2.000`)
-- Tooltip al hacer hover: "Caché total del booking. Aún no hay pagos registrados."
+1. Abrir el booking actual y cambiarlo a fase "Negociación" → debe guardar sin error.
+2. Confirmar en `budgets` que se crea una fila con `booking_offer_id` correcto y `status_negociacion = 'borrador'`.
+3. Re-guardar el booking → no debe duplicar budgets.
 
-```tsx
-<>
-  <StatusBadge estado="pendiente" />
-  <span className="text-sm text-muted-foreground">
-    <span className="text-xs">Caché:</span> <span className="font-medium">{fmt(fee)}</span>
-  </span>
-</>
-```
+### Archivos
+- **Crear**: `supabase/migrations/20260502130000_fix_handle_booking_negotiation.sql`
 
-**2. Usar formato canónico EU consistente** con la regla del proyecto (`€XX.XXX,XX`). Sustituir `fmt` por la utilidad ya existente `formatCurrency` (si existe) o reforzar el separador de miles para que se vea siempre claro. Verificar que en bookings con cobros parciales también queda inequívoco: `€500 / €2.000`.
-
-**3. Añadir leyenda secundaria** en el badge colapsado cuando hay pagos parciales: `Cobrado X de Y` para que se entienda lo que es la cifra.
-
-### Lo que NO hay que cambiar
-- El `fee` de 2.000 € en BBDD es correcto (es el caché del booking que tú definiste). No es un pago "fantasma".
-- No hay datos basura ni cálculos erróneos: es puramente un problema de UX/legibilidad del badge.
-
-### Pregunta para ti
-¿Prefieres que el badge colapsado, cuando no hay pagos, muestre:
-- **A**: `Caché: €2.000` (total del booking)
-- **B**: `Pendiente €2.000` (lo que queda por cobrar)
-- **C**: nada (solo el badge "Pendiente" sin cifra)
-
-Mi recomendación: **A**, porque transmite claramente que es el total y no induce a pensar que ya se ha cobrado algo.
+No se modifica código frontend.
