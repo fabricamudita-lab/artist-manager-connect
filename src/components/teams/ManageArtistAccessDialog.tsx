@@ -166,6 +166,7 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
         title: 'Acceso actualizado',
         description: `Se actualizó el acceso a artistas de ${userName}.`,
       });
+      onSaved?.();
       onOpenChange(false);
     } catch (err: any) {
       toast({
