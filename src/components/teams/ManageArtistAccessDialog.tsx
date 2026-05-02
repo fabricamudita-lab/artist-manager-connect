@@ -35,6 +35,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   userId: string | null;
   userName: string;
+  onSaved?: () => void;
 }
 
 interface Artist {
