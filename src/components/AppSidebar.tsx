@@ -67,9 +67,7 @@ interface NavItem {
 
 interface NavGroup {
   label: string | null;
-  managementOnly?: boolean;
   items: NavItem[];
-  managementExtra?: NavItem[];
 }
 
 // ─── NAVIGATION GROUPS ────────────────────────────────────────────────────────
