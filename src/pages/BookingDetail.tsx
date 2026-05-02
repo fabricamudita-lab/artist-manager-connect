@@ -309,7 +309,7 @@ export default function BookingDetail() {
   }) : null;
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
-      <div className="container-moodita section-spacing space-y-6">
+      <div className="container-moodita section-spacing space-y-6 pb-24">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
