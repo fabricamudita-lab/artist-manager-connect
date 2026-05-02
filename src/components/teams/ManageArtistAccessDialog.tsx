@@ -4,37 +4,25 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Star, Users } from 'lucide-react';
+import { Loader2, Star, Users, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-
-type ArtistRole =
-  | 'ARTIST_MANAGER'
-  | 'ARTIST_OBSERVER'
-  | 'BOOKING_AGENT'
-  | 'PRODUCER'
-  | 'LABEL'
-  | 'PUBLISHER'
-  | 'AR'
-  | 'ROADIE_TECH';
-
-const ROLE_OPTIONS: { value: ArtistRole; label: string }[] = [
-  { value: 'ARTIST_MANAGER', label: 'Manager (acceso completo)' },
-  { value: 'BOOKING_AGENT', label: 'Booking Agent' },
-  { value: 'PRODUCER', label: 'Productor' },
-  { value: 'LABEL', label: 'Sello' },
-  { value: 'PUBLISHER', label: 'Editorial' },
-  { value: 'AR', label: 'A&R' },
-  { value: 'ROADIE_TECH', label: 'Técnico / Roadie' },
-  { value: 'ARTIST_OBSERVER', label: 'Observador (solo lectura)' },
-];
+import {
+  mapFunctionalRoleToBindingRole,
+  bindingRoleLabel,
+  type ArtistBindingRole,
+} from '@/lib/permissions/roleMapping';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string | null;
   userName: string;
+  /**
+   * Rol funcional global del miembro (p. ej. "Mánager Personal").
+   * Determina automáticamente el rol que se grabará en cada binding.
+   */
+  functionalRole?: string | null;
   onSaved?: () => void;
 }
 
@@ -48,16 +36,23 @@ interface Artist {
 interface BindingState {
   artistId: string;
   enabled: boolean;
-  role: ArtistRole;
   originalEnabled: boolean;
-  originalRole: ArtistRole | null;
 }
 
-export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName, onSaved }: Props) {
+export function ManageArtistAccessDialog({
+  open,
+  onOpenChange,
+  userId,
+  userName,
+  functionalRole,
+  onSaved,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [bindings, setBindings] = useState<Record<string, BindingState>>({});
+
+  const derivedBindingRole: ArtistBindingRole = mapFunctionalRoleToBindingRole(functionalRole);
 
   useEffect(() => {
     if (!open || !userId) return;
@@ -68,7 +63,7 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
       try {
         const [artistsRes, bindingsRes] = await Promise.all([
           supabase.from('artists').select('id, name, stage_name, artist_type').order('name'),
-          supabase.from('artist_role_bindings').select('artist_id, role').eq('user_id', userId),
+          supabase.from('artist_role_bindings').select('artist_id').eq('user_id', userId),
         ]);
 
         if (cancelled) return;
@@ -76,18 +71,15 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
         if (bindingsRes.error) throw bindingsRes.error;
 
         const list = artistsRes.data ?? [];
-        const existing = new Map<string, ArtistRole>();
-        (bindingsRes.data ?? []).forEach((b: any) => existing.set(b.artist_id, b.role));
+        const existing = new Set<string>((bindingsRes.data ?? []).map((b: any) => b.artist_id));
 
         const initial: Record<string, BindingState> = {};
         list.forEach((a) => {
-          const role = existing.get(a.id) ?? null;
+          const enabled = existing.has(a.id);
           initial[a.id] = {
             artistId: a.id,
-            enabled: role !== null,
-            role: (role ?? 'ARTIST_MANAGER') as ArtistRole,
-            originalEnabled: role !== null,
-            originalRole: role,
+            enabled,
+            originalEnabled: enabled,
           };
         });
 
@@ -116,28 +108,22 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
     }));
   };
 
-  const setRole = (artistId: string, role: ArtistRole) => {
-    setBindings((prev) => ({
-      ...prev,
-      [artistId]: { ...prev[artistId], role },
-    }));
-  };
-
   const handleSave = async () => {
     if (!userId) return;
     setSaving(true);
     try {
-      const toInsert: { artist_id: string; user_id: string; role: ArtistRole }[] = [];
+      const toInsert: { artist_id: string; user_id: string; role: ArtistBindingRole }[] = [];
       const toDelete: string[] = [];
-      const toUpdate: { artist_id: string; role: ArtistRole }[] = [];
+      const toUpdate: string[] = []; // bindings ya existentes que mantienen acceso → realinear rol
 
       Object.values(bindings).forEach((b) => {
         if (b.enabled && !b.originalEnabled) {
-          toInsert.push({ artist_id: b.artistId, user_id: userId, role: b.role });
+          toInsert.push({ artist_id: b.artistId, user_id: userId, role: derivedBindingRole });
         } else if (!b.enabled && b.originalEnabled) {
           toDelete.push(b.artistId);
-        } else if (b.enabled && b.originalEnabled && b.role !== b.originalRole) {
-          toUpdate.push({ artist_id: b.artistId, role: b.role });
+        } else if (b.enabled && b.originalEnabled) {
+          // Asegurar que el binding existente refleja el rol funcional vigente
+          toUpdate.push(b.artistId);
         }
       });
 
@@ -153,12 +139,12 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
           .in('artist_id', toDelete);
         if (error) throw error;
       }
-      for (const u of toUpdate) {
+      if (toUpdate.length > 0) {
         const { error } = await supabase
           .from('artist_role_bindings')
-          .update({ role: u.role } as any)
+          .update({ role: derivedBindingRole } as any)
           .eq('user_id', userId)
-          .eq('artist_id', u.artist_id);
+          .in('artist_id', toUpdate);
         if (error) throw error;
       }
 
@@ -187,10 +173,30 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
         <DialogHeader>
           <DialogTitle>Acceso a artistas</DialogTitle>
           <DialogDescription>
-            Selecciona los artistas a los que <strong>{userName}</strong> debe tener acceso y define su rol en cada uno.
+            Selecciona los artistas a los que <strong>{userName}</strong> debe tener acceso.
             Solo verá la información de los artistas marcados.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-sm">
+          <Info className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+          <div className="space-y-1">
+            <p>
+              Este miembro accederá a los artistas marcados con el rol{' '}
+              <strong>{functionalRole?.trim() || 'sin rol funcional'}</strong>
+              {functionalRole?.trim() && (
+                <>
+                  {' '}
+                  (<span className="text-muted-foreground">{bindingRoleLabel(derivedBindingRole)}</span>)
+                </>
+              )}
+              .
+            </p>
+            <p className="text-xs text-muted-foreground">
+              El rol manda siempre. Para cambiarlo, edita el rol funcional del miembro.
+            </p>
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-10">
@@ -231,22 +237,6 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName,
                       )}
                       {displayName}
                     </Label>
-                    <Select
-                      value={b.role}
-                      onValueChange={(v) => setRole(artist.id, v as ArtistRole)}
-                      disabled={!b.enabled}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ROLE_OPTIONS.map((r) => (
-                          <SelectItem key={r.value} value={r.value}>
-                            {r.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 );
               };
