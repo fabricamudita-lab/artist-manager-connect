@@ -738,7 +738,7 @@ export default function BookingDetail() {
                 </TabsTrigger>
                 <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
-                  Gastos de viaje
+                  Imprevistos
                 </TabsTrigger>
                 <TabsTrigger value="files" className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4" />
