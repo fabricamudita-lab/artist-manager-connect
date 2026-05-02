@@ -371,20 +371,27 @@ export default function ArtistProfile() {
           <div className="flex items-center gap-2 mt-2">
             {artist.spotify_url && (
               <a href={artist.spotify_url} target="_blank" rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-green-500 transition-colors">
-                <Globe className="h-4 w-4" />
+                aria-label="Spotify"
+                className="text-muted-foreground hover:text-[#1DB954] transition-colors">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.5 17.32a.75.75 0 0 1-1.03.25c-2.82-1.72-6.37-2.11-10.55-1.16a.75.75 0 1 1-.33-1.46c4.57-1.04 8.5-.59 11.66 1.34.36.22.47.69.25 1.03zm1.47-3.27a.94.94 0 0 1-1.29.31c-3.23-1.99-8.16-2.56-11.98-1.4a.94.94 0 1 1-.55-1.8c4.37-1.33 9.8-.69 13.5 1.59.44.27.58.85.32 1.3zm.13-3.4C15.32 8.5 8.9 8.28 5.42 9.34a1.13 1.13 0 1 1-.66-2.16c4-1.21 11.07-.98 15.43 1.62a1.13 1.13 0 0 1-1.16 1.94z"/>
+                </svg>
               </a>
             )}
             {artist.instagram_url && (
               <a href={artist.instagram_url} target="_blank" rel="noopener noreferrer"
+                aria-label="Instagram"
                 className="text-muted-foreground hover:text-pink-500 transition-colors">
                 <Instagram className="h-4 w-4" />
               </a>
             )}
             {artist.tiktok_url && (
               <a href={artist.tiktok_url} target="_blank" rel="noopener noreferrer"
+                aria-label="TikTok"
                 className="text-muted-foreground hover:text-foreground transition-colors">
-                <Music className="h-4 w-4" />
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43V8.86a8.16 8.16 0 0 0 4.77 1.52V6.93a4.85 4.85 0 0 1-1.84-.24z"/>
+                </svg>
               </a>
             )}
             {!hasSocialLinks && (
