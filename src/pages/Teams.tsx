@@ -896,16 +896,23 @@ export default function Teams() {
   // Compute member counts per team
   const teamMemberCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    
+
     teamContacts.forEach(contact => {
       const assignedIds = (contact as any).assigned_artist_ids || [];
       assignedIds.forEach((artistId: string) => {
         counts.set(artistId, (counts.get(artistId) || 0) + 1);
       });
     });
-    
+
+    // Sumar también miembros del workspace asignados a cada artista vía bindings
+    teamMembers.forEach(m => {
+      (m.artist_ids || []).forEach(aid => {
+        counts.set(aid, (counts.get(aid) || 0) + 1);
+      });
+    });
+
     return counts;
-  }, [teamContacts]);
+  }, [teamContacts, teamMembers]);
 
   const editingTeam = editingTeamId ? artists.find(a => a.id === editingTeamId) : null;
 
