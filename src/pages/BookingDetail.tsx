@@ -742,7 +742,7 @@ export default function BookingDetail() {
                 </TabsTrigger>
                 <TabsTrigger value="files" className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4" />
-                  Archivos y documentos
+                  Archivos
                 </TabsTrigger>
                 <TabsTrigger value="solicitudes" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
