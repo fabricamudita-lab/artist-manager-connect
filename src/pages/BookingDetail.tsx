@@ -586,120 +586,137 @@ export default function BookingDetail() {
           <ShareBookingDialog open={showShareDialog} onOpenChange={setShowShareDialog} booking={booking} />
         </div>
 
-        {/* Quick Stats Bar */}
-        <div className="grid grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <DollarSign className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Fee</p>
-                <p className="text-lg font-bold">{booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card
-            className={`bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20 ${primaryBudgetKpi ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
-            onClick={primaryBudgetKpi ? () => setActiveTab('presupuesto') : undefined}
-          >
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-orange-500/20 rounded-lg shrink-0">
-                <Receipt className="h-5 w-5 text-orange-600" />
-              </div>
-              {primaryBudgetKpi ? (
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Disponible · Presupuesto</p>
-                  <p className={`text-lg font-bold ${primaryBudgetKpi.disponible >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                    {fmtEUR(primaryBudgetKpi.disponible)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    Capital {fmtEUR(primaryBudgetKpi.capital)} · Comprometido {fmtEUR(primaryBudgetKpi.comprometido)}
-                  </p>
+        {/* Quick Stats Bar - standardized layout */}
+        {(() => {
+          const KpiCard = ({
+            label,
+            value,
+            icon: Icon,
+            accent,
+            sub,
+            onClick,
+            action,
+          }: {
+            label: string;
+            value: React.ReactNode;
+            icon: React.ComponentType<{ className?: string }>;
+            accent?: string;
+            sub?: React.ReactNode;
+            onClick?: () => void;
+            action?: React.ReactNode;
+          }) => (
+            <Card
+              className={`bg-card ${onClick ? 'cursor-pointer hover:shadow-sm transition-shadow' : ''}`}
+              onClick={onClick}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+                  <Icon className={`h-4 w-4 shrink-0 ${accent ?? 'text-muted-foreground'}`} />
                 </div>
-              ) : booking.gastos_estimados ? (
-                <div>
-                  <p className="text-xs text-muted-foreground">Gastos Est.</p>
-                  <p className="text-lg font-bold">{booking.gastos_estimados.toLocaleString()}€</p>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 p-0 h-auto"
-                  onClick={() => setShowEditDialog(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Estimar gastos
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          
-          <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <DollarSign className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Comisión</p>
-                <p className="text-lg font-bold">
-                  {booking.comision_euros ? `${booking.comision_euros.toLocaleString()}€` : booking.comision_porcentaje ? `${booking.comision_porcentaje}%` : '-'}
+                <p className={`mt-1 text-2xl font-semibold leading-tight ${accent ?? 'text-foreground'}`}>
+                  {value}
                 </p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {(() => {
-            const viabilityCount = [booking.viability_manager_approved, booking.viability_tour_manager_approved, booking.viability_production_approved].filter(Boolean).length;
-            const showViability = ['negociacion', 'confirmado', 'facturado'].includes(booking.phase?.toLowerCase() || '');
-            
-            if (showViability) {
-              return (
-                <Card 
-                  className={`cursor-pointer transition-colors ${
-                    viabilityCount === 3 
-                      ? 'bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20' 
-                      : viabilityCount > 0 
-                        ? 'bg-gradient-to-br from-amber-500/5 to-amber-500/10 border-amber-500/20'
-                        : 'bg-gradient-to-br from-muted/5 to-muted/10 border-muted/20'
-                  }`}
-                  onClick={() => viabilityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                >
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      viabilityCount === 3 ? 'bg-green-500/20' : viabilityCount > 0 ? 'bg-amber-500/20' : 'bg-muted/20'
-                    }`}>
-                      <ShieldCheck className={`h-5 w-5 ${
-                        viabilityCount === 3 ? 'text-green-600' : viabilityCount > 0 ? 'text-amber-600' : 'text-muted-foreground'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Viabilidad</p>
-                      <p className="text-lg font-bold">{viabilityCount}/3</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            }
-            
-            return (
-              <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <FileText className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Facturación</p>
-                    <p className="text-lg font-bold capitalize">{booking.estado_facturacion || 'Pendiente'}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-        </div>
+                {sub && <p className="mt-1 text-[11px] text-muted-foreground truncate">{sub}</p>}
+                {action && <div className="mt-2">{action}</div>}
+              </CardContent>
+            </Card>
+          );
+
+          const viabilityCount = [
+            booking.viability_manager_approved,
+            booking.viability_tour_manager_approved,
+            booking.viability_production_approved,
+          ].filter(Boolean).length;
+          const showViability = ['negociacion', 'confirmado', 'facturado'].includes(
+            booking.phase?.toLowerCase() || ''
+          );
+
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard
+                label="Fee"
+                icon={DollarSign}
+                value={booking.fee ? fmtEUR(booking.fee) : '—'}
+              />
+
+              {primaryBudgetKpi ? (
+                <KpiCard
+                  label="Disponible · Presupuesto"
+                  icon={Receipt}
+                  value={fmtEUR(primaryBudgetKpi.disponible)}
+                  accent={primaryBudgetKpi.disponible >= 0 ? undefined : 'text-destructive'}
+                  sub={`Capital ${fmtEUR(primaryBudgetKpi.capital)} · Comprometido ${fmtEUR(primaryBudgetKpi.comprometido)}`}
+                  onClick={() => setActiveTab('presupuesto')}
+                />
+              ) : booking.gastos_estimados ? (
+                <KpiCard
+                  label="Gastos estimados"
+                  icon={Receipt}
+                  value={fmtEUR(booking.gastos_estimados)}
+                />
+              ) : (
+                <KpiCard
+                  label="Gastos estimados"
+                  icon={Receipt}
+                  value="—"
+                  action={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowEditDialog(true);
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Estimar
+                    </Button>
+                  }
+                />
+              )}
+
+              <KpiCard
+                label="Comisión"
+                icon={DollarSign}
+                value={
+                  booking.comision_euros
+                    ? fmtEUR(booking.comision_euros)
+                    : booking.comision_porcentaje
+                      ? `${booking.comision_porcentaje}%`
+                      : '—'
+                }
+              />
+
+              {showViability ? (
+                <KpiCard
+                  label="Viabilidad"
+                  icon={ShieldCheck}
+                  value={`${viabilityCount}/3`}
+                  accent={
+                    viabilityCount === 3
+                      ? 'text-green-600'
+                      : viabilityCount > 0
+                        ? 'text-amber-600'
+                        : undefined
+                  }
+                  onClick={() =>
+                    viabilityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }
+                />
+              ) : (
+                <KpiCard
+                  label="Facturación"
+                  icon={FileText}
+                  value={
+                    <span className="capitalize">{booking.estado_facturacion || 'Pendiente'}</span>
+                  }
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
