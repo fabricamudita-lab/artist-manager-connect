@@ -48,6 +48,8 @@ interface TeamMember {
   email: string;
   avatar_url?: string;
   mirror_contact_id?: string;
+  /** Artist IDs the member is bound to via artist_role_bindings (empty = no specific artist scope). */
+  artist_ids?: string[];
   permissions: {
     documents: 'none' | 'view' | 'edit' | 'owner';
     solicitudes: 'none' | 'view' | 'edit' | 'owner';
