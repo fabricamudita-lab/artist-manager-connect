@@ -1,44 +1,52 @@
-# Menú lateral idéntico para colaboradores con bloqueos visibles
+# Fix: candados incorrectos en el menú lateral
 
-## Diagnóstico del estado actual
+## Problema
 
-Hoy el sidebar (`src/components/AppSidebar.tsx`) hace dos cosas que rompen el objetivo:
+El sidebar muestra el icono de candado en elementos como **Proyectos, Discografía, Booking, Sincronizaciones, Hojas de Ruta, Finanzas, Analytics, Drive, Documentos**, aunque tu cuenta es **Management (OWNER del workspace)** y sí puedes acceder a ellos al hacer clic.
 
-1. **Oculta** los grupos `managementOnly` (Operaciones, Administración) si el usuario no es OWNER/TEAM_MANAGER.
-2. **Oculta** cada item individual si `useCan().can(module, 'view')` es `false` (ver `isItemAllowed` + `.filter(it => isItemAllowed(it.url))` en `renderGroup`).
+## Causa
 
-Por eso un colaborador con permisos limitados ve un menú "recortado" en vez del menú completo. El bloqueo del contenido ya funciona bien — `HubGate` + `ForbiddenView` (en `src/components/permissions/`) muestran una pantalla con candado y mensaje de "Pide al responsable de tu workspace que ajuste tus permisos" cuando se entra a un módulo sin permiso.
+En `src/components/AppSidebar.tsx`, el helper `isItemLocked` decide el bloqueo usando solo `useCan().can(module, 'view')`. Ese hook (`useFunctionalPermissions`) únicamente evalúa el **rol funcional** (overrides) y devuelve `false` cuando el OWNER no tiene un rol funcional asignado o cuando su rol funcional concreto no incluye explícitamente "view" en un módulo.
 
-El menú "simplificado de artista" (líneas 78-115) se mantiene solo para usuarios con `linkedArtistId` (artistas vinculados al roster), no para colaboradores del equipo. Eso ya está bien.
+Sin embargo, `HubGate` sí permite el acceso a esos módulos porque hace un **bypass**: si la membresía es `OWNER` o `TEAM_MANAGER`, concede acceso total sin mirar el rol funcional. De ahí la inconsistencia: el sidebar bloquea visualmente lo que el HubGate permite abrir.
 
-## Cambio a realizar
+Además, el hook `useFunctionalPermissions` ya expone `isWorkspaceAdmin` (true para OWNER/TEAM_MANAGER), pero `useCan` no lo está devolviendo, así que el sidebar no puede usarlo.
 
-Reemplazar la lógica de "ocultar" por "mostrar bloqueado" para colaboradores que pertenecen al workspace.
+## Solución
 
-### 1. `src/components/AppSidebar.tsx` — Mostrar todos los items, marcando los bloqueados
+1. **`src/hooks/useFunctionalPermissions.ts`** — exponer `isWorkspaceAdmin` también desde `useCan`:
+   ```ts
+   export function useCan() {
+     const { perms, loading, roleName, isWorkspaceAdmin } = useFunctionalPermissions();
+     return {
+       loading,
+       perms,
+       roleName,
+       isWorkspaceAdmin,
+       can: (module, required) => hasPermission(perms, module, required),
+     };
+   }
+   ```
 
-- Eliminar el filtro `isItemAllowed` del array `allItems` en `renderGroup`. En su lugar, calcular para cada item un flag `locked` y pasarlo a `renderNavItem`.
-- Quitar el filtro final `groups.filter(g => !g.managementOnly || isManagement)` para colaboradores del workspace: los grupos `Operaciones` y `Administración` deben verse igual. (Se conserva la rama de "menú de artista" para artistas vinculados, que es un caso distinto.)
-- En `renderNavItem`, cuando `locked === true`:
-  - Renderizar como `<button>` (no `NavLink`) con estilo atenuado (`opacity-60`), icono de candado pequeño superpuesto, y al hacer click navegar a la ruta normal — **`HubGate` ya muestra `ForbiddenView` con el mensaje de "pedir permiso al responsable"**, así que la experiencia es exactamente la deseada sin duplicar lógica.
-  - Tooltip en modo collapsed dirá `{title} · Sin acceso`.
-- El cálculo de `locked` usa el mismo `useCan().can(module, 'view')` actual, pero solo para items con módulo mapeado en `URL_TO_MODULE`. Sin entrada en el mapa → nunca bloqueado (Dashboard, Chat, Mi Perfil, Ajustes…).
+2. **`src/components/AppSidebar.tsx`** — saltarse el bloqueo si el usuario es admin del workspace, alineando el sidebar con el comportamiento real de `HubGate`:
+   ```ts
+   const { can, loading: permsLoading, isWorkspaceAdmin } = useCan();
 
-### 2. Cobertura de módulos en `URL_TO_MODULE`
+   const isItemLocked = (url: string): boolean => {
+     if (!isManagement || permsLoading) return false;
+     if (isWorkspaceAdmin) return false; // OWNER / TEAM_MANAGER nunca ven candado
+     const mod = URL_TO_MODULE[url];
+     if (!mod) return false;
+     return !can(mod, 'view');
+   };
+   ```
 
-Revisar que todas las rutas de los grupos `Operaciones` y `Administración` estén mapeadas. Hoy faltan algunas (`/sincronizaciones`, `/teams`, `/correo`, `/epks`, `/calendar`). Si algún módulo funcional no existe en el catálogo, ese item se mostrará desbloqueado (comportamiento conservador, igual que hoy). No se inventan módulos nuevos.
+## Resultado esperado
 
-### 3. Verificación visual rápida
+- **OWNER / TEAM_MANAGER** (tu caso, "Management"): no verás ningún candado; el menú se ve completo y limpio como antes.
+- **Colaboradores con rol funcional**: seguirán viendo todo el menú, pero con candado en los módulos donde su rol funcional no tenga permiso "view", y al entrar verán el `ForbiddenView` con la opción de pedir permiso (comportamiento ya implementado).
 
-- Como OWNER/TEAM_MANAGER: el sidebar es idéntico al actual (todos los items desbloqueados).
-- Como colaborador con rol funcional limitado: ve el mismo menú que el OWNER, con candado en los items sin permiso. Click en uno bloqueado → carga la página y `HubGate` muestra `ForbiddenView` con el mensaje "Pide al responsable de tu workspace que ajuste tus permisos".
-- Como artista vinculado (linkedArtistId): sigue viendo el menú simplificado de artista, sin cambios.
+## Archivos a modificar
 
-## Archivos a editar
-
-- `src/components/AppSidebar.tsx` — único archivo a modificar.
-
-## Lo que NO cambia
-
-- `HubGate`, `ForbiddenView`, `useFunctionalPermissions`, RLS, ni el catálogo de módulos. La pantalla de "no tienes acceso" ya existe y se reutiliza tal cual.
-- El menú de artistas vinculados (`!isManagement && linkedArtistId`) se mantiene porque responde a otra necesidad (vista enfocada del artista).
+- `src/hooks/useFunctionalPermissions.ts` (exportar `isWorkspaceAdmin` desde `useCan`)
+- `src/components/AppSidebar.tsx` (usar `isWorkspaceAdmin` en `isItemLocked`)
