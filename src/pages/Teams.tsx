@@ -499,6 +499,19 @@ export default function Teams() {
         }
       });
 
+      // Cargar artistas asignados a cada miembro vía artist_role_bindings
+      const { data: bindings } = await supabase
+        .from('artist_role_bindings')
+        .select('user_id, artist_id')
+        .in('user_id', userIds);
+
+      const artistsByUser = new Map<string, string[]>();
+      (bindings || []).forEach((b: any) => {
+        const arr = artistsByUser.get(b.user_id) || [];
+        if (!arr.includes(b.artist_id)) arr.push(b.artist_id);
+        artistsByUser.set(b.user_id, arr);
+      });
+
       const profileMap = new Map(
         (profiles || []).map(p => [p.user_id, p])
       );
