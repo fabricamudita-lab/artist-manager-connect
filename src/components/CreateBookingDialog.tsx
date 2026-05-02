@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { Calendar, MapPin, Users, DollarSign, FileText, Ticket, Clock, ShieldCheck } from 'lucide-react';
+import { DurationInput } from '@/components/booking-detail/DurationInput';
 
 interface CreateBookingDialogProps {
   open: boolean;
