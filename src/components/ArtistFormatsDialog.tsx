@@ -323,11 +323,10 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
   const [expandedFormats, setExpandedFormats] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
-  // Fetch team members for this artist
+  // Fetch team members for this artist (workspace members + contacts assigned to the artist)
   const selectedArtistIds = useMemo(() => (artistId ? [artistId] : []), [artistId]);
-  const { allTeamMembers, filteredMembers, groupedByCategory: _legacyGrouped, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
-  // Strict team for the artist (only contacts with explicit assignment)
-  const { groupedByCategory, loading: loadingArtistTeam } = useArtistTeamMembers(artistId);
+  const { allTeamMembers, filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
+  const loadingArtistTeam = loadingTeam;
 
   // All workspace contacts, used by the "Importar contacto" tab
   const { data: allContacts = [] } = useQuery({
