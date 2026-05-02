@@ -1,51 +1,45 @@
-## Selector estructurado de Duración (horas + minutos)
+## "Tipo de Oferta" como desplegable con opciones estándar
 
-Sustituir el input libre de "Duración" por dos campos numéricos pequeños (Horas / Minutos) que generan siempre un formato canónico `Xh Ymin`. Así desaparece la posibilidad de escribir "1h30", "90min", "90'", etc.
+Convertir el input libre de **Tipo de Oferta** en un combobox que ofrece las opciones estándar de la industria, pero permite escribir cualquier valor personalizado. Así se gana consistencia sin perder flexibilidad para los casos no estándar (que ahora mismo se usan, ej. importes con IVA).
+
+### Opciones predefinidas
+- **Flat Fee** — Caché fijo
+- **Door Deal** — % de taquilla
+- **Flat Fee + Door Deal** — Mínimo garantizado + % sobre umbral
+- **Vs. Door Deal** — El mayor entre flat fee y door deal
+- **Bell Curve / Plus Walkout** — Escalonado por taquilla
+- **Guarantee + Bonus** — Mínimo + bonus por objetivos
+- **Profit Split** — Reparto de beneficios tras gastos
 
 ### Comportamiento UX
-- Dos inputs numéricos juntos:
-  - **Horas** (0-12, paso 1)
-  - **Minutos** (0-59, paso 5)
-- Se guarda en `booking.duracion` como string canónico:
-  - `1` h y `30` min → `"1h 30min"`
-  - `2` h y `0` min → `"2h"`
-  - `0` h y `45` min → `"45min"`
-  - ambos `0`/vacío → `null`
-- Al **abrir** el diálogo, se parsea el valor existente (cualquier formato heredado: `1h30`, `90min`, `90'`, `1:30`, `1h 30min`) a `{horas, minutos}` para no perder datos.
+- Combobox tipo "search + select" (mismo patrón que ya se usa para Géneros / Roles).
+- Si el usuario escribe algo que no está en la lista, aparece "Usar **'mi texto'**" como opción → permite valores libres.
+- Al abrir, si ya hay un valor que coincide con una opción estándar, queda marcado como seleccionado.
+- Placeholder: "Selecciona o escribe…".
 
 ### Cambios técnicos
-
-**1. Nuevo helper `src/lib/duration.ts`**
+**1. Nuevo catálogo `src/lib/booking/offerTypes.ts`**
 ```ts
-// Devuelve { horas, minutos } a partir de cualquier string heredado
-export function parseDuration(input?: string | null): { horas: number; minutos: number };
-
-// Devuelve string canónico "Xh Ymin" / "Xh" / "Ymin" / "" 
-export function formatDuration(horas: number, minutos: number): string;
+export const OFFER_TYPES = [
+  { value: 'Flat Fee', description: 'Caché fijo' },
+  { value: 'Door Deal', description: '% de taquilla' },
+  // ...
+] as const;
 ```
 
-Reglas de parseo (en orden):
-1. `HH:MM` (`1:30`) → 1h 30min
-2. `Xh Ymin` / `XhYmin` / `Xh Y` (`1h 30min`, `1h30`)
-3. `Xh` solo
-4. `Ymin` / `Y'` / `Y min` / número solo (`90`, `90min`, `90'`)
-5. fallback: `{0,0}`
-
-**2. Nuevo componente `DurationInput`** (`src/components/booking-detail/DurationInput.tsx`)
-- Renderiza dos `Input type="number"` etiquetados "h" y "min" en línea.
+**2. Nuevo componente `OfferTypeCombobox`** (`src/components/booking-detail/OfferTypeCombobox.tsx`)
+- Usa los primitivos `Popover` + `Command` ya disponibles en el proyecto (mismo patrón que otros combobox).
 - Props: `value: string | null`, `onChange: (v: string | null) => void`.
-- Internamente mantiene estado local `{horas, minutos}` y emite el string canónico mediante `formatDuration`.
 
-**3. Sustituciones**
-Reemplazar el `Input` actual por `<DurationInput />` en:
-- `src/components/booking-detail/EditBookingDialog.tsx` (línea ~468-473)
-- `src/components/CreateBookingDialog.tsx` (línea ~269)
+**3. Sustituir el `<Input>` actual** en `src/components/booking-detail/EditBookingDialog.tsx` (línea ~755-760) por `<OfferTypeCombobox />`.
 
-### Compatibilidad
-- No se necesita migración de BBDD. El campo sigue siendo `text`. Los valores antiguos se siguen mostrando tal cual en Calendar, Overview, contratos, PDFs (`booking.duracion` sigue siendo string).
-- La primera vez que un booking heredado se edite y se guarde, su valor quedará normalizado al formato canónico.
+### Lo que NO se va a tocar (justificación)
+El usuario incluyó varias instrucciones genéricas que en este caso concreto no aplican o serían contraproducentes; las explico para que quede claro:
 
-### Fuera de alcance (intencionadamente)
-- No se toca el campo `duracion` de tracks en `IPLicenseGenerator` (es `MM:SS` para canciones, otro contexto).
-- No se toca el `duracion` de `CreateSolicitudFromTemplateDialog` (es libre y para descripción de solicitudes).
-- No se hace migración masiva de valores históricos en BBDD; se normalizan on-edit.
+- **Esquema BBDD / migración / índices**: el campo `bookings.oferta` ya existe como `text` y se sigue guardando string. No se cambia el schema, no hace falta migración ni índices nuevos (no es columna que se filtre por búsqueda).
+- **Validación Zod en backend**: el guardado pasa por la mutación existente del booking que ya está protegida por RLS. No hay endpoint nuevo. Añadir Zod aquí sería duplicar lo que ya hace Supabase con su tipado.
+- **Prevención SQL injection / XSS**: el valor se pasa al cliente Supabase como parámetro (no concatenado en SQL) y se renderiza con React (auto-escapado). No hay `dangerouslySetInnerHTML` en este flujo.
+- **Paginación**: las opciones son ~7-10 valores hardcoded en frontend, no hay query.
+- **Compatibilidad con auth / panel de usuario**: el cambio es puramente de UI dentro de un dialog; no toca permisos ni navegación.
+
+Si en el futuro el catálogo de "Tipo de Oferta" debe ser editable por workspace (con tabla, RLS y CRUD), eso sí justificaría migración + Zod + paginación, y lo abordaríamos como tarea aparte.

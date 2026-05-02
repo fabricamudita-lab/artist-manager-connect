@@ -753,10 +753,9 @@ export function EditBookingDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo de Oferta</Label>
-                <Input
-                  value={formData.oferta || ''}
-                  onChange={(e) => updateField('oferta', e.target.value)}
-                  placeholder="Flat Fee, Door Deal, etc."
+                <OfferTypeCombobox
+                  value={formData.oferta}
+                  onChange={(v) => updateField('oferta', v)}
                 />
               </div>
               <div className="space-y-2">
