@@ -530,6 +530,7 @@ export default function Teams() {
           email: memberProfile?.email || '',
           avatar_url: memberProfile?.avatar_url,
           mirror_contact_id: mirrorContact?.id,
+          artist_ids: artistsByUser.get(m.user_id) || [],
           permissions: {
             documents: 'view',
             solicitudes: 'view',
