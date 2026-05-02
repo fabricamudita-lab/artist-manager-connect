@@ -30,6 +30,7 @@ import {
   Mail,
   BarChart3,
   Zap,
+  Lock,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
