@@ -105,7 +105,17 @@ export function ExpenseDialog({
     [form.split_promoter_pct, form.split_agency_pct, form.split_artist_pct],
   );
 
-  const shares = useMemo(() => computeShares(form), [form]);
+  const shares = useMemo(
+    () => computeShares({
+      amount: form.amount,
+      payer: form.payer,
+      split_mode: form.split_mode,
+      split_promoter_pct: form.split_promoter_pct,
+      split_agency_pct: form.split_agency_pct,
+      split_artist_pct: form.split_artist_pct,
+    }),
+    [form],
+  );
   const artistAmount = shares.artist;
 
   const handleFile = async (file: File | null) => {
