@@ -14,7 +14,7 @@ import {
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
   Edit, Plus, MapPin, DollarSign, Mic, FileText, Eye, LogIn, 
   Disc3, ClipboardList, TrendingUp, Settings2, Wallet,
-  ExternalLink, Instagram, Globe, ChevronDown
+  ExternalLink, Instagram, ChevronDown
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { format } from 'date-fns';
