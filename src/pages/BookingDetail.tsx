@@ -726,11 +726,11 @@ export default function BookingDetail() {
               <TabsList className="grid w-full grid-cols-6 mb-6">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Overview
+                  Resumen
                 </TabsTrigger>
                 <TabsTrigger value="roadmap" className="flex items-center gap-2">
                   <Plane className="h-4 w-4" />
-                  Hoja de Ruta
+                  Hoja de ruta
                 </TabsTrigger>
                 <TabsTrigger value="presupuesto" className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
@@ -738,11 +738,11 @@ export default function BookingDetail() {
                 </TabsTrigger>
                 <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
-                  Travel Expenses
+                  Gastos de viaje
                 </TabsTrigger>
                 <TabsTrigger value="files" className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4" />
-                  Archivos & Docs
+                  Archivos y documentos
                 </TabsTrigger>
                 <TabsTrigger value="solicitudes" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
