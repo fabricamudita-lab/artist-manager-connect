@@ -208,7 +208,7 @@ export default function Teams() {
   const [restoredProfiles, setRestoredProfiles] = useState<any[] | null>(null);
   const [ownerInfo, setOwnerInfo] = useState<{ name: string; avatarUrl?: string } | null>(null);
   const [artistInfoDialog, setArtistInfoDialog] = useState<{ open: boolean; artistId: string | null }>({ open: false, artistId: null });
-  const [manageArtistAccessFor, setManageArtistAccessFor] = useState<{ userId: string; name: string } | null>(null);
+  const [manageArtistAccessFor, setManageArtistAccessFor] = useState<{ userId: string; name: string; functionalRole?: string | null } | null>(null);
 
   // Restore dashboard state when navigating back
   useEffect(() => {
@@ -755,10 +755,12 @@ export default function Teams() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const trimmedRole = newFunctionalRole.trim();
+
       if (editingMemberRole.mirrorContactId) {
         const { error } = await supabase
           .from('contacts')
-          .update({ role: newFunctionalRole.trim() })
+          .update({ role: trimmedRole })
           .eq('id', editingMemberRole.mirrorContactId);
 
         if (error) throw error;
@@ -767,7 +769,7 @@ export default function Teams() {
           .from('contacts')
           .insert({
             name: editingMemberRole.name,
-            role: newFunctionalRole.trim(),
+            role: trimmedRole,
             category: 'management',
             created_by: user.id,
             field_config: {
@@ -780,9 +782,21 @@ export default function Teams() {
         if (error) throw error;
       }
 
+      // Propagar el rol funcional a TODOS los bindings existentes del miembro.
+      // El rol funcional es la única fuente de verdad — el binding solo gestiona acceso.
+      const { mapFunctionalRoleToBindingRole } = await import('@/lib/permissions/roleMapping');
+      const mappedBindingRole = mapFunctionalRoleToBindingRole(trimmedRole);
+      const { error: bindingsError } = await supabase
+        .from('artist_role_bindings')
+        .update({ role: mappedBindingRole } as any)
+        .eq('user_id', editingMemberRole.userId);
+      if (bindingsError) {
+        console.error('No se pudo propagar el rol a artist_role_bindings:', bindingsError);
+      }
+
       setTeamMembers(prev => prev.map(m =>
         m.user_id === editingMemberRole.userId
-          ? { ...m, functional_role: newFunctionalRole.trim() }
+          ? { ...m, functional_role: trimmedRole }
           : m
       ));
 
@@ -1945,7 +1959,7 @@ export default function Teams() {
             <div className="border-t pt-4 space-y-2">
               <Label>Acceso a artistas</Label>
               <p className="text-xs text-muted-foreground">
-                Define a qué artistas puede acceder este miembro. Solo verá la información de los artistas seleccionados.
+                Define a qué artistas puede acceder este miembro. Solo verá la información de los artistas seleccionados. <strong>Este mismo rol funcional se aplicará a todos los artistas a los que tenga acceso.</strong>
               </p>
               <Button
                 variant="outline"
@@ -1956,6 +1970,7 @@ export default function Teams() {
                     setManageArtistAccessFor({
                       userId: editingMemberRole.userId,
                       name: editingMemberRole.name,
+                      functionalRole: newFunctionalRole.trim() || editingMemberRole.currentRole || null,
                     });
                   }
                 }}
@@ -1981,6 +1996,7 @@ export default function Teams() {
         onOpenChange={(open) => !open && setManageArtistAccessFor(null)}
         userId={manageArtistAccessFor?.userId ?? null}
         userName={manageArtistAccessFor?.name ?? ''}
+        functionalRole={manageArtistAccessFor?.functionalRole ?? null}
         onSaved={fetchTeamMembers}
       />
     </div>
