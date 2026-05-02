@@ -35,6 +35,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   userId: string | null;
   userName: string;
+  onSaved?: () => void;
 }
 
 interface Artist {
@@ -52,7 +53,7 @@ interface BindingState {
   originalRole: ArtistRole | null;
 }
 
-export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName }: Props) {
+export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -165,6 +166,7 @@ export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName 
         title: 'Acceso actualizado',
         description: `Se actualizó el acceso a artistas de ${userName}.`,
       });
+      onSaved?.();
       onOpenChange(false);
     } catch (err: any) {
       toast({

@@ -48,6 +48,8 @@ interface TeamMember {
   email: string;
   avatar_url?: string;
   mirror_contact_id?: string;
+  /** Artist IDs the member is bound to via artist_role_bindings (empty = no specific artist scope). */
+  artist_ids?: string[];
   permissions: {
     documents: 'none' | 'view' | 'edit' | 'owner';
     solicitudes: 'none' | 'view' | 'edit' | 'owner';
@@ -497,6 +499,19 @@ export default function Teams() {
         }
       });
 
+      // Cargar artistas asignados a cada miembro vía artist_role_bindings
+      const { data: bindings } = await supabase
+        .from('artist_role_bindings')
+        .select('user_id, artist_id')
+        .in('user_id', userIds);
+
+      const artistsByUser = new Map<string, string[]>();
+      (bindings || []).forEach((b: any) => {
+        const arr = artistsByUser.get(b.user_id) || [];
+        if (!arr.includes(b.artist_id)) arr.push(b.artist_id);
+        artistsByUser.set(b.user_id, arr);
+      });
+
       const profileMap = new Map(
         (profiles || []).map(p => [p.user_id, p])
       );
@@ -515,6 +530,7 @@ export default function Teams() {
           email: memberProfile?.email || '',
           avatar_url: memberProfile?.avatar_url,
           mirror_contact_id: mirrorContact?.id,
+          artist_ids: artistsByUser.get(m.user_id) || [],
           permissions: {
             documents: 'view',
             solicitudes: 'view',
@@ -880,16 +896,23 @@ export default function Teams() {
   // Compute member counts per team
   const teamMemberCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    
+
     teamContacts.forEach(contact => {
       const assignedIds = (contact as any).assigned_artist_ids || [];
       assignedIds.forEach((artistId: string) => {
         counts.set(artistId, (counts.get(artistId) || 0) + 1);
       });
     });
-    
+
+    // Sumar también miembros del workspace asignados a cada artista vía bindings
+    teamMembers.forEach(m => {
+      (m.artist_ids || []).forEach(aid => {
+        counts.set(aid, (counts.get(aid) || 0) + 1);
+      });
+    });
+
     return counts;
-  }, [teamContacts]);
+  }, [teamContacts, teamMembers]);
 
   const editingTeam = editingTeamId ? artists.find(a => a.id === editingTeamId) : null;
 
@@ -942,10 +965,10 @@ export default function Teams() {
 
     return allCategoriesForDisplay.map(cat => {
       const wsMembers = teamMembers.filter(m => {
-        if (selectedArtistId === '00-management') {
-          return m.team_category === cat.value;
-        }
-        return m.team_category === cat.value;
+        if (m.team_category !== cat.value) return false;
+        if (selectedArtistId === 'all' || selectedArtistId === '00-management') return true;
+        // Artista concreto: solo incluir si el miembro tiene binding con ese artista
+        return (m.artist_ids || []).includes(selectedArtistId);
       });
       
       const rawContacts = teamContacts.filter(c => {
@@ -1958,6 +1981,7 @@ export default function Teams() {
         onOpenChange={(open) => !open && setManageArtistAccessFor(null)}
         userId={manageArtistAccessFor?.userId ?? null}
         userName={manageArtistAccessFor?.name ?? ''}
+        onSaved={fetchTeamMembers}
       />
     </div>
   );
