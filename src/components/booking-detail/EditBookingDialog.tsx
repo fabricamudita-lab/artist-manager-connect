@@ -466,10 +466,9 @@ export function EditBookingDialog({
               </div>
               <div className="space-y-2">
                 <Label>Duración</Label>
-                <Input
-                  value={formData.duracion || ''}
-                  onChange={(e) => updateField('duracion', e.target.value)}
-                  placeholder="ej: 1h 30min"
+                <DurationInput
+                  value={formData.duracion}
+                  onChange={(v) => updateField('duracion', v)}
                 />
               </div>
               <div className="space-y-2">
