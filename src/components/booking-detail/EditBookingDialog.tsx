@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import { DurationInput } from '@/components/booking-detail/DurationInput';
+import { OfferTypeCombobox } from '@/components/booking-detail/OfferTypeCombobox';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
