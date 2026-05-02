@@ -96,53 +96,37 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
 
   // Fetch contacts by name or ID
   useEffect(() => {
+    const fetchOne = async (raw?: string | null): Promise<Contact | null> => {
+      if (!raw) return null;
+      const value = raw.trim();
+      if (!value) return null;
+      if (isUuid(value)) {
+        const { data } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name, email')
+          .eq('id', value)
+          .maybeSingle();
+        return data ?? null;
+      }
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, email')
+        .or(`name.ilike.%${value}%,stage_name.ilike.%${value}%`)
+        .limit(1)
+        .maybeSingle();
+      return data ?? null;
+    };
+
     const fetchContacts = async () => {
-      if (booking.tour_manager_new) {
-        const { data } = await supabase
-          .from('contacts')
-          .select('id, name, stage_name')
-          .eq('id', booking.tour_manager_new)
-          .single();
-        if (data) setTourManagerContact(data);
-      } else if (booking.tour_manager) {
-        const { data } = await supabase
-          .from('contacts')
-          .select('id, name, stage_name')
-          .or(`name.ilike.%${booking.tour_manager}%,stage_name.ilike.%${booking.tour_manager}%`)
-          .limit(1)
-          .single();
-        if (data) setTourManagerContact(data);
-      }
+      // Tour manager: prefer the explicit FK, fall back to name field
+      const tm = await fetchOne(booking.tour_manager_new ?? booking.tour_manager);
+      setTourManagerContact(tm);
 
-      if (booking.contacto) {
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(booking.contacto);
-        if (isUUID) {
-          const { data } = await supabase
-            .from('contacts')
-            .select('id, name, stage_name')
-            .eq('id', booking.contacto)
-            .maybeSingle();
-          if (data) setContactoContact(data);
-        } else {
-          const { data } = await supabase
-            .from('contacts')
-            .select('id, name, stage_name')
-            .or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
-            .limit(1)
-            .maybeSingle();
-          if (data) setContactoContact(data);
-        }
-      }
+      const c = await fetchOne(booking.contacto);
+      setContactoContact(c);
 
-      if (booking.promotor) {
-        const { data } = await supabase
-          .from('contacts')
-          .select('id, name, stage_name')
-          .or(`name.ilike.%${booking.promotor}%,stage_name.ilike.%${booking.promotor}%`)
-          .limit(1)
-          .single();
-        if (data) setPromotorContact(data);
-      }
+      const p = await fetchOne(booking.promotor);
+      setPromotorContact(p);
     };
 
     fetchContacts();
