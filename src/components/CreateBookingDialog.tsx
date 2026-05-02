@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { Calendar, MapPin, Users, DollarSign, FileText, Ticket, Clock, ShieldCheck } from 'lucide-react';
+import { DurationInput } from '@/components/booking-detail/DurationInput';
 
 interface CreateBookingDialogProps {
   open: boolean;
@@ -264,11 +265,9 @@ export function CreateBookingDialog({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="duracion">Duración</Label>
-                <Input
-                  id="duracion"
+                <DurationInput
                   value={formData.duracion}
-                  onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
-                  placeholder="Ej: 90 min"
+                  onChange={(v) => setFormData({ ...formData, duracion: v ?? '' })}
                 />
               </div>
             </div>
