@@ -1970,6 +1970,7 @@ export default function Teams() {
                     setManageArtistAccessFor({
                       userId: editingMemberRole.userId,
                       name: editingMemberRole.name,
+                      functionalRole: newFunctionalRole.trim() || editingMemberRole.currentRole || null,
                     });
                   }
                 }}
