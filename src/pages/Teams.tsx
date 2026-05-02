@@ -1959,7 +1959,7 @@ export default function Teams() {
             <div className="border-t pt-4 space-y-2">
               <Label>Acceso a artistas</Label>
               <p className="text-xs text-muted-foreground">
-                Define a qué artistas puede acceder este miembro. Solo verá la información de los artistas seleccionados.
+                Define a qué artistas puede acceder este miembro. Solo verá la información de los artistas seleccionados. <strong>Este mismo rol funcional se aplicará a todos los artistas a los que tenga acceso.</strong>
               </p>
               <Button
                 variant="outline"
