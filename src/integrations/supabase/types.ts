@@ -1082,10 +1082,21 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string
+          expense_date: string | null
           handler: string
           id: string
+          invoice_number: string | null
+          invoice_url: string | null
+          irpf_percentage: number
           iva_percentage: number | null
+          other_tax_label: string | null
+          other_tax_percentage: number
           payer: string
+          pushed_budget_item_id: string | null
+          split_agency_pct: number
+          split_artist_pct: number
+          split_mode: string
+          split_promoter_pct: number
         }
         Insert: {
           amount?: number
@@ -1094,10 +1105,21 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description: string
+          expense_date?: string | null
           handler?: string
           id?: string
+          invoice_number?: string | null
+          invoice_url?: string | null
+          irpf_percentage?: number
           iva_percentage?: number | null
+          other_tax_label?: string | null
+          other_tax_percentage?: number
           payer?: string
+          pushed_budget_item_id?: string | null
+          split_agency_pct?: number
+          split_artist_pct?: number
+          split_mode?: string
+          split_promoter_pct?: number
         }
         Update: {
           amount?: number
@@ -1106,10 +1128,21 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
+          expense_date?: string | null
           handler?: string
           id?: string
+          invoice_number?: string | null
+          invoice_url?: string | null
+          irpf_percentage?: number
           iva_percentage?: number | null
+          other_tax_label?: string | null
+          other_tax_percentage?: number
           payer?: string
+          pushed_budget_item_id?: string | null
+          split_agency_pct?: number
+          split_artist_pct?: number
+          split_mode?: string
+          split_promoter_pct?: number
         }
         Relationships: [
           {
@@ -1117,6 +1150,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_expenses_pushed_budget_item_id_fkey"
+            columns: ["pushed_budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
             referencedColumns: ["id"]
           },
         ]
