@@ -958,10 +958,10 @@ export default function Teams() {
 
     return allCategoriesForDisplay.map(cat => {
       const wsMembers = teamMembers.filter(m => {
-        if (selectedArtistId === '00-management') {
-          return m.team_category === cat.value;
-        }
-        return m.team_category === cat.value;
+        if (m.team_category !== cat.value) return false;
+        if (selectedArtistId === 'all' || selectedArtistId === '00-management') return true;
+        // Artista concreto: solo incluir si el miembro tiene binding con ese artista
+        return (m.artist_ids || []).includes(selectedArtistId);
       });
       
       const rawContacts = teamContacts.filter(c => {
