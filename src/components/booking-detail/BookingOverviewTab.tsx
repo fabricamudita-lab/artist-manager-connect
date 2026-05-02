@@ -168,28 +168,22 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
 
   return (
     <div className="space-y-6">
-      {/* Top Row - Deal Summary + Promotor Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Top Row - Deal Summary (3) + Promotor Info (2) */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {/* Deal Summary */}
-        <Card>
+        <Card className="md:col-span-3">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
-              Resumen del Deal
+              Resumen del deal
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Oferta / Fee</p>
-                <p className="text-2xl font-bold text-primary">
-                  {booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">PVP Entradas</p>
-                <p className="font-medium">{booking.pvp ? `${booking.pvp.toLocaleString()}€` : '-'}</p>
-              </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Oferta / Fee</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {booking.fee ? `${booking.fee.toLocaleString()}€` : '—'}
+              </p>
             </div>
 
             <div className="grid grid-cols-3 gap-3 text-sm">
@@ -217,41 +211,53 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
                   <p className="font-medium capitalize">{booking.publico.replace('_', ' ')}</p>
                 </div>
               )}
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              {booking.capacidad && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Capacidad</p>
-                  <p className="font-medium">{booking.capacidad.toLocaleString()}</p>
-                </div>
-              )}
-              {booking.invitaciones !== undefined && booking.invitaciones !== null && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Invitaciones</p>
-                  <p className="font-medium">{booking.invitaciones}</p>
-                </div>
-              )}
               {booking.contratos && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Contrato</p>
-                  <Badge variant={booking.contratos === 'firmado' ? 'default' : 'secondary'} className="text-xs">
-                    {booking.contratos === 'por_hacer' ? 'Por Hacer' : booking.contratos === 'enviado' ? 'Enviado' : 'Firmado'}
+                  <Badge variant="outline" className="text-xs">
+                    {booking.contratos === 'por_hacer' ? 'Por hacer' : booking.contratos === 'enviado' ? 'Enviado' : 'Firmado'}
                   </Badge>
                 </div>
               )}
             </div>
 
-            {/* Estado Facturación - moved from Quick Stats */}
+            {/* Sales / capacity data — collapsed by default */}
+            {(booking.pvp || booking.capacidad || (booking.invitaciones !== undefined && booking.invitaciones !== null)) && (
+              <details className="pt-2 border-t group">
+                <summary className="text-xs uppercase tracking-wide text-muted-foreground cursor-pointer select-none list-none flex items-center gap-1 hover:text-foreground">
+                  <span className="transition-transform group-open:rotate-90">▸</span>
+                  Datos de venta
+                </summary>
+                <div className="grid grid-cols-3 gap-3 text-sm mt-3">
+                  {booking.pvp != null && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">PVP entradas</p>
+                      <p className="font-medium">{booking.pvp ? `${booking.pvp.toLocaleString()}€` : '—'}</p>
+                    </div>
+                  )}
+                  {booking.capacidad != null && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Capacidad</p>
+                      <p className="font-medium">{booking.capacidad.toLocaleString()}</p>
+                    </div>
+                  )}
+                  {booking.invitaciones !== undefined && booking.invitaciones !== null && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Invitaciones</p>
+                      <p className="font-medium">{booking.invitaciones}</p>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {/* Estado Facturación */}
             <div className="space-y-1 pt-2 border-t">
               <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                 <Receipt className="h-3 w-3" />
-                Estado Facturación
+                Estado facturación
               </p>
-              <Badge 
-                variant={booking.estado_facturacion === 'cobrado' ? 'default' : 'secondary'} 
-                className="text-xs"
-              >
+              <Badge variant="outline" className="text-xs text-muted-foreground">
                 {facturacionLabel}
               </Badge>
             </div>
@@ -267,7 +273,7 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
         </Card>
 
         {/* Buyer / Promoter Info */}
-        <Card>
+        <Card className="md:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Building2 className="h-4 w-4 text-primary" />
@@ -283,9 +289,13 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
                     to={`/contacts?selected=${promotorContact.id}`} 
                     className="font-medium text-primary hover:underline flex items-center gap-1"
                   >
-                    {booking.promotor}
+                    {promotorContact.stage_name || promotorContact.name}
                     <ExternalLink className="h-3 w-3" />
                   </Link>
+                ) : isUuid(booking.promotor) ? (
+                  <p className="font-medium text-muted-foreground italic" title={`ID interno: ${booking.promotor}`}>
+                    Empresa sin nombre
+                  </p>
                 ) : (
                   <p className="font-medium">{booking.promotor}</p>
                 )}
@@ -304,8 +314,15 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
                     className="font-medium text-primary hover:underline flex items-center gap-1"
                   >
                     {contactoContact.stage_name || contactoContact.name}
+                    {contactoContact.email && (
+                      <span className="text-xs text-muted-foreground font-normal ml-1">· {contactoContact.email}</span>
+                    )}
                     <ExternalLink className="h-3 w-3" />
                   </Link>
+                ) : isUuid(booking.contacto) ? (
+                  <p className="font-medium text-muted-foreground italic" title={`ID interno: ${booking.contacto}`}>
+                    Contacto sin nombre
+                  </p>
                 ) : (
                   <p className="font-medium">{booking.contacto}</p>
                 )}
@@ -326,6 +343,10 @@ export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighl
                     {tourManagerContact.stage_name || tourManagerContact.name}
                     <ExternalLink className="h-3 w-3" />
                   </Link>
+                ) : isUuid(booking.tour_manager_new ?? booking.tour_manager) ? (
+                  <p className="font-medium text-muted-foreground italic" title={`ID interno: ${booking.tour_manager_new ?? booking.tour_manager}`}>
+                    Tour manager sin nombre
+                  </p>
                 ) : (
                   <p className="font-medium">{booking.tour_manager}</p>
                 )}
