@@ -134,11 +134,13 @@ export function useFunctionalPermissions(): State {
  * Helper hook: devuelve `(module, level) => boolean`.
  */
 export function useCan() {
-  const { perms, loading, roleName } = useFunctionalPermissions();
+  const { perms, loading, roleName, isWorkspaceAdmin } = useFunctionalPermissions();
   return {
     loading,
     perms,
     roleName,
-    can: (module: ModuleKey, required: PermissionLevel) => hasPermission(perms, module, required),
+    isWorkspaceAdmin,
+    can: (module: ModuleKey, required: PermissionLevel) =>
+      isWorkspaceAdmin ? true : hasPermission(perms, module, required),
   };
 }
