@@ -264,11 +264,9 @@ export function CreateBookingDialog({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="duracion">Duración</Label>
-                <Input
-                  id="duracion"
+                <DurationInput
                   value={formData.duracion}
-                  onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
-                  placeholder="Ej: 90 min"
+                  onChange={(v) => setFormData({ ...formData, duracion: v ?? '' })}
                 />
               </div>
             </div>
