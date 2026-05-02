@@ -192,12 +192,15 @@ export function AppSidebar() {
   const { can, loading: permsLoading } = useCan();
   const navigationGroups = getNavigationGroups(isManagement, linkedArtist?.id);
 
-  // Filtra entradas según permiso funcional (en management). Mientras carga, no oculta nada.
-  const isItemAllowed = (url: string): boolean => {
-    if (!isManagement || permsLoading) return true;
+  // Returns true if the user lacks permission to view the module behind this URL.
+  // Items without a module mapping (Dashboard, Chat, Mi Perfil, Ajustes…) are
+  // never locked. While permissions are loading we don't lock anything to avoid
+  // a flash of "locked" state.
+  const isItemLocked = (url: string): boolean => {
+    if (!isManagement || permsLoading) return false;
     const mod = URL_TO_MODULE[url];
-    if (!mod) return true;
-    return can(mod, 'view');
+    if (!mod) return false;
+    return !can(mod, 'view');
   };
 
   // Badge counts — no extra queries, uses data already fetched
@@ -222,8 +225,48 @@ export function AppSidebar() {
     });
   };
 
-  const renderNavItem = (item: NavItem) => {
-    const count = getBadgeCount(item.badge);
+  const renderNavItem = (item: NavItem, locked: boolean) => {
+    const count = locked ? 0 : getBadgeCount(item.badge);
+
+    // Locked items: same visual slot but muted, with a lock indicator. Clicking
+    // still navigates to the route — HubGate will show the ForbiddenView with
+    // the "ask the workspace owner for access" message.
+    if (locked) {
+      return (
+        <NavLink
+          key={item.title}
+          to={item.url}
+          className={({ isActive: navIsActive }) =>
+            `nav-item group relative opacity-60 ${
+              navIsActive
+                ? 'bg-muted/40 text-muted-foreground'
+                : 'hover:bg-muted/40 text-muted-foreground'
+            } ${isCollapsed ? 'justify-center' : ''}`
+          }
+          aria-disabled="true"
+          title={`${item.title} · Sin acceso`}
+        >
+          <div className="relative flex-shrink-0">
+            <item.icon className="w-5 h-5" />
+            <Lock className="absolute -bottom-1 -right-1 w-3 h-3 text-muted-foreground bg-card rounded-full p-[1px]" />
+          </div>
+
+          {!isCollapsed && (
+            <>
+              <span className="font-medium flex-1">{item.title}</span>
+              <Lock className="w-3.5 h-3.5 text-muted-foreground/70 ml-auto" />
+            </>
+          )}
+
+          {/* Tooltip in collapsed mode */}
+          {isCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap">
+              {item.title} · Sin acceso
+            </div>
+          )}
+        </NavLink>
+      );
+    }
 
     return (
       <NavLink
@@ -272,12 +315,7 @@ export function AppSidebar() {
   };
 
   const renderGroup = (group: NavGroup, index: number) => {
-    const allItems = (isManagement && group.managementExtra
-      ? [...group.items, ...group.managementExtra]
-      : group.items
-    ).filter(it => isItemAllowed(it.url));
-
-    if (allItems.length === 0) return null;
+    if (group.items.length === 0) return null;
 
     return (
       <div key={group.label ?? 'inicio'}>
@@ -294,7 +332,7 @@ export function AppSidebar() {
         )}
 
         <nav className="space-y-0.5">
-          {allItems.map(renderNavItem)}
+          {group.items.map(it => renderNavItem(it, isItemLocked(it.url)))}
         </nav>
       </div>
     );
