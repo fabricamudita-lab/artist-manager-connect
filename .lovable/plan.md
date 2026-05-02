@@ -1,87 +1,138 @@
-## Limpieza visual del detalle de booking
+# Mejoras del módulo de Imprevistos del Booking
 
-Refactor enfocado a **carga cognitiva**: estandarizar las KPIs superiores, resolver UUIDs a nombres, reequilibrar la rejilla Resumen/Promotor, unificar el idioma de las pestañas, suavizar la paleta y evitar superposiciones con el FAB.
+Refactor del tab actual de "Gastos de viaje" en el detalle de booking (`BookingExpensesTab.tsx` + tabla `booking_expenses`) para convertirlo en un gestor de imprevistos completo.
 
-> No requiere migración de base de datos: los problemas son todos de presentación (los datos en DB ya están correctos; el "UUID en pantalla" es un fallo de resolución en el frontend, no un dato corrupto).
+## 1. Renombrado del tab
 
----
+- En `src/pages/BookingDetail.tsx`: cambiar la etiqueta del tab de **"Gastos de viaje"** → **"Imprevistos"** (mantener la key interna para no romper rutas/permisos).
+- Quitar el solapamiento visual con el tab "Archivos" añadiendo `gap-1` o `flex-wrap` si hace falta en el `TabsList`.
 
-### 1. KPIs superiores estandarizadas (Fee · Gastos · Comisión · Facturación/Viabilidad)
+## 2. Cambios en la base de datos (migración)
 
-Archivo: `src/pages/BookingDetail.tsx` (líneas ~590–702)
+Nueva migración que extiende `booking_expenses`:
 
-- Crear un componente local reutilizable `BookingKpiCard` con estructura fija:
-  - Fila 1: label arriba-izquierda (`text-xs uppercase text-muted-foreground`) + icono arriba-derecha (`h-4 w-4`, mismo tamaño todos).
-  - Fila 2: valor grande (`text-2xl font-semibold`).
-  - Fila 3 opcional: subtexto (`text-[11px] text-muted-foreground`).
-- Aplicarlo a las 4 tarjetas → estructura idéntica, alineadas a misma baseline.
-- Quitar los gradientes pastel; usar `bg-card` + `border` neutro y un único `accentColor` semántico por tarjeta solo en el icono y el valor cuando aporte significado (ej. disponible negativo = `text-destructive`).
-- El "+ Estimar gastos" pasa a un botón secundario **debajo del valor "—"**, no dentro de la tarjeta como estado principal.
+```sql
+ALTER TABLE public.booking_expenses
+  ADD COLUMN expense_date DATE,                      -- fecha del gasto
+  ADD COLUMN invoice_url TEXT,                       -- adjunto de factura/ticket
+  ADD COLUMN invoice_number TEXT,                    -- nº de factura opcional
+  ADD COLUMN irpf_percentage NUMERIC(5,2) DEFAULT 0, -- IRPF u otra retención
+  ADD COLUMN other_tax_percentage NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN other_tax_label TEXT,                   -- nombre del impuesto extra
+  ADD COLUMN split_mode TEXT NOT NULL DEFAULT 'single'
+    CHECK (split_mode IN ('single','split')),
+  ADD COLUMN split_promoter_pct NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN split_agency_pct   NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN split_artist_pct   NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN pushed_budget_item_id UUID
+    REFERENCES public.budget_items(id) ON DELETE SET NULL;
 
-### 2. Resolver UUIDs a nombres (Promotor / Buyer)
+-- Validar que la suma del split sea 100 cuando split_mode='split'
+ALTER TABLE public.booking_expenses
+  ADD CONSTRAINT booking_expenses_split_sum_chk
+  CHECK (
+    split_mode = 'single'
+    OR (COALESCE(split_promoter_pct,0)
+      + COALESCE(split_agency_pct,0)
+      + COALESCE(split_artist_pct,0)) = 100
+  );
 
-Archivo: `src/components/booking-detail/BookingOverviewTab.tsx`
+CREATE INDEX IF NOT EXISTS idx_booking_expenses_booking_id
+  ON public.booking_expenses(booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_expenses_expense_date
+  ON public.booking_expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_booking_expenses_pushed_budget_item
+  ON public.booking_expenses(pushed_budget_item_id);
+```
 
-- El bloque actual ya intenta resolver `contacto` por UUID (línea 113), pero si no encuentra contact (`maybeSingle()` → null) se cae al `else` y pinta el UUID crudo. Cambios:
-  - Si `contacto` matchea regex UUID y no hay registro → mostrar `'Contacto sin nombre'` + tooltip con "ID interno: …" (no exponer el UUID en la UI).
-  - Aplicar el mismo patrón a `promotor` (también puede ser UUID; ahora solo se busca por nombre).
-  - Detectar regex UUID antes de la búsqueda `or(name.ilike…)` para evitar `.ilike%uuid%` (que nunca matchea).
-- Mostrar como fallback secundario el email del contacto si existe (ampliar el `select` a `id, name, stage_name, email`).
+Storage: reutilizar el bucket existente para adjuntos del booking (mismo que ya usa `booking_documents`).
 
-### 3. Reequilibrio de la rejilla Resumen / Promotor
+## 3. Categorías sincronizadas con presupuestos
 
-Archivo: `src/components/booking-detail/BookingOverviewTab.tsx` (línea 184)
+Crear `src/lib/booking/expenseCategories.ts` que reexporte las categorías reales de `budget_items` (las mismas que ya usa el editor de presupuesto: `equipo_artistico`, `equipo_tecnico`, `transporte`, `alojamiento`, `catering`, `produccion`, `marketing`, `comisiones`, `otros`, etc.).
 
-- Cambiar `grid-cols-1 md:grid-cols-2` → `md:grid-cols-5` con `Resumen del Deal` ocupando `md:col-span-3` y `Promotor / Buyer` `md:col-span-2`.
-- Dentro de "Resumen del Deal":
-  - Mover **Capacidad**, **Invitaciones** y **PVP** a una sección colapsable "Datos de venta" (collapsed por defecto si el evento no está confirmado).
-  - Mantener visible solo: Oferta/Fee, Formato, Duración, Público, Estado Facturación.
-- Dentro de "Promotor / Buyer":
-  - Si `link_venta` o `inicio_venta` están vacíos, no renderizar la sección (ya se hace, ok).
-  - Añadir placeholder amable cuando no hay contacto vinculado: botón "+ Vincular contacto" en lugar de tarjeta vacía.
+El select de "Categoría" en el diálogo de imprevistos consumirá esa lista única → así un imprevisto siempre encaja en una partida de presupuesto.
 
-### 4. Unificación de idioma en las pestañas
+## 4. Diálogo "Añadir/Editar Imprevisto" (rediseño)
 
-Archivo: `src/pages/BookingDetail.tsx` (líneas 709–733)
+Campos del nuevo formulario, en orden:
 
-Renombrar etiquetas visibles (los `value` internos no cambian para no romper el `searchParam`):
+1. **Descripción** *(req.)*
+2. **Categoría** — desplegable con categorías de presupuesto.
+3. **Fecha del gasto** — `<Input type="date">`, default = fecha del evento.
+4. **Importe (€)** + **IVA %** + **IRPF %** + **Otro impuesto** (label + %).
+5. **Adjuntar factura/ticket** — botón de upload (PDF/imagen) → `invoice_url` + `invoice_number` opcional.
+6. **¿Quién paga?** — toggle:
+   - "Un único pagador" → select Promotor / Agencia / Artista (lógica actual).
+   - "Dividir entre varios" → 3 inputs de % (Promotor / Agencia / Artista). Validación en vivo: deben sumar 100. Vista previa del importe asignado a cada parte.
+7. **Handler (quién gestiona)** — sin cambios.
+8. Si la parte del **Artista > 0** → checkbox **"Añadir la parte del artista al presupuesto del evento"**.
 
-| Antes | Después |
-|---|---|
-| Overview | Resumen |
-| Hoja de Ruta | Hoja de ruta |
-| Presupuesto | Presupuesto |
-| Travel Expenses | Gastos de viaje |
-| Archivos & Docs | Archivos y documentos |
-| Solicitudes | Solicitudes |
+Validación con **zod** antes de insertar:
 
-### 5. Paleta más sobria
+```ts
+const schema = z.object({
+  description: z.string().trim().min(1).max(200),
+  category: z.string().min(1),
+  amount: z.number().nonnegative(),
+  iva_percentage: z.number().min(0).max(100),
+  irpf_percentage: z.number().min(0).max(100),
+  expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  split_mode: z.enum(['single','split']),
+  split_promoter_pct: z.number().min(0).max(100),
+  split_agency_pct: z.number().min(0).max(100),
+  split_artist_pct: z.number().min(0).max(100),
+}).refine(d => d.split_mode === 'single'
+  || d.split_promoter_pct + d.split_agency_pct + d.split_artist_pct === 100,
+  { message: 'Los porcentajes deben sumar 100' });
+```
 
-Archivos: `BookingOverviewTab.tsx`, `BookingDetail.tsx`, `PaymentStatusCard.tsx`
+## 5. Push al presupuesto del evento
 
-- Quitar `text-green-600` para precios/fees → usar `text-foreground` con `font-bold` (verde solo para deltas positivos en cobro real).
-- Estados como "Pendiente" → `Badge variant="outline"` con `text-muted-foreground`, **sin** color morado/ámbar. Reservar colores para alertas (rojo) y CTAs.
-- Botones con borde punteado (la caja inferior derecha mencionada): convertir a `Card` normal con `border-dashed` solo si es un placeholder de acción, en cuyo caso el border-dashed es válido pero reducir su prominencia con `bg-muted/30`.
+Nueva función helper `pushExpenseToBudget(expense)` en `src/lib/budgets/bookingBudgetActions.ts`:
 
-### 6. FAB ⚙️ Dev Tools tapando contenido
+1. Localiza el budget principal del booking (`budgets.booking_offer_id = bookingId AND is_principal = true`).
+2. Calcula `artistAmount = amount * (split_artist_pct/100)` (o `amount` completo si `payer = 'artist'` en modo single).
+3. Inserta en `budget_items`:
+   - `category` = categoría del imprevisto
+   - `subcategory` = `'imprevistos'`
+   - `name` = `"[Imprevisto] " + description`
+   - `quantity` = 1, `unit_price` = `artistAmount`
+   - `iva_percentage` = del imprevisto
+   - `observations` = `"Generado desde imprevistos · " + expense_date + (invoice_number ? " · Factura " + invoice_number : "")`
+4. Guarda el `id` resultante en `booking_expenses.pushed_budget_item_id` para evitar duplicados y poder sincronizar/desvincular.
+5. Si el imprevisto ya estaba pusheado y se edita → `UPDATE` el item existente. Si se elimina el imprevisto → `DELETE` el item correspondiente.
 
-Archivo: `src/pages/BookingDetail.tsx` (contenedor principal)
+Toast informativo: *"Añadido 120,00 € al presupuesto del evento (categoría Transporte)."*
 
-- Añadir `pb-24` al contenedor raíz del detalle (actualmente termina con `space-y-6` sin padding inferior extra), garantizando ~96px libres bajo el último card para que el botón flotante no solape la tarjeta de viabilidad.
+## 6. Cambios en la tabla / lista
 
----
+Columnas visibles tras el refactor:
 
-### Notas de integración
+| Fecha | Descripción | Categoría | Importe | IVA | IRPF | Reparto | Factura | Acciones |
 
-- **Auth / panel de usuario**: ningún cambio toca permisos, RLS, ni rutas. Se mantienen los `value` internos de los Tabs (`overview`, `expenses`, etc.), por lo que los enlaces profundos (`?tab=…`) y el sistema de alertas contextuales siguen funcionando.
-- **i18n**: el proyecto no usa librería de i18n; los strings van directos en JSX. Cambios localizados a estos dos archivos.
-- **Testeo manual**: revisar el detalle con un booking que tenga (a) `contacto` como UUID válido, (b) `contacto` como nombre libre, (c) sin contacto.
+- **Reparto**: si `split_mode='single'` muestra badge único; si `split`, muestra mini-chips (`P 60% · A 40%`).
+- **Factura**: si `invoice_url`, icono clickable para abrir.
+- KPIs superiores actualizados: además de Promotor / Agencia, añadir **A cargo del Artista** (suma de la parte del artista de cada imprevisto).
 
-### Archivos a tocar
-- `src/pages/BookingDetail.tsx` (KPIs estandarizadas, etiquetas tabs, padding inferior)
-- `src/components/booking-detail/BookingOverviewTab.tsx` (resolución UUID robusta, rejilla 3/2, sección colapsable, paleta neutra)
+## 7. Seguridad y arquitectura
 
-### Sin cambios
-- Base de datos / migraciones
-- Rutas / RLS / Auth
-- Componentes hijos (PaymentStatusCard, ViabilityChecksCard, etc.)
+- **RLS**: la tabla ya tiene RLS por booking; mantener. Nueva política/uso vía `auth.uid()`.
+- **XSS**: todos los textos se renderizan con React (sin `dangerouslySetInnerHTML`).
+- **SQL injection**: solo cliente Supabase (sin SQL crudo).
+- **Paginación**: la query de imprevistos por booking añade `.range(0, 49)` con `loadMore` (50 por página). Para la mayoría de eventos basta con la primera página.
+- **Separación lógica**: toda la lógica de cálculo y push al presupuesto vive en `src/lib/booking/expenses.ts` y `bookingBudgetActions.ts` — el componente solo orquesta UI.
+
+## 8. Compatibilidad con datos existentes
+
+Los registros antiguos quedarán con `split_mode='single'`, `expense_date = created_at::date` (backfill en la migración) y campos de impuestos a 0 — sin romper nada.
+
+## Archivos afectados
+
+- `supabase/migrations/<nuevo>.sql` *(nuevo)*
+- `src/lib/booking/expenseCategories.ts` *(nuevo)*
+- `src/lib/booking/expenses.ts` *(nuevo — lógica + zod)*
+- `src/lib/budgets/bookingBudgetActions.ts` *(añadir `pushExpenseToBudget`)*
+- `src/components/booking-detail/BookingExpensesTab.tsx` *(rediseño)*
+- `src/components/booking-detail/ExpenseDialog.tsx` *(nuevo — extraído del tab)*
+- `src/pages/BookingDetail.tsx` *(label tab + spacing)*
