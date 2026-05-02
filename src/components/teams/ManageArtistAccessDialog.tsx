@@ -53,7 +53,7 @@ interface BindingState {
   originalRole: ArtistRole | null;
 }
 
-export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName }: Props) {
+export function ManageArtistAccessDialog({ open, onOpenChange, userId, userName, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
