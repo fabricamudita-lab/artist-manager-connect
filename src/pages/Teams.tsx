@@ -82,14 +82,23 @@ function FunctionalRoleCombobox({ value, onChange }: { value: string; onChange: 
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        align="start"
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         <Command>
           <CommandInput
             placeholder="Buscar rol o escribir uno nuevo..."
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList>
+          <CommandList
+            className="max-h-[260px] overflow-y-auto overscroll-contain"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+          >
             <CommandEmpty>
               {trimmedSearch ? (
                 <button
