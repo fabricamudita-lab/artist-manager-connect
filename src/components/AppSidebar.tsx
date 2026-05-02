@@ -75,7 +75,7 @@ interface NavGroup {
 // ─── NAVIGATION GROUPS ────────────────────────────────────────────────────────
 
 const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | null): NavGroup[] => {
-  // Simplified nav for artist users
+  // Simplified nav for artist users (linked roster artists)
   if (!isManagement && linkedArtistId) {
     return [
       {
@@ -116,6 +116,8 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
     ];
   }
 
+  // Full nav: same for OWNER/TEAM_MANAGER and for any workspace collaborator.
+  // Items the user lacks permission for will be visually locked, not hidden.
   const groups: NavGroup[] = [
     {
       label: null,
@@ -133,7 +135,6 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
     },
     {
       label: "Operaciones",
-      managementOnly: true,
       items: [
         { title: "Booking", url: "/booking", icon: Mic, badge: 'booking' as const },
         { title: "Sincronizaciones", url: "/sincronizaciones", icon: Film },
@@ -144,8 +145,6 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
       label: "Dinero",
       items: [
         { title: "Finanzas", url: "/finanzas", icon: Wallet },
-      ],
-      managementExtra: [
         { title: "Analytics", url: "/analytics", icon: BarChart3 },
       ],
     },
@@ -166,7 +165,6 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
     },
     {
       label: "Administración",
-      managementOnly: true,
       items: [
         { title: "Automatizaciones", url: "/automatizaciones", icon: Zap },
         { title: "Equipos", url: "/teams", icon: UsersRound },
@@ -179,7 +177,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
     },
   ];
 
-  return groups.filter(g => !g.managementOnly || isManagement);
+  return groups;
 };
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
