@@ -208,7 +208,7 @@ export default function Teams() {
   const [restoredProfiles, setRestoredProfiles] = useState<any[] | null>(null);
   const [ownerInfo, setOwnerInfo] = useState<{ name: string; avatarUrl?: string } | null>(null);
   const [artistInfoDialog, setArtistInfoDialog] = useState<{ open: boolean; artistId: string | null }>({ open: false, artistId: null });
-  const [manageArtistAccessFor, setManageArtistAccessFor] = useState<{ userId: string; name: string } | null>(null);
+  const [manageArtistAccessFor, setManageArtistAccessFor] = useState<{ userId: string; name: string; functionalRole?: string | null } | null>(null);
 
   // Restore dashboard state when navigating back
   useEffect(() => {
