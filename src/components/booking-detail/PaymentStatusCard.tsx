@@ -207,29 +207,57 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
               <Banknote className="h-4 w-4 text-primary" />
               Estado de Pagos
               {collapsed && (
-                <div className="flex items-center gap-2 ml-2" onClick={e => e.stopPropagation()}>
-                  {isCobradoCompleto && !hasFraccionado ? (
-                    <>
-                      <StatusBadge estado="cobrado" />
-                      <span className="text-sm font-medium text-muted-foreground">{fmt(booking.cobro_importe || fee)}</span>
-                    </>
-                  ) : hasFraccionado ? (
-                    <>
-                      <StatusBadge
-                        estado={booking.anticipo_estado === 'cobrado' && booking.liquidacion_estado === 'cobrado' ? 'cobrado' : booking.anticipo_estado}
-                        fechaEsperada={booking.anticipo_estado !== 'cobrado' ? booking.anticipo_fecha_esperada : booking.liquidacion_fecha_esperada}
-                      />
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {fmt((booking.anticipo_estado === 'cobrado' ? (booking.anticipo_importe || 0) : 0) + (booking.liquidacion_estado === 'cobrado' ? (booking.liquidacion_importe || 0) : 0))} / {fmt(fee)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <StatusBadge estado="pendiente" />
-                      <span className="text-sm font-medium text-muted-foreground">{fmt(fee)}</span>
-                    </>
-                  )}
-                </div>
+                <TooltipProvider>
+                  <div className="flex items-center gap-2 ml-2" onClick={e => e.stopPropagation()}>
+                    {isCobradoCompleto && !hasFraccionado ? (
+                      <>
+                        <StatusBadge estado="cobrado" />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm text-muted-foreground">
+                              <span className="text-xs">Cobrado:</span>{' '}
+                              <span className="font-medium">{fmt(booking.cobro_importe || fee)}</span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Importe cobrado del booking.</TooltipContent>
+                        </Tooltip>
+                      </>
+                    ) : hasFraccionado ? (
+                      <>
+                        <StatusBadge
+                          estado={booking.anticipo_estado === 'cobrado' && booking.liquidacion_estado === 'cobrado' ? 'cobrado' : booking.anticipo_estado}
+                          fechaEsperada={booking.anticipo_estado !== 'cobrado' ? booking.anticipo_fecha_esperada : booking.liquidacion_fecha_esperada}
+                        />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm text-muted-foreground">
+                              <span className="text-xs">Cobrado:</span>{' '}
+                              <span className="font-medium">
+                                {fmt((booking.anticipo_estado === 'cobrado' ? (booking.anticipo_importe || 0) : 0) + (booking.liquidacion_estado === 'cobrado' ? (booking.liquidacion_importe || 0) : 0))}
+                              </span>
+                              <span className="mx-1">de</span>
+                              <span className="font-medium">{fmt(fee)}</span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Importe cobrado de la suma total del caché.</TooltipContent>
+                        </Tooltip>
+                      </>
+                    ) : (
+                      <>
+                        <StatusBadge estado="pendiente" />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm text-muted-foreground">
+                              <span className="text-xs">Caché:</span>{' '}
+                              <span className="font-medium">{fmt(fee)}</span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Caché total del booking. Aún no hay pagos registrados.</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                  </div>
+                </TooltipProvider>
               )}
               <ChevronDown className={`h-4 w-4 ml-auto text-muted-foreground transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
             </CardTitle>
