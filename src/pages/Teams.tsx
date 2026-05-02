@@ -1996,6 +1996,7 @@ export default function Teams() {
         onOpenChange={(open) => !open && setManageArtistAccessFor(null)}
         userId={manageArtistAccessFor?.userId ?? null}
         userName={manageArtistAccessFor?.name ?? ''}
+        functionalRole={manageArtistAccessFor?.functionalRole ?? null}
         onSaved={fetchTeamMembers}
       />
     </div>
