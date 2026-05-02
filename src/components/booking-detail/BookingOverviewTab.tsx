@@ -28,7 +28,11 @@ interface Contact {
   id: string;
   name: string;
   stage_name?: string;
+  email?: string | null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v?: string | null) => !!v && UUID_RE.test(v.trim());
 
 interface BookingOverviewTabProps {
   booking: {
