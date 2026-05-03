@@ -4,9 +4,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
 import { UserPlus, Loader2, Check, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { MODULES, getIndustryDefaults } from '@/lib/permissions/catalog';
+import type { ModuleKey, PermissionLevel } from '@/lib/permissions/types';
 
 interface InviteArtistDialogProps {
   onArtistInvited?: () => void;
@@ -14,111 +20,76 @@ interface InviteArtistDialogProps {
   artistName?: string;
 }
 
+const ROLE_NAME = 'Artista';
+
 export default function InviteArtistDialog({ onArtistInvited, artistId, artistName }: InviteArtistDialogProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [inviteData, setInviteData] = useState({
-    email: '',
-    fullName: artistName || '',
-  });
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState(artistName || '');
+
+  // Per-module access toggles, prefilled from "Artista" defaults.
+  const [access, setAccess] = useState<Record<ModuleKey, PermissionLevel>>(
+    () => getIndustryDefaults(ROLE_NAME) as Record<ModuleKey, PermissionLevel>,
+  );
+
+  const toggleModule = (key: ModuleKey, on: boolean) => {
+    setAccess((prev) => ({ ...prev, [key]: on ? 'view' : 'none' }));
+  };
 
   const handleInvite = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!inviteData.email || !user) return;
-
+    if (!email || !user || !artistId) return;
     setLoading(true);
     try {
-      // Check if user already exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id, user_id')
-        .eq('email', inviteData.email)
+      const { data, error } = await supabase.functions.invoke('invite-team-member', {
+        body: {
+          email,
+          scope: 'ARTIST',
+          scopeId: artistId,
+          role: ROLE_NAME,
+          teamCategory: 'artistico',
+        },
+      });
+      if (error) throw error;
+
+      // Persist module-level overrides for this Artista role on the workspace.
+      // Resolve workspace from the artist row.
+      const { data: artistRow } = await supabase
+        .from('artists')
+        .select('workspace_id')
+        .eq('id', artistId)
         .maybeSingle();
 
-      if (existingProfile && artistId) {
-        // User exists — create binding
-        const { error: bindingError } = await supabase
-          .from('artist_role_bindings')
-          .insert({
-            artist_id: artistId,
-            user_id: existingProfile.user_id,
-            role: 'ARTIST_MANAGER' as any,
-          });
-
-        if (bindingError) {
-          if (bindingError.code === '23505') {
-            toast({ title: "Ya vinculado", description: `${inviteData.email} ya tiene acceso a este artista.` });
-            setOpen(false);
-            return;
-          }
-          throw bindingError;
-        }
-
-        // Update artist profile_id
+      if (artistRow?.workspace_id) {
+        const rows = (Object.entries(access) as [ModuleKey, PermissionLevel][]).map(
+          ([module, level]) => ({
+            workspace_id: artistRow.workspace_id,
+            role_name: ROLE_NAME,
+            module,
+            level,
+            updated_by: user.id,
+          }),
+        );
         await supabase
-          .from('artists')
-          .update({ profile_id: existingProfile.id })
-          .eq('id', artistId);
-
-        // Update profile to include artist role
-        await supabase
-          .from('profiles')
-          .update({ 
-            roles: ['artist'],
-            active_role: 'artist',
-          })
-          .eq('id', existingProfile.id);
-
-        setDone(true);
-        toast({
-          title: "Acceso concedido",
-          description: `${inviteData.email} ya puede acceder a su portal de artista.`,
-        });
-      } else {
-        // User doesn't exist — send signup invitation
-        const tempPassword = crypto.randomUUID();
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: inviteData.email,
-          password: tempPassword,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              full_name: inviteData.fullName,
-              roles: ['artist'],
-              invited_by: user.id,
-            },
-          },
-        });
-
-        if (signUpError) throw signUpError;
-
-        if (signUpData.user && artistId) {
-          // Create binding
-          await supabase
-            .from('artist_role_bindings')
-            .insert({
-              artist_id: artistId,
-              user_id: signUpData.user.id,
-              role: 'ARTIST_MANAGER' as any,
-            });
-        }
-
-        setDone(true);
-        toast({
-          title: "Invitación enviada",
-          description: `Se ha enviado un email a ${inviteData.email} para que confirme su cuenta.`,
-        });
+          .from('functional_role_permission_overrides')
+          .upsert(rows as any, { onConflict: 'workspace_id,role_name,module' });
       }
 
-      onArtistInvited?.();
-    } catch (error: any) {
-      console.error('Error inviting artist:', error);
+      setDone(true);
       toast({
-        title: "Error",
-        description: error.message || "No se pudo enviar la invitación.",
-        variant: "destructive",
+        title: 'Invitación enviada',
+        description: data?.message || `Se procesó la invitación para ${email}.`,
+      });
+      onArtistInvited?.();
+    } catch (err: any) {
+      console.error('Error inviting artist:', err);
+      toast({
+        title: 'Error',
+        description: err?.message || 'No se pudo enviar la invitación.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -129,7 +100,9 @@ export default function InviteArtistDialog({ onArtistInvited, artistId, artistNa
     setOpen(v);
     if (!v) {
       setDone(false);
-      setInviteData({ email: '', fullName: artistName || '' });
+      setEmail('');
+      setFullName(artistName || '');
+      setAccess(getIndustryDefaults(ROLE_NAME) as Record<ModuleKey, PermissionLevel>);
     }
   };
 
@@ -141,15 +114,11 @@ export default function InviteArtistDialog({ onArtistInvited, artistId, artistNa
           Invitar Artista
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {artistName ? `Invitar a ${artistName}` : 'Invitar Nuevo Artista'}
-          </DialogTitle>
+          <DialogTitle>{artistName ? `Invitar a ${artistName}` : 'Invitar Artista'}</DialogTitle>
           <DialogDescription>
-            {artistName 
-              ? 'Envía una invitación para que el artista acceda a su portal personal.'
-              : 'Envía una invitación para que un artista se registre en la plataforma.'}
+            Envía una invitación para que el artista acceda a su portal personal.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,8 +136,8 @@ export default function InviteArtistDialog({ onArtistInvited, artistId, artistNa
               <Label htmlFor="inviteFullName">Nombre completo</Label>
               <Input
                 id="inviteFullName"
-                value={inviteData.fullName}
-                onChange={(e) => setInviteData({ ...inviteData, fullName: e.target.value })}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 placeholder="Nombre del artista"
                 required
               />
@@ -178,24 +147,50 @@ export default function InviteArtistDialog({ onArtistInvited, artistId, artistNa
               <Input
                 id="inviteEmail"
                 type="email"
-                value={inviteData.email}
-                onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="artista@email.com"
                 required
               />
             </div>
-            
-            {artistId && (
-              <div className="rounded-lg bg-muted/50 p-3 flex gap-2">
-                <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-muted-foreground">
-                  El artista tendrá acceso completo a su perfil, lanzamientos, calendario de shows y datos financieros.
-                </p>
+
+            <div className="rounded-lg bg-muted/50 p-3 flex gap-2">
+              <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                El artista se invita con el rol funcional <strong>"{ROLE_NAME}"</strong>. Activa
+                o desactiva qué módulos podrá ver desde su portal.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Acceso al portal</Label>
+              <div className="border rounded-lg divide-y">
+                {MODULES.map((m) => {
+                  const on = access[m.key] !== 'none';
+                  const Icon = m.icon;
+                  return (
+                    <div key={m.key} className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">{m.label}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {m.description}
+                          </div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={on}
+                        onCheckedChange={(v) => toggleModule(m.key, v)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={loading || !inviteData.email}>
+              <Button type="submit" disabled={loading || !email}>
                 {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
                 Enviar invitación
               </Button>

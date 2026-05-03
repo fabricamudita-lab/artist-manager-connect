@@ -28,17 +28,45 @@ const json = (status: number, body: unknown) =>
   });
 
 const WorkspaceRoleSchema = z.enum(['OWNER', 'TEAM_MANAGER']);
-const ArtistRoleSchema = z.enum([
-  'ARTIST_MANAGER',
-  'LABEL',
-  'BOOKING_AGENT',
-  'PRODUCER',
-  'PUBLISHER',
-  'AR',
-  'ROADIE_TECH',
-  'ARTIST_OBSERVER',
-]);
+const ArtistRoleSchema = z.string().min(1).max(64);
 const ProjectRoleSchema = z.enum(['EDITOR', 'COMMENTER', 'VIEWER']);
+
+// Map functional role labels (e.g. "Artista", "Agente de Booking") to the
+// artist_role_bindings enum used in DB.
+function mapFunctionalToBindingRole(role: string): string {
+  const k = role
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const M: Record<string, string> = {
+    'manager personal': 'ARTIST_MANAGER',
+    'manager': 'ARTIST_MANAGER',
+    'artist manager': 'ARTIST_MANAGER',
+    'management': 'ARTIST_MANAGER',
+    'agente de booking': 'BOOKING_AGENT',
+    'booking agent': 'BOOKING_AGENT',
+    'booker': 'BOOKING_AGENT',
+    'productor': 'PRODUCER',
+    'producer': 'PRODUCER',
+    'sello': 'LABEL',
+    'label': 'LABEL',
+    'editorial': 'PUBLISHER',
+    'publisher': 'PUBLISHER',
+    'a&r': 'AR',
+    'ar': 'AR',
+    'tecnico': 'ROADIE_TECH',
+    'roadie': 'ROADIE_TECH',
+    'artista': 'ARTIST_OBSERVER',
+    'artist': 'ARTIST_OBSERVER',
+    'observador': 'ARTIST_OBSERVER',
+    'observer': 'ARTIST_OBSERVER',
+  };
+  // If already a valid enum, keep as-is
+  const ENUMS = ['ARTIST_MANAGER','ARTIST_OBSERVER','BOOKING_AGENT','PRODUCER','LABEL','PUBLISHER','AR','ROADIE_TECH'];
+  if (ENUMS.includes(role)) return role;
+  return M[k] ?? 'ARTIST_OBSERVER';
+}
 
 const BodySchema = z
   .object({
@@ -235,14 +263,34 @@ Deno.serve(async (req) => {
             'Este usuario aún no tiene cuenta. Invítalo primero al workspace o pídele que se registre.',
         });
       }
+      const bindingRole = mapFunctionalToBindingRole(role);
       const { error: bindErr } = await admin
         .from('artist_role_bindings')
-        .insert({ artist_id: scopeId, user_id: inviteeUserId, role });
+        .insert({ artist_id: scopeId, user_id: inviteeUserId, role: bindingRole });
       if (bindErr) {
         if (bindErr.code === '23505')
           return json(409, { error: 'Ya tiene un rol asignado en este artista' });
         return json(500, { error: bindErr.message });
       }
+
+      // Mirror the functional role label on contacts (single source of truth)
+      await admin
+        .from('contacts')
+        .update({ role })
+        .eq('user_id', inviteeUserId);
+
+      // If invited as the Artist himself, link artists.profile_id and bump
+      // the profile so the user can sign in to the artist portal.
+      if (mapFunctionalToBindingRole(role) === 'ARTIST_OBSERVER' && /artista|artist/i.test(role)) {
+        if (invitee?.id) {
+          await admin.from('artists').update({ profile_id: invitee.id }).eq('id', scopeId);
+          await admin
+            .from('profiles')
+            .update({ active_role: 'artist' })
+            .eq('id', invitee.id);
+        }
+      }
+
       return json(200, { ok: true, message: 'Rol de artista asignado' });
     }
 

@@ -47,6 +47,8 @@ const RAW_MAP: Record<string, ArtistBindingRole> = {
   'roadie': 'ROADIE_TECH',
   'observador': 'ARTIST_OBSERVER',
   'observer': 'ARTIST_OBSERVER',
+  'artista': 'ARTIST_OBSERVER',
+  'artist': 'ARTIST_OBSERVER',
 };
 
 function normalize(s: string): string {
