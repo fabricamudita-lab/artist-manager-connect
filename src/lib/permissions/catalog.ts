@@ -67,6 +67,11 @@ export const LEVEL_COLOR_CLASS: Record<PermissionLevel, string> = {
 type RoleDefaults = Partial<Record<ModuleKey, PermissionLevel>>;
 
 export const INDUSTRY_DEFAULTS: Record<string, RoleDefaults> = {
+  'Artista': {
+    bookings: 'view', budgets: 'view', cashflow: 'view', contracts: 'view',
+    releases: 'view', projects: 'view', drive: 'view', roadmaps: 'view',
+    solicitudes: 'edit', analytics: 'view', contacts: 'view', automations: 'none',
+  },
   'Mánager Personal': {
     bookings: 'manage', budgets: 'manage', cashflow: 'manage', contracts: 'manage',
     releases: 'manage', projects: 'manage', drive: 'manage', roadmaps: 'manage',
