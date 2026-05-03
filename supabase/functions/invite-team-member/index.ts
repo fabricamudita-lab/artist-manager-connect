@@ -28,17 +28,45 @@ const json = (status: number, body: unknown) =>
   });
 
 const WorkspaceRoleSchema = z.enum(['OWNER', 'TEAM_MANAGER']);
-const ArtistRoleSchema = z.enum([
-  'ARTIST_MANAGER',
-  'LABEL',
-  'BOOKING_AGENT',
-  'PRODUCER',
-  'PUBLISHER',
-  'AR',
-  'ROADIE_TECH',
-  'ARTIST_OBSERVER',
-]);
+const ArtistRoleSchema = z.string().min(1).max(64);
 const ProjectRoleSchema = z.enum(['EDITOR', 'COMMENTER', 'VIEWER']);
+
+// Map functional role labels (e.g. "Artista", "Agente de Booking") to the
+// artist_role_bindings enum used in DB.
+function mapFunctionalToBindingRole(role: string): string {
+  const k = role
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const M: Record<string, string> = {
+    'manager personal': 'ARTIST_MANAGER',
+    'manager': 'ARTIST_MANAGER',
+    'artist manager': 'ARTIST_MANAGER',
+    'management': 'ARTIST_MANAGER',
+    'agente de booking': 'BOOKING_AGENT',
+    'booking agent': 'BOOKING_AGENT',
+    'booker': 'BOOKING_AGENT',
+    'productor': 'PRODUCER',
+    'producer': 'PRODUCER',
+    'sello': 'LABEL',
+    'label': 'LABEL',
+    'editorial': 'PUBLISHER',
+    'publisher': 'PUBLISHER',
+    'a&r': 'AR',
+    'ar': 'AR',
+    'tecnico': 'ROADIE_TECH',
+    'roadie': 'ROADIE_TECH',
+    'artista': 'ARTIST_OBSERVER',
+    'artist': 'ARTIST_OBSERVER',
+    'observador': 'ARTIST_OBSERVER',
+    'observer': 'ARTIST_OBSERVER',
+  };
+  // If already a valid enum, keep as-is
+  const ENUMS = ['ARTIST_MANAGER','ARTIST_OBSERVER','BOOKING_AGENT','PRODUCER','LABEL','PUBLISHER','AR','ROADIE_TECH'];
+  if (ENUMS.includes(role)) return role;
+  return M[k] ?? 'ARTIST_OBSERVER';
+}
 
 const BodySchema = z
   .object({
