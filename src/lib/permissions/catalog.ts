@@ -242,6 +242,14 @@ export interface RoleDescription {
 }
 
 export const ROLE_DESCRIPTIONS: Record<string, RoleDescription> = {
+  'Artista': {
+    summary: 'El propio artista accediendo a su portal personal.',
+    responsibilities: [
+      'Consulta su propia ficha, releases, calendario y finanzas.',
+      'Puede crear solicitudes internas (riders, peticiones).',
+      'Sin permisos de gestión sobre el equipo o automatizaciones.',
+    ],
+  },
   'Mánager Personal': {
     summary: 'Responsable global de la carrera del artista. Coordina equipo, finanzas y estrategia.',
     responsibilities: [
