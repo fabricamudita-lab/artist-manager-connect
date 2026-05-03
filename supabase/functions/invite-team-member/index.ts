@@ -263,14 +263,34 @@ Deno.serve(async (req) => {
             'Este usuario aún no tiene cuenta. Invítalo primero al workspace o pídele que se registre.',
         });
       }
+      const bindingRole = mapFunctionalToBindingRole(role);
       const { error: bindErr } = await admin
         .from('artist_role_bindings')
-        .insert({ artist_id: scopeId, user_id: inviteeUserId, role });
+        .insert({ artist_id: scopeId, user_id: inviteeUserId, role: bindingRole });
       if (bindErr) {
         if (bindErr.code === '23505')
           return json(409, { error: 'Ya tiene un rol asignado en este artista' });
         return json(500, { error: bindErr.message });
       }
+
+      // Mirror the functional role label on contacts (single source of truth)
+      await admin
+        .from('contacts')
+        .update({ role })
+        .eq('user_id', inviteeUserId);
+
+      // If invited as the Artist himself, link artists.profile_id and bump
+      // the profile so the user can sign in to the artist portal.
+      if (mapFunctionalToBindingRole(role) === 'ARTIST_OBSERVER' && /artista|artist/i.test(role)) {
+        if (invitee?.id) {
+          await admin.from('artists').update({ profile_id: invitee.id }).eq('id', scopeId);
+          await admin
+            .from('profiles')
+            .update({ active_role: 'artist' })
+            .eq('id', invitee.id);
+        }
+      }
+
       return json(200, { ok: true, message: 'Rol de artista asignado' });
     }
 
