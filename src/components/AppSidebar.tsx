@@ -189,17 +189,19 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const isManagement = profile?.active_role === 'management' && !isImpersonating;
-  const { can, loading: permsLoading, isWorkspaceAdmin } = useCan();
+  const { can, loading: permsLoading, isWorkspaceAdmin, roleName } = useCan();
   const navigationGroups = getNavigationGroups(isManagement, linkedArtist?.id);
 
   // Returns true if the user lacks permission to view the module behind this URL.
   // OWNER / TEAM_MANAGER never see locks (they have full access via HubGate bypass).
   // Items without a module mapping (Dashboard, Chat, Mi Perfil, Ajustes…) are
   // never locked. While permissions are loading we don't lock anything to avoid
-  // a flash of "locked" state.
+  // a flash of "locked" state. If we couldn't resolve a functional role we
+  // also avoid locking — HubGate is the authoritative gate.
   const isItemLocked = (url: string): boolean => {
     if (!isManagement || permsLoading) return false;
     if (isWorkspaceAdmin) return false;
+    if (!roleName) return false;
     const mod = URL_TO_MODULE[url];
     if (!mod) return false;
     return !can(mod, 'view');

@@ -8599,6 +8599,10 @@ export type Database = {
           role: Database["public"]["Enums"]["artist_role"]
         }[]
       }
+      get_user_functional_role: {
+        Args: { _user_id: string; _workspace_id: string }
+        Returns: string
+      }
       get_user_project_roles: {
         Args: { _user_id: string }
         Returns: {

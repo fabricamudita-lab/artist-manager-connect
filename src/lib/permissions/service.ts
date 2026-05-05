@@ -93,17 +93,16 @@ export async function getEffectivePermissions(
     return perms;
   }
 
-  // 2) Resolver rol funcional vía contacto espejo
-  const { data: contactRow } = await supabase
-    .from('contacts')
-    .select('role')
-    .eq('field_config->>workspace_user_id', userId)
-    .eq('field_config->>mirror_type', 'workspace_member')
-    .not('role', 'is', null)
-    .limit(1)
-    .maybeSingle();
+  // 2) Resolver rol funcional vía RPC autoritativa (bypassa RLS).
+  // Esto mantiene el sidebar y HubGate sincronizados; si leyésemos
+  // contacts directamente, RLS podría ocultarnos la fila espejo del
+  // propio usuario y devolveríamos permisos vacíos por error.
+  const { data: roleData } = await supabase.rpc('get_user_functional_role', {
+    _user_id: userId,
+    _workspace_id: workspaceId,
+  });
 
-  const roleName = contactRow?.role?.trim() ?? null;
+  const roleName = (typeof roleData === 'string' ? roleData.trim() : null) || null;
   if (!roleName) {
     const perms = { ...EMPTY_PERMISSIONS };
     cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, perms, roleName: null });

@@ -78,18 +78,14 @@ export function HubGate({ module, required = 'view', children }: HubGateProps) {
       const level = (error || !levelData ? 'none' : levelData) as PermissionLevel;
       const allowed = LEVEL_RANK[level] >= LEVEL_RANK[required];
 
-      // Resolver nombre del rol funcional (para el mensaje)
+      // Resolver nombre del rol funcional (para el mensaje) vía RPC autoritativa.
       let role: string | null = null;
       if (!allowed) {
-        const { data: contactRow } = await supabase
-          .from('contacts')
-          .select('role')
-          .eq('field_config->>workspace_user_id', user.id)
-          .eq('field_config->>mirror_type', 'workspace_member')
-          .not('role', 'is', null)
-          .limit(1)
-          .maybeSingle();
-        role = contactRow?.role?.trim() ?? null;
+        const { data: roleData } = await supabase.rpc('get_user_functional_role', {
+          _user_id: user.id,
+          _workspace_id: ws.workspace_id,
+        });
+        role = (typeof roleData === 'string' ? roleData.trim() : null) || null;
       }
 
       if (tokenRef.current === token) {
